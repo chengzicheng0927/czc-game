@@ -1,7 +1,8 @@
 'use strict';
 // 真实sys/data + 合成内存存档和轻DOM，不启动服务/浏览器、不接触私人小屋。
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
-const { setup } = require('./fixtures/resident-life.cjs');
+const { setup } = require('./fixtures/content-dom.cjs');
+const spaces = require('./fixtures/free-spaces.cjs');
 const root = path.resolve(__dirname, '..'), plain = value => JSON.parse(JSON.stringify(value));
 const tests = []; const test = (name, fn) => tests.push([name, fn]);
 function harness() {
@@ -115,8 +116,9 @@ test('空结果清除全部条件并回搜索焦点；全部已发现有独立�
 test('历史发现与当前数量分开；收获卖完、家具送空、居民搬离仍点亮', () => {
   const e = harness(), { G } = e; G.store.update(state => { state.level = 30; state.garden.harvest.rose = 2; });
   assert.ok(G.sys.garden.sell('rose', 2).ok);
-  const room = G.sys.building.buildRoom(0, 0, 'bedroom').roomId; assert.ok(G.sys.decorating.place('bed_basic', room, 10, 80).ok); assert.ok(G.sys.residents.invite('lily', room).ok); assert.ok(G.sys.building.demolishRoom(room).ok);
-  G.store.update(state => { state.inventory.bed_basic = 0; });
+  const room = spaces.buildSpace(G, 0, 0, 'bedroom').roomId; assert.ok(spaces.placeItem(G, 'bed_basic', room, 10, 80).ok); assert.ok(G.sys.residents.invite('lily', room).ok); assert.ok(spaces.removeSpace(G, room).ok);
+  // 准备合法的已搬离历史存档；自由拆墙本身不会清除朋友记录。
+  G.store.update(state => { state.inventory.bed_basic = 0; state.residents.lily.movedIn = false; state.residents.lily.roomId = null; });
   for (const [kind, id] of [['crops', 'rose'], ['furniture', 'bed_basic'], ['residents', 'lily']]) {
     e.focus({ kind, status: 'collected', query: '' }); const card = e.key('entry-' + kind + '-' + id); assert.ok(card.classList.contains('is-collected')); assert.ok(card.textContent.includes('当前 0')); card.click();
     const text = e.detailBody().textContent; assert.match(text, /历史发现已发现/); assert.match(text, /现在用完或送出了/); assert.match(text, /当前.*0/); e.dialogs.at(-1).close();

@@ -1,12 +1,11 @@
 'use strict';
 // 主场景串门会话：状态机、路过不发 live 请求、敲门等待留在自己家、leave 幂等、被请离/撤下退出、
 // ui.open 拦截与放行、入口修饰键与兜底、G.state 与存档不被改动、自己房子的接待链接走 hostRoom。
-// 轻DOM + 桩：不联网、不启动浏览器、不监听端口；真实加载 live-avatars/live-peers/host-room/visit-session/neighbors。
+// 轻DOM + 传输/场景边界桩；实际schema、store、公开快照、contentSpaces与liveSpace。不联网、不监听。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..'), plain = x => JSON.parse(JSON.stringify(x)), idle = () => new Promise(r => setImmediate(r));
 const ID = '11111111-1111-4111-8111-111111111111', OTHER = '22222222-2222-4222-8222-222222222222', OWN = '33333333-3333-4333-8333-333333333333';
-const neighborHouse = { name: '邻居的家', floors: [{ slots: ['room_a', null, null] }], rooms: { room_a: { type: 'bedroom' } } };
-const ownHouse = { name: '我的小屋', floors: [{ slots: ['room_a', null, null] }], rooms: { room_a: { type: 'bedroom' } } };
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'scripts/legacy-assets.json'), 'utf8'));
 
 class Node {
   constructor(tag) { this.tag = tag; this.children = []; this.className = ''; this.textContent = ''; this.attributes = {}; this.listeners = {}; this.hidden = false; this.disabled = false; this.parent = null; }
@@ -22,7 +21,7 @@ const textOf = n => walk(n).map(x => x.textContent).join('|');
 function sandbox(options = {}) {
   const log = { live: [], toasts: [], visitSets: [], redraws: 0, requests: [], mounts: [], panelClose: 0, cloudOpen: 0 };
   const timers = [], windowEvents = {}, bus = {}, listeners = [];
-  const reply = { house: { title: '邻居的小屋', displayName: '小云', updatedAt: 'v1' }, snapshot: { state: { house: neighborHouse } } };
+  let reply;
   let hold = null, failure = options.requestFail || null;
   let liveState = { phase: 'idle', authenticated: true, houseId: null, peerId: null, revision: 0, houseVersion: '', peers: [], messages: [], error: '' };
   const emit = () => listeners.slice().forEach(fn => fn(plain(liveState)));
@@ -35,10 +34,28 @@ function sandbox(options = {}) {
   };
   const body = new Node('body');
   const document = { hidden: false, body, createElement: tag => new Node(tag) };
-  const own = { house: ownHouse, wallet: { coins: 5 }, avatar: { hair: 'bob' } };
-  const G = {
+  const context = vm.createContext({ document, console, Math, Map, Set, Array, Number, String, Promise, Date, Object, JSON, setTimeout(fn, ms) { timers.push({ fn, ms }); return timers.length; }, clearTimeout(id) { timers[id - 1] = null; } });
+  context.window = context; context.addEventListener = (n, f) => { windowEvents[n] = f; };
+  const run = file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
+  const core = new Set(['js/core/namespace.js', 'js/core/utils.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/public-house.js', 'js/core/content-spaces.js', 'js/core/live-space.js']);
+  manifest.filter(file => core.has(file) || file.startsWith('js/data/')).forEach(run);
+  for (const file of core) assert.ok(manifest.includes(file), '实际清单缺少：' + file);
+  const G = context.Game, schema = context.CottageBuilding;
+  function makeState(name, center) {
+    const value = G.store.defaultState(); value.house.name = name;
+    let building = schema.createEmptyDocument();
+    const vertices = [{ x: center - 2, z: -2 }, { x: center + 2, z: -2 }, { x: center + 2, z: 2 }, { x: center - 2, z: 2 }];
+    vertices.forEach((start, index) => { building = schema.executeCommand(building, { type: 'wall.add', wall: { id: 'visit_wall_' + index, floorId: 'floor_0', start, end: vertices[(index + 1) % 4], height: 2.8, thickness: .16, color: '#F4DDE7' } }); });
+    value.building = building; return G.store.validate(value);
+  }
+  const own = makeState('我的小屋', 0), neighbor = makeState('邻居的家', 10);
+  reply = { house: { title: '邻居的小屋', displayName: '小云', updatedAt: 'v1' }, snapshot: G.publicHouse.project(neighbor, { title: '邻居的家' }) };
+  // 只禁止写入口；materialize仍使用真实validate/defaultState，不读取任何玩家档案。
+  G.store.update = G.store.save = () => { throw new Error('串门不能写存档'); };
+  let peers = [];
+  G.livePeers = { set(next, selfId, messages) { peers = plain(next); log.scenePacket = { peers, selfId, messages: plain(messages) }; }, clear() { peers = []; }, count: () => peers.length };
+  Object.assign(G, {
     runtime: { mode: 'explore', selected: 'sel', placing: 'plc', activeRoomId: null }, state: own,
-    store: { update() { throw new Error('串门不能写存档'); }, save() { throw new Error('串门不能写存档'); } },
     bus: { on(name, fn) { (bus[name] ||= []).push(fn); } },
     cloud: {
       status: () => ({ available: !options.file, account: options.signedOut ? null : { id: 'a' }, phase: 'ready' }),
@@ -47,8 +64,7 @@ function sandbox(options = {}) {
         return { house: { ...reply.house, id: route.split('/').pop() }, snapshot: reply.snapshot };
       }
     },
-    publicHouse: { materialize(snapshot) { return { house: structuredClone(snapshot.state.house), avatar: { hair: 'pony' } }; } },
-    render: { redraw() { log.redraws++; } },
+    render: { redraw() { log.redraws++; }, getHouseView: () => ({ floor: 'floor_0', view: 'cutaway' }) },
     live, neighbors: { ownId: () => OWN },
     ui: {
       toast: t => log.toasts.push(t), cloudAccount: { open() { log.cloudOpen++; } },
@@ -62,11 +78,10 @@ function sandbox(options = {}) {
         }
       }
     }
-  };
+  });
   if (!options.noVisit) G.render.visit = { set(s) { log.visitSets.push(s); } };
   if (options.noRequest) delete G.cloud.requestPublic;
-  const context = vm.createContext({ window: { Game: G, addEventListener(n, f) { windowEvents[n] = f; } }, document, console, Math, Map, Set, Array, Number, String, Promise, Date, Object, JSON, setTimeout(fn, ms) { timers.push({ fn, ms }); return timers.length; }, clearTimeout(id) { timers[id - 1] = null; } });
-  for (const file of ['js/render/live-avatars.js', 'js/render/live-peers.js', 'js/ui/host-room.js', 'js/ui/visit-session.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
+  ['js/ui/host-room.js', 'js/ui/visit-session.js'].forEach(run);
   const bannerNode = () => walk(body).find(n => n.className.split(' ').includes('visit-banner'));
   const buttonOf = (label) => walk(body).find(n => n.tag === 'button' && n.textContent === label);
   return {
@@ -102,13 +117,13 @@ test('路过：只读快照冻结后交给渲染层，写 runtime.visit，不发
   assert.equal(b.G.visitSession.active(), true); assert.equal(b.G.visitSession.state().phase, 'passerby');
   const v = b.G.runtime.visit; assert.equal(v.active, true); assert.equal(v.houseId, ID); assert.equal(v.mode, 'passerby'); assert.equal(v.selfPeerId, null);
   assert.equal(v.title, '邻居的小屋'); assert.equal(v.ownerDisplayName, '小云');
-  assert.ok(Object.isFrozen(v.state) && Object.isFrozen(v.state.house) && Object.isFrozen(v.state.house.rooms), '访客状态深度冻结');
+  assert.ok(Object.isFrozen(v.state) && Object.isFrozen(v.state.house) && Object.isFrozen(v.state.house.rooms) && Object.isFrozen(v.state.building) && Object.isFrozen(v.state.building.walls[0].start), '访客状态与真实建筑深度冻结');
   assert.notEqual(v.state, b.G.state); assert.equal(b.G.state, own, 'G.state 仍是自己的存档对象'); assert.equal(JSON.stringify(b.G.state), b.ownJson);
   assert.equal(b.log.visitSets.length, 1); assert.equal(b.log.visitSets[0], v.state);
   assert.equal(b.G.runtime.mode, 'visit'); assert.equal(b.G.runtime.placing, null); assert.equal(b.G.runtime.selected, null); assert.equal(b.log.panelClose, 1, '收起邻居面板露出场景');
   assert.deepEqual(b.log.requests, ['/public-houses/' + ID]); assert.deepEqual(b.log.live, [], '路过不发 live 请求'); assert.equal(b.log.mounts.length, 0, '路过不挂载串门浮层');
   const text = b.bannerText(); assert.match(text, /正在小云的小屋 · 路过/); assert.match(text, /主人不会知道你来过/); assert.ok(b.buttonOf('回自己的小屋')); assert.ok(b.buttonOf('敲门串门'));
-  assert.equal(b.G.visitSession.walkTo({ x: 0, y: 100 }), false, '路过不能走动');
+  assert.equal(b.G.visitSession.walkTo({ x: 10, z: 3 }), false, '路过不能走动');
   assert.equal(b.timers.filter(Boolean).length, 1, '安排了快照核对');
   assert.equal((await b.G.visitSession.enter(ID, { mode: 'passerby' })).ok, true); assert.equal(b.log.requests.length, 1, '同一座小屋不重复读取');
 });
@@ -135,9 +150,12 @@ test('敲门等待留在自己家：active 为假、不切场景；陈旧的初�
   assert.equal(b.G.runtime.mode, 'visit'); assert.equal(b.G.runtime.placing, null); assert.equal(b.G.livePeers.count(), 2, '同屋的人交给主场景');
   assert.match(b.bannerText(), /正在小云的小屋 · 串门中/); assert.ok(b.buttonOf('回自己的小屋')); assert.equal(b.buttonOf('敲门串门').hidden, true);
   assert.equal(b.G.state, b.G.state); assert.equal(JSON.stringify(b.G.state), b.ownJson);
-  assert.equal(b.G.visitSession.walkTo({ x: 0, y: 100 }), true); const move = b.log.live.filter(c => c[0] === 'move').at(-1); assert.equal(move[1], 'yard'); assert.ok(move[2] >= 0 && move[2] <= 1);
-  assert.equal(b.G.visitSession.walkTo({ x: 9999, y: 9999 }), false, '点到场外不处理');
-  b.log.mounts[0].opts.onMove('left'); assert.ok(Math.abs(b.log.live.filter(c => c[0] === 'move').at(-1)[2] - .42) < 1e-9, '方向键步进');
+  assert.equal(b.G.visitSession.walkTo({ x: 10, z: 3 }), true); const move = b.log.live.filter(c => c[0] === 'move').at(-1); assert.equal(move[1], 'yard'); assert.ok(move[2] >= 0 && move[2] <= 1);
+  assert.equal(b.G.visitSession.walkTo({ x: 9999, z: 9999 }), false, '点到场外不处理');
+  b.log.mounts[0].opts.onMove('left');
+  const step = b.log.live.filter(c => c[0] === 'move').at(-1), target = b.G.liveSpace.position(v.state, { zone: step[1], x: step[2], y: step[3] });
+  assert.ok(Math.abs(target.x - 9.2) < 1e-9 && Math.abs(target.z) < 1e-9, '方向键使用邻居真实建筑范围步进，不能用自己的房子');
+  assert.equal(JSON.stringify(b.G.state), b.ownJson);
   b.setLive({ houseVersion: 'a'.repeat(64) }); b.setLive({ houseVersion: 'b'.repeat(64), phase: 'connected' }); await idle();
   assert.ok(b.log.requests.length >= 1);
 });
@@ -200,7 +218,7 @@ test('被请离、重连失败（error）、自己结束（left）：优雅退�
 test('快照刷新：updatedAt 变了就换新的冻结状态；读到 404（主人撤下）优雅退出；其它失败保留画面并继续核对', async () => {
   const b = sandbox(); await b.G.visitSession.enter(ID, { mode: 'passerby' }); const first = b.G.runtime.visit.state;
   b.fireTimer(); await idle(); assert.equal(b.log.visitSets.length, 1, '时间未变不重设'); assert.equal(b.timers.filter(Boolean).length, 1, '继续安排下次核对');
-  b.reply.house = { ...b.reply.house, title: '新装修的家', updatedAt: 'v2' }; b.reply.snapshot = { state: { house: { ...neighborHouse, name: '新装修的家' } } }; b.fireTimer(); await idle();
+  b.reply.house = { ...b.reply.house, title: '新装修的家', updatedAt: 'v2' }; b.reply.snapshot = plain(b.reply.snapshot); b.reply.snapshot.house.name = '新装修的家'; b.fireTimer(); await idle();
   assert.equal(b.log.visitSets.length, 2); assert.notEqual(lastSet(b), first); assert.ok(Object.isFrozen(lastSet(b))); assert.equal(b.G.runtime.visit.state, lastSet(b)); assert.equal(b.G.runtime.visit.title, '新装修的家'); assert.match(b.bannerText(), /路过/);
   b.fail({ status: 500 }); b.fireTimer(); await idle(); assert.equal(b.G.visitSession.active(), true); assert.equal(b.timers.filter(Boolean).length, 1);
   b.fail({ status: 404 }); b.fireTimer(); await idle();
@@ -280,11 +298,13 @@ test('入口 bindVisit：只拦截无修饰键左键且可用时；保留 href/t
   assert.equal(own.G.hostRoom.active(), true); assert.deepEqual(own.log.requests, [], '不经公开快照'); assert.equal(own.log.visitSets.length, 0); assert.equal(own.G.visitSession.active(), false); assert.ok(own.log.live.some(c => c[0] === 'quickJoin' && c[1] === OWN));
 });
 
-test('静态检查：index.html 里 visit-session.js 在 host-room.js 之后、样式单独登记；sea-map 用 bindVisit 保护；旧 visit.js 不依赖新模块；写存档只经 Game.store.update', async () => {
-  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8'); assert.ok(html.indexOf('js/ui/visit-session.js') > html.indexOf('js/ui/host-room.js') && html.indexOf('js/ui/host-room.js') > 0);
-  assert.ok(html.includes('css/visit-session.css')); assert.ok(fs.existsSync(path.join(root, 'css/visit-session.css')));
-  assert.ok(fs.readFileSync(path.join(root, 'js/ui/sea-map.js'), 'utf8').includes('if (G.neighbors.bindVisit) G.neighbors.bindVisit('));
-  assert.ok(!fs.readFileSync(path.join(root, 'js/ui/visit.js'), 'utf8').includes('visitSession'));
+test('实际清单按新空间依赖顺序加载，串门UI不直接联网/换私档，公开入口保留bindVisit', async () => {
+  for (const file of ['js/core/content-spaces.js', 'js/core/live-space.js', 'js/ui/live-room.js', 'js/ui/host-room.js', 'js/ui/visit-session.js']) assert.ok(manifest.includes(file), '实际清单缺少：' + file);
+  assert.ok(manifest.indexOf('js/core/live-space.js') > manifest.indexOf('js/core/content-spaces.js'));
+  assert.ok(manifest.indexOf('js/ui/host-room.js') > manifest.indexOf('js/ui/live-room.js'));
+  assert.ok(manifest.indexOf('js/ui/visit-session.js') > manifest.indexOf('js/ui/host-room.js'));
+  assert.ok(fs.readFileSync(path.join(root, 'scripts/build.mjs'), 'utf8').includes('css/visit-session.css')); assert.ok(fs.existsSync(path.join(root, 'css/visit-session.css')));
+  assert.ok(fs.readFileSync(path.join(root, 'js/ui/neighbors.js'), 'utf8').includes('bindVisit'));
   const source = fs.readFileSync(path.join(root, 'js/ui/visit-session.js'), 'utf8'); assert.ok(!/G\.state\s*=[^=]/.test(source), '不替换 G.state'); assert.ok(!/localStorage|fetch\(|XMLHttpRequest/.test(source), '会话层自己不联网');
 });
 

@@ -57,7 +57,7 @@
   G.ui.bakery = {
     start() {
       if (running || G.ui.minigames && G.ui.minigames.isRunning()) { G.ui.toast('这一局的小礼物还没收好，先把它带回家吧。'); return; }
-      if (!Object.values(G.state.house.rooms).some(room => room.type === 'kitchen')) { G.ui.toast('先建一间厨房，再来做蛋糕吧。'); return; }
+      if (!G.contentSpaces.list(G.state).some(room => G.contentSpaces.isType(room, 'kitchen'))) { G.ui.toast('先建一间厨房，再来做蛋糕吧。'); return; }
       const config = G.data.balance.bakery;
       const duration = config.duration || 60;
       const customers = G.data.minigames.find(game => game.id === 'bakery');

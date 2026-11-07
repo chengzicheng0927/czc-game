@@ -14,6 +14,8 @@ const root = path.resolve(__dirname, '..'), temporary = fs.mkdtempSync(path.join
 const source = path.join(temporary, 'source'), dataDir = path.join(temporary, 'data'), origin = 'http://127.0.0.1:4173', prefix = '/cottage';
 const sourceHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const assets = [...new Set([...sourceHtml.matchAll(/(?:src|href)="((?:js|css)\/[^"?]+)\?v=[a-f0-9]+"/g)].map(match => match[1]))];
+assert.ok(assets.includes('js/building/schema.js'), '实际发布入口必须带上新建筑校验器');
+assert.ok(assets.includes('js/core/content-spaces.js'), '实际发布入口必须带上真实空间投影');
 function write(file, value) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, value); }
 write(path.join(source, 'index.html'), sourceHtml);
 for (const relative of assets) write(path.join(source, relative), fs.readFileSync(path.join(root, relative)));
@@ -94,9 +96,14 @@ test('Origin、JSON、CSRF、账号绑定及输入错误均拒绝，避免cookie
 });
 test('首份CAS与跨设备读取完整JSON，账号间严格隔离', async () => {
   save = api.currentValidator().defaultSave(); save.house.name = '草莓自己的小屋';
+  assert.equal(save.building.schema, 2); assert.equal(save.building.walls.length, 0);
+  const floorId = save.building.floors[0].id;
+  save.building.walls.push({ id: 'alice_free_wall', floorId, start: { x: -2, z: -1 }, end: { x: 3, z: 2 }, height: 2.8, thickness: .16, color: '#F4DDE7' });
+  save.building.revision++;
   saved = await put(alice, save, 'first_write_01', null);
   assert.equal(saved.status, 200); assert.equal(saved.body.revision, 1); assert.equal(saved.body.serverEpoch, firstEpoch); assert.match(saved.headers.etag, /^".+:1:[a-f0-9]{64}"$/);
   const remote = await request('/save', { actor: aliceB }); assert.equal(remote.status, 200); assert.equal(remote.body.save.house.name, save.house.name); assert.equal(remote.headers.etag, saved.headers.etag);
+  assert.deepEqual(remote.body.save.building, save.building, '跨设备读取保留新建筑几何，不从旧house再生成');
   assert.equal((await request('/save', { actor: bob })).status, 404);
   assert.equal((await request('/save/versions/1', { actor: bob })).status, 404);
   const bobSave = api.currentValidator().defaultSave(); bobSave.house.name = '蓝莓自己的小屋';
@@ -158,8 +165,8 @@ test('数据库重启保持会话和完整档，备份是真实一致性SQLite�
 test('retained纯界面版本可同步，数据合同不同或未知旧build被拒绝', async () => {
   assert.equal((await request('/session', { headers: { 'x-mc-protocol': '2' } })).status, 426);
   assert.equal((await request('/session', { release: 'r-' + '0'.repeat(64) })).status, 426);
-  const style = Buffer.concat([fs.readFileSync(path.join(source, 'css/style.css')), Buffer.from('\n/* UI-only retained build */\n')]); write(path.join(source, 'css/style.css'), style);
-  let html = sourceHtml.replace(/css\/style\.css\?v=[a-f0-9]{10}/, 'css/style.css?v=' + hash(style).slice(0, 10)); write(path.join(source, 'index.html'), html);
+  const style = Buffer.concat([fs.readFileSync(path.join(source, 'css/building.css')), Buffer.from('\n/* UI-only retained build */\n')]); write(path.join(source, 'css/building.css'), style);
+  let html = sourceHtml.replace(/css\/building\.css\?v=[a-f0-9]{10}/, 'css/building.css?v=' + hash(style).slice(0, 10)); write(path.join(source, 'index.html'), html);
   const uiBuild = prepareRelease({ sourceRoot: source, dataDir, basePath: prefix }); assert.equal((await request('/session', { release: uiBuild.id })).status, 200);
   const changed = Buffer.concat([fs.readFileSync(path.join(source, 'js/core/store.js')), Buffer.from('\n/* changed contract */\n')]); write(path.join(source, 'js/core/store.js'), changed);
   html = html.replace(/js\/core\/store\.js\?v=[a-f0-9]{10}/, 'js/core/store.js?v=' + hash(changed).slice(0, 10)); write(path.join(source, 'index.html'), html);

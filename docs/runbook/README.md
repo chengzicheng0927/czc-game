@@ -8,6 +8,14 @@
 
 2026-10-30照片工作台与回忆菜单布局更新已接入当前4173预览，最新入口为[本地游戏](http://127.0.0.1:4173/?v=b4b0c2d8)。工作台最高1200px并按容器双栏/单列适配，回忆入口继承常规侧栏宽度；源入口须连同shell.css、photography.css及photo-editor.js指纹一起更新。实际窗口与定向验证见[布局记录](../photo-workbench-layout-20261030.md)。本次仅叠加这三份资源，服务未重启；不需清理存档或缓存，旧版本保留。
 
+## 自由建筑分支本地验收（2026-11-07）
+
+当前开发分支为`refactor/free-building`。先执行`npm ci`与`npm run build`生成锁定引擎的同源静态产物；规则与服务检查用`npm test`串行运行。没有额外前端开发服务器。
+
+继续复用`127.0.0.1:4173`现有预览进程；默认活动程序已回退到重构前的`r-d6740d7e…`，未修改数据库或私人存档。开发审查使用`node server/cli.cjs prepare --data-dir .server-data`生成未激活的不可变版本，再在同一浏览器访问`/offline-shell/<输出的releaseId>?review=1`。该参数使用独立本机存档且跳过云同步、租约与Service Worker；普通旧版本不认识此隔离参数，不可把它用于旧根页后就认为已隔离。不要为检查另开端口、服务或浏览器进程。
+
+建造模式操作经过真实schema2命令，原商店/衣橱/内容面板继续保留。最终本地检查版本为`r-da2f94dc55e302e31c41d6a2a55a1e153b9f47e61220c596b100e750d2291f81`（129文件，未激活），[打开独立体验](http://127.0.0.1:4173/offline-shell/r-da2f94dc55e302e31c41d6a2a55a1e153b9f47e61220c596b100e750d2291f81?review=1)。浏览器证据与边界见[自由建筑说明](../free-building.md)及TODO的MC-082；源码与规则检查通过不代表原型视觉已获用户认可。下文为既有版本的运行历史，生产仍不在本次授权范围。
+
 ## 源码版本管理
 
 源码仓库为 [chengzicheng0927/czc-game](https://github.com/chengzicheng0927/czc-game)，主分支 `main`。提交前在项目根目录检查：

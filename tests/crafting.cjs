@@ -1,8 +1,9 @@
 'use strict';
 // 真实加工规则、完整存档与可拒写的本机存储；不创建页面、服务或计时进程。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
+const spaces = require('./fixtures/free-spaces.cjs');
 const root = path.resolve(__dirname, '..');
-const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/furniture-expansion.js', 'js/data/residents-expansion.js', 'js/data/progression.js', 'js/data/achievements.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/data/exterior.js', 'js/data/yard.js', 'js/data/minigames.js', 'js/data/creative.js', 'js/data/gifts.js', 'js/data/observatory.js', 'js/data/deals.js', 'js/data/login.js', 'js/data/crafting.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/systems.js', 'js/systems/garden.js', 'js/systems/crafting.js'];
+const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/furniture-expansion.js', 'js/data/residents-expansion.js', 'js/data/progression.js', 'js/data/achievements.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/data/exterior.js', 'js/data/yard.js', 'js/data/minigames.js', 'js/data/creative.js', 'js/data/gifts.js', 'js/data/observatory.js', 'js/data/deals.js', 'js/data/login.js', 'js/data/crafting.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js', 'js/systems/systems.js', 'js/systems/garden.js', 'js/systems/crafting.js'];
 const plain = value => JSON.parse(JSON.stringify(value));
 function setup(saved) {
   const storage = new Map(); let rejectWrites = false, clock = new Date(2026, 9, 28, 12).getTime(); const RealDate = Date;
@@ -12,14 +13,14 @@ function setup(saved) {
   context.localStorage = { getItem: key => storage.get(key) || null, setItem(key, value) { if (rejectWrites) throw new Error('QuotaExceededError'); storage.set(key, value); } };
   for (const file of files) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   const G = context.Game, parse = value => vm.runInContext('JSON.parse(' + JSON.stringify(JSON.stringify(value)) + ')', context);
-  G.store.init(saved ? parse(saved) : undefined); G.sys.init();
+  spaces.register(G, context.CottageBuilding); G.store.init(saved ? parse(saved) : undefined); G.sys.init();
   return { G, parse, storage, writeFails(value) { rejectWrites = value; }, advance(ms = 1000) { clock += ms; } };
 }
 function ready(options = {}) {
   const env = setup(), { G } = env, level = options.level || 21;
   // 等级/材料是显式规则夹具，不声称自然完成了播种和21级成长。
   G.store.update(state => { state.level = level; state.wallet.coin = 50000; for (const crop of G.data.crops) state.garden.harvest[crop.id] = 777; });
-  if (options.workshop !== false) { const built = G.sys.building.buildRoom(0, 0, 'workshop'); assert.ok(built.ok, built.message); env.workshop = built.roomId; }
+  if (options.workshop !== false) { const built = spaces.buildSpace(G, 0, 0, 'workshop'); assert.ok(built.ok, built.message); env.workshop = built.roomId; }
   return env;
 }
 function make(G, id, count = 1) { const preview = G.sys.crafting.status(id, count); return G.sys.crafting.craft(id, count, preview.quote); }
@@ -39,8 +40,8 @@ test('装饰Lv6、樱花前院Lv11、高级蛋糕Lv21分开开放', () => {
 });
 test('高级蛋糕除等级外还需真实甜品工坊，改用途后制作被阻止但历史保留', () => {
   const { G } = ready({ workshop: false }); const blocked = G.sys.crafting.status('strawberry_deluxe'); assert.ok(blocked.unlocked && !blocked.hasRoom && !blocked.canCraft); assert.match(blocked.reason, /甜品工坊/);
-  unchanged(G, () => G.sys.crafting.craft('strawberry_deluxe', 1, blocked.quote)); const room = G.sys.building.buildRoom(0, 0, 'workshop'); assert.ok(room.ok); assert.ok(make(G, 'strawberry_deluxe').ok);
-  assert.ok(G.sys.building.changeRoomType(room.roomId, 'living').ok); assert.equal(G.sys.crafting.status('strawberry_deluxe').canCraft, false); assert.equal(G.state.crafting.counts.strawberry_deluxe, 1); assert.doesNotThrow(() => G.store.validate(G.state));
+  unchanged(G, () => G.sys.crafting.craft('strawberry_deluxe', 1, blocked.quote)); const room = spaces.buildSpace(G, 0, 0, 'workshop'); assert.ok(room.ok); assert.ok(make(G, 'strawberry_deluxe').ok);
+  assert.ok(spaces.removeSpace(G, room.roomId).ok); assert.equal(G.sys.crafting.status('strawberry_deluxe').canCraft, false); assert.equal(G.state.crafting.counts.strawberry_deluxe, 1); assert.doesNotThrow(() => G.store.validate(G.state));
 });
 test('五配方真实消耗收获、成品入包并点亮收藏，一次事件且不扣币发经验或刷订单', () => {
   const { G } = ready(), before = plain(G.state), events = []; G.bus.on('crafting:made', event => events.push(event));
@@ -88,7 +89,7 @@ test('材料、输出、等级、工坊、累计制作、档身份变化均废�
     if (kind === 'material') G.store.update(state => { state.garden.harvest.strawberry++; });
     if (kind === 'output') G.store.update(state => { state.inventory.cake_strawberry_deluxe = 1; });
     if (kind === 'level') G.store.update(state => { state.level = 22; });
-    if (kind === 'workshop') assert.ok(G.sys.building.buildRoom(0, 1, 'workshop').ok);
+    if (kind === 'workshop') assert.ok(spaces.buildSpace(G, 0, 1, 'workshop').ok);
     if (kind === 'counts') assert.ok(make(G, 'pumpkin_lantern').ok);
     if (kind === 'identity') G.store.update(state => { state.profile.createdAt++; });
     unchanged(G, () => G.sys.crafting.craft('strawberry_deluxe', 1, preview.quote));

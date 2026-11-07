@@ -1,15 +1,17 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..'), key = 'marshmallow_cottage_save_v1';
-const core = new Set(['js/core/namespace.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js']);
-const files = [...fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map(m => m[1].split('?')[0]).filter(file => core.has(file) || file.startsWith('js/data/'));
+const core = new Set(['js/core/namespace.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js']);
+const files = JSON.parse(fs.readFileSync(path.join(root, 'scripts/legacy-assets.json'), 'utf8')).filter(file => core.has(file) || file.startsWith('js/data/'));
+for (const file of core) assert.ok(files.includes(file), '实际清单缺少存档依赖：' + file);
+assert.ok(files.indexOf('js/building/schema.js') < files.indexOf('js/core/store.js'), '建筑schema须在store之前加载');
 function setup() {
   const disk = new Map(), events = []; let denied = false;
   const ctx = vm.createContext({ console, Blob, URL, document: { hidden: false, addEventListener() {} }, setTimeout() { return 1; }, clearTimeout() {}, setInterval() { return 1; }, clearInterval() {} });
   ctx.window = ctx; ctx.addEventListener = () => {}; ctx.localStorage = { getItem: k => disk.get(k) || null, setItem(k, value) { if (denied) throw new Error('QuotaExceededError'); disk.set(k, value); } };
   files.forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), ctx, { filename: file }));
   const G = ctx.Game; G.store.init(); G.sys.init = () => {}; G.bus.on('save:committed', e => events.push(e));
-  return { G, disk, events, deny: value => { denied = value; } };
+  return { G, context: ctx, disk, events, deny: value => { denied = value; } };
 }
 let groups = 0;
 function check(name, fn) { fn(); groups++; console.log('✓ ' + name); }
@@ -44,5 +46,18 @@ check('guard抛错也不会落盘，撤销guard后旧离线保存能力继续可
   const { G } = setup(); G.store.setWriteGuard(() => { throw new Error('无法确认归属'); });
   assert.equal(G.save.flush(), false); assert.throws(() => G.store.update(s => { s.wallet.coin++; }), /无法确认/);
   G.store.setWriteGuard(null); G.store.update(s => { s.wallet.coin++; }); assert.ok(G.save.flush()); assert.equal(G.save.snapshot().state.wallet.coin, 301);
+});
+check('新建筑的米制几何进入同一真实保存事件，拒写时不发布建筑或云同步快照', () => {
+  const env = setup(), { G } = env;
+  const before = JSON.stringify(G.state.building);
+  const addWall = state => {
+    state.building = env.context.CottageBuilding.executeCommand(state.building, { type: 'wall.add', wall: { id: 'cloud_geometry_wall', floorId: state.building.floors[0].id, start: { x: -2, z: 1 }, end: { x: 3, z: 2 }, height: 2.8, thickness: .16, color: '#F4DDE7' } });
+  };
+  env.deny(true); assert.throws(() => G.store.update(addWall, { persist: true }));
+  assert.equal(JSON.stringify(G.state.building), before); assert.equal(env.events.length, 0);
+  env.deny(false); G.store.update(addWall, { persist: true });
+  const event = env.events.at(-1), disk = JSON.parse(env.disk.get(key));
+  assert.equal(event.state.building.schema, 2); assert.equal(event.state.building.walls[0].end.z, 2);
+  assert.deepEqual(disk.building, JSON.parse(JSON.stringify(G.state.building)));
 });
 console.log(groups + ' 组本机保存事件与多页写入保护检查通过。');

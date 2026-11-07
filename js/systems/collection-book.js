@@ -14,7 +14,7 @@
     return kind === 'outfits' && G.state.avatar.owned[id] === true;
   }
   function furnitureCount(id) {
-    return (G.state.inventory[id] || 0) + G.store.decorRooms(G.state).reduce((sum, [, room]) => sum + room.items.filter(item => item.defId === id).length, 0) + G.state.house.yard.items.filter(item => item.defId === id).length;
+    return (G.state.inventory[id] || 0) + G.contentSpaces.items(G.state).filter(item => item.defId === id).length;
   }
   function regularIds(id) {
     if (!themeIds.includes(id)) return [];

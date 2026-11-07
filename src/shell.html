@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FFF8FB">
+  <meta name="description" content="在云海上的棉花糖岛，建造小屋、装饰房间，和可爱的小动物成为朋友。可离线游玩，使用账号同步每个孩子的小屋进度。">
+  <title>棉花糖小屋 · 今天也住在喜欢里</title>
+  <!-- STYLES -->
+</head>
+<body>
+  <!-- THESIS: 住在可探索的云岛里；真实家园是主角，操作沿场景边缘展开。
+  OWN-WORLD: 原型的悬浮HUD、左侧快捷玩法、奶油纸面板和软陶底座，保留莓红与糖霜粉。
+  STORY: 看自己的小屋，建造装饰、照顾居民与花园，主动去邻居家；所有内容来自真实游戏。
+  FIRST VIEWPORT: 顶部轻量状态，左上地点、左侧五个快捷入口，右侧纸面板，底部八项导航；手机先完整呈现场景再阅读面板。
+  FORM: 按已确认prototype构图做code-led移植，不含审核分页器；3D由独立渲染模块提供。
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md -->
+  <a class="skip-link" href="#dock">跳到游戏操作</a>
+  <div id="app">
+    <header id="hud" class="hud">
+      <div class="brand">
+        <span class="brand-cloud" aria-hidden="true"><i></i><i></i></span>
+        <div class="brand-copy"><strong>棉花糖小屋</strong><span>今天也住在喜欢里</span></div>
+      </div>
+      <button id="player-avatar-badge" class="player-avatar-badge" type="button" aria-label="查看我的专属形象与装扮" title="点击查看我的形象与换装">
+        <div class="avatar-badge-frame">
+          <canvas id="hud-avatar-canvas" class="hud-avatar-canvas" width="60" height="60" aria-hidden="true"></canvas>
+          <span class="avatar-badge-sparkle" aria-hidden="true">✨</span>
+        </div>
+        <div class="avatar-badge-info">
+          <span class="avatar-badge-tag">我的形象</span>
+          <strong id="hud-avatar-name" class="avatar-badge-name">草莓团团</strong>
+        </div>
+      </button>
+      <div class="house-progress">
+        <div class="house-heading"><button id="house-name" title="给小屋起名字">我的小屋 <span aria-hidden="true">✎</span></button><span id="level-label">Lv.1</span></div>
+        <div class="xp-track" role="progressbar" aria-label="小屋升级经验" aria-valuemin="0" aria-valuemax="60" aria-valuenow="0"><i id="xp-fill"></i></div>
+        <span id="xp-label" class="xp-label">0 / 60</span>
+      </div>
+      <div class="wallet" aria-label="我的糖果和爱心">
+        <div class="currency coin"><span class="currency-icon" aria-hidden="true">🍬</span><div><span class="currency-name">糖果币</span><strong id="coin-count">300</strong></div></div>
+        <div class="currency heart"><span class="currency-icon" aria-hidden="true">♡</span><div><span class="currency-name">爱心</span><strong id="heart-count">0</strong></div></div>
+      </div>
+      <div class="header-actions"><span id="save-status" role="status">在本机保存</span><button id="sound-toggle" class="icon-button" aria-label="开启声音" title="开启声音">♪</button><button id="settings-button" class="icon-button" aria-label="打开设置" title="设置">⚙</button></div>
+    </header>
+
+    <main id="world" aria-label="棉花糖岛游戏场景" tabindex="-1">
+      <canvas id="scene" aria-label="可以拖动和缩放的小屋场景。也可使用下方操作面板建房和摆放家具。">浏览器需要支持 Canvas 才能显示小屋。</canvas>
+      <div id="shell-location" class="shell-location"><h1 id="location-title">我的云上小屋</h1><p id="location-copy">把喜欢的日子，慢慢装进小屋。</p><div class="island-note" aria-label="岛上天气"><span class="sun-icon" aria-hidden="true">☀</span><div><strong>棉花糖岛</strong><span id="island-date">云朵软软，心情暖暖</span></div></div></div>
+      <nav id="quick-nav" class="quick-nav" aria-label="快捷玩法">
+        <button class="quick-button quick-button-avatar" data-panel="avatar" data-icon="shirt" aria-label="我的形象与装扮" title="查看我的专属形象与装扮"><span>我的形象</span><i class="avatar-nav-sparkle" aria-hidden="true">✨</i></button>
+        <button class="quick-button" data-panel="residents" data-icon="people" aria-label="居民"><span>居民</span></button>
+        <button class="quick-button" data-panel="quests" data-icon="book" aria-label="成长册"><span>成长</span></button>
+        <button id="quest-button" class="quick-button" data-icon="mail" aria-label="查看小屋心愿与任务" title="小屋心愿与任务"><span>任务</span></button>
+        <button class="quick-button" data-shell-action="photography" data-icon="camera" aria-label="小屋摄影"><span>摄影</span></button>
+        <button class="quick-button" data-shell-action="calendar" data-icon="gift" aria-label="节日与生日活动"><span>活动</span></button>
+      </nav>
+      <p id="scene-hint" role="status">鼠标或单指拖动平移 · 滚轮缩放</p>
+      <div class="camera-controls" aria-label="场景镜头">
+        <button id="camera-orbit" class="camera-mode-toggle" type="button" aria-label="转动视角" aria-pressed="false" title="视角切换尚未就绪" disabled>转动视角</button>
+        <button id="zoom-player" class="zoom-player-btn" aria-label="特写看自己" title="特写看自己的形象">👀</button>
+        <button id="zoom-in" aria-label="放大场景" title="放大">＋</button><button id="zoom-out" aria-label="缩小场景" title="缩小">−</button><button id="zoom-fit" aria-label="恢复家园视角" title="恢复家园视角">⌂</button><button id="zoom-yard" aria-label="放大查看前院" title="看前院">🌿</button><button id="zoom-sea" aria-label="看看远方的邻居云朵" title="看邻居云朵" hidden>☁</button>
+      </div>
+      <button id="guide-button" class="guide-button" aria-label="和糯米聊天，查看玩法提示"><span class="guide-cloud" aria-hidden="true"><i></i><i></i><b>⌣</b></span><span class="guide-copy"><strong>糯米陪你</strong><span>一起把小屋变成家</span></span></button>
+      <div id="selection-tools"></div>
+    </main>
+
+    <button id="home-paper-toggle" class="home-paper-toggle-pill" type="button" aria-label="展开楼层与今日心愿" title="展开楼层与今日心愿">
+      <span aria-hidden="true">📜</span>
+      <span>楼层与心愿</span>
+    </button>
+
+    <aside id="home-paper" class="home-paper" aria-labelledby="home-paper-title">
+      <button id="home-paper-close" class="home-paper-close-btn" type="button" aria-label="收起面板，查看全景小屋" title="收起面板">✕</button>
+      <div id="house-view-controls"></div>
+      <div id="home-my-avatar" class="home-my-avatar-card" aria-label="我的专属形象">
+        <div class="home-my-avatar-art-wrap">
+          <canvas id="home-my-avatar-canvas" class="home-my-avatar-canvas" width="108" height="128" aria-label="我的形象立绘"></canvas>
+          <span class="home-my-avatar-badge-live">3D 萌物</span>
+        </div>
+        <div class="home-my-avatar-meta">
+          <div class="home-my-avatar-header">
+            <span class="home-my-avatar-tag">主角形象</span>
+            <strong id="home-my-avatar-name" class="home-my-avatar-title">草莓团团</strong>
+          </div>
+          <p id="home-my-avatar-desc" class="home-my-avatar-desc">可爱元气满满 · 360°旋转换装大舞台随时开启</p>
+          <div class="home-my-avatar-actions">
+            <button class="ui-button ui-button-primary home-avatar-btn-view" data-panel="avatar" type="button">✨ 细看全身形象</button>
+            <button class="ui-button ui-button-soft home-avatar-btn-pick" id="home-avatar-quick-pick" type="button">换预设</button>
+          </div>
+        </div>
+      </div>
+      <div class="home-paper-heading"><h2 id="home-paper-title">今天的小心愿</h2><span data-icon="mail" aria-hidden="true"></span></div><p class="home-paper-intro">从一件喜欢的小事开始。</p><div id="home-wishes"></div><div id="home-residents" class="home-residents"></div><button class="ui-button ui-button-primary" data-panel="quests">打开成长册</button><div class="home-paper-links"><button data-panel="login">七日心意</button><button data-shell-action="calendar">节日来信</button><button data-panel="settings">设置与存档</button></div></aside>
+
+    <section id="panel" class="hidden" aria-labelledby="panel-title" aria-hidden="true">
+      <div class="panel-handle" aria-hidden="true"></div>
+      <div class="panel-heading"><div><h2 id="panel-title">装饰小屋</h2><p id="panel-subtitle"></p></div><button id="panel-close" class="icon-button" aria-label="收起面板">×</button></div>
+      <div id="panel-body"></div>
+    </section>
+
+    <footer class="dock-wrap"><nav id="dock" aria-label="游戏操作">
+      <button data-shell-action="home" data-nav="home" class="is-active" aria-pressed="true"><span class="nav-icon" data-icon="home" aria-hidden="true"></span><span>我的小屋</span></button>
+      <button data-panel="decor" data-nav="decorate"><span class="nav-icon" data-icon="sofa" aria-hidden="true"></span><span>建造装饰</span></button>
+      <button data-panel="neighbors" data-nav="neighbors"><span class="nav-icon" data-icon="map" aria-hidden="true"></span><span>去串门</span></button>
+      <button data-panel="residents" data-nav="residents"><span class="nav-icon" data-icon="people" aria-hidden="true"></span><span>居民</span></button>
+      <button data-panel="play" data-nav="play"><span class="nav-icon" data-icon="game" aria-hidden="true"></span><span>游乐场</span></button>
+      <button data-panel="garden" data-nav="garden"><span class="nav-icon" data-icon="leaf" aria-hidden="true"></span><span>花园</span></button>
+      <button data-panel="shop" data-nav="shop"><span class="nav-icon" data-icon="bag" aria-hidden="true"></span><span>杂货铺</span></button>
+      <button data-panel="memories" data-nav="memories"><span class="nav-icon" data-icon="book" aria-hidden="true"></span><span>回忆</span></button>
+    </nav><span class="dock-caption" aria-hidden="true">小小的屋子，大大的喜欢</span></footer>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast-root" role="status" aria-live="polite" aria-atomic="false"></div>
+  <noscript><p class="noscript">请开启浏览器 JavaScript，和糯米一起建造小屋。</p></noscript>
+  <!-- SCRIPTS -->
+</body>
+</html>

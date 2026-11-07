@@ -166,6 +166,7 @@
       // 关闭弹层（走各自的关闭按钮以触发 onClose），再关面板与 home-paper。
       document.querySelectorAll('#modal-root .modal-card [aria-label="关闭对话框"]').forEach(node => node.click());
       ui.panel.close();
+      G.buildingEditor?.cancelPlacement?.();
       const app = $('app');
       if (app) { app.classList.remove('home-paper-open'); app.classList.remove('has-open-panel'); }
       G.runtime.mode = 'explore'; G.runtime.placing = null; G.runtime.selected = null; G.runtime.activeRoomId = null;

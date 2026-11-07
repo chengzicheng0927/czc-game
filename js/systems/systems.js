@@ -1,6 +1,6 @@
 (function (Game) {
   'use strict';
-  var B = Game.data.balance, D = Game.data, U = Game.utils, undoStack = [], initialized = false, buying = false, gifting = false;
+  var B = Game.data.balance, D = Game.data, U = Game.utils, initialized = false, buying = false, gifting = false, relocating = false;
   var own = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
   var ok = function (message, extra) { return Object.assign({ ok: true, message: message || '' }, extra || {}); };
   var fail = function (message) { return { ok: false, message: message }; };
@@ -14,8 +14,6 @@
     s.exp += Math.round(value); var levels = [];
     while (s.level < B.maxLevel && s.exp >= needExp(s.level)) { s.exp -= needExp(s.level); s.level += 1; levels.push(s.level); }
     if (s.level === B.maxLevel) s.exp = Math.min(s.exp, needExp(B.maxLevel));
-    var cap = capacity(s.level);
-    while (s.house.floors.length < cap.floors) s.house.floors.push({ slots: [null, null, null] });
     levels.forEach(function (level) { memory(s, '小屋升到 Lv.' + level + '，新的灵感正在云海里发芽。'); });
     return levels;
   }
@@ -24,10 +22,11 @@
     s.quests.stats[name] = (s.quests.stats[name] || 0) + (amount || 1);
     s.quests.daily.list.forEach(function (entry) { var def = D.dailyQuests.find(function (q) { return q.id === entry.id; }); if (def && def.metric === name) { entry.progress += amount || 1; entry.done = entry.progress >= def.target; } });
   }
-  function capacity(lv) { var result = B.floorUnlocks[0]; B.floorUnlocks.forEach(function (c) { if ((lv || Game.state.level) >= c.level) result = c; }); return { floors: result.floors, slots: result.slots }; }
-  function collectItems(s, room) { room.items.forEach(function (i) { if (!D.furnitureById[i.defId].customArt) s.inventory[i.defId] = (s.inventory[i.defId] || 0) + 1; }); room.items = []; }
-  function unhouse(s, roomId) { Object.keys(s.residents).forEach(function (id) { var r = s.residents[id]; if (r.roomId === roomId) { r.movedIn = false; r.roomId = null; } }); }
-  function clearUndo() { undoStack = []; }
+  function contentRooms(state) { return Game.contentSpaces.rooms(state || Game.state); }
+  function contentRoom(id, state) { return Game.contentSpaces.get(id, state || Game.state); }
+  function isRoomType(room, type) { return Game.contentSpaces.isType(room, type); }
+  // 生活模块保留此生命周期钩子；自由建筑撤销由新编辑器独立管理。
+  function clearUndo() {}
   Game.sys.economy = {
     needExp: needExp,
     // 供需要先保存再反馈的组合事务使用；只修改传入草稿，不发事件。
@@ -57,186 +56,26 @@
       emitLevels(levels); Game.bus.emit('reward:received', { coin: Math.round(coin), exp: Math.round(exp), reason: reason }); return ok('甜甜的奖励收好啦！');
     }
   };
-  Game.sys.building = {
-    capacity: function () { return capacity(); },
-    buildRoom: function (floorIdx, slotIdx, type) {
-      var def = roomDef(type), cap = capacity();
-      if (!def) return fail('请选择一种房间。');
-      if (!Number.isInteger(floorIdx) || !Number.isInteger(slotIdx) || floorIdx < 0 || slotIdx < 0 || floorIdx >= cap.floors || slotIdx >= cap.slots) return fail('再升一点等级，就有新的云朵空间啦。');
-      if (Game.state.house.floors[floorIdx] && Game.state.house.floors[floorIdx].slots[slotIdx]) return fail('这里已经有房间啦。');
-      if (Game.state.level < def.unlockLv) return fail('Lv.' + def.unlockLv + ' 解锁' + def.name + '。');
-      var free = type === 'bedroom' && Game.state.quests.stats.roomsBuilt === 0, cost = free ? 0 : def.price;
-      if (Game.state.wallet.coin < cost) return fail('还差 ' + Math.ceil(cost - Game.state.wallet.coin) + ' 颗糖果。');
-      var id = U.uid('r'), levels;
-      Game.store.update(function (s) {
-        while (s.house.floors.length <= floorIdx) s.house.floors.push({ slots: [null, null, null] });
-        s.wallet.coin -= cost; s.house.floors[floorIdx].slots[slotIdx] = id;
-        s.house.rooms[id] = { type: type, wallpaper: { pattern: 'dots', color: '#FFE0E9', color2: '#FFFFFF' }, floor: { pattern: 'wood', color: '#E8C39E' }, light: 'warm', items: [], paidPrice: cost };
-        stats(s, 'roomsBuilt'); levels = expInto(s, B.roomExp); memory(s, '第 ' + (floorIdx + 1) + ' 层亮起一间新' + def.name + '。' + (free ? '糯米送来了第一块砖。' : ''));
-      }); clearUndo(); emitLevels(levels); Game.bus.emit('room:built', { roomId: id, floorIdx: floorIdx, slotIdx: slotIdx, type: type }); return ok('新房间准备好啦！', { roomId: id });
-    },
-    demolishRoom: function (id) {
-      var room = Game.state.house.rooms[id]; if (!room) return fail(D.messages.noRoom);
-      var refund = room.paidPrice;
-      Game.store.update(function (s) { collectItems(s, s.house.rooms[id]); unhouse(s, id); s.wallet.coin += refund; s.house.floors.forEach(function (floor) { floor.slots = floor.slots.map(function (r) { return r === id ? null : r; }); }); delete s.house.rooms[id]; memory(s, '为新的创意腾出空间，家具都好好收进背包了。'); });
-      clearUndo(); if (Game.runtime.activeRoomId === id) Game.runtime.activeRoomId = null; if (Game.runtime.selected && Game.runtime.selected.roomId === id) Game.runtime.selected = null;
-      Game.bus.emit('room:removed', { roomId: id }); return ok('家具已收好，退回 ' + refund + ' 颗糖果。');
-    },
-    changeRoomType: function (id, type) {
-      var room = Game.state.house.rooms[id], def = roomDef(type); if (!room || !def) return fail(D.messages.noRoom);
-      if (room.type === type) return ok('已经是' + def.name + '啦。');
-      if (Game.state.level < def.unlockLv) return fail('Lv.' + def.unlockLv + ' 解锁' + def.name + '。');
-      var cost = def.price - room.paidPrice; if (Game.state.wallet.coin < cost) return fail('还差 ' + Math.ceil(cost - Game.state.wallet.coin) + ' 颗糖果。');
-      Game.store.update(function (s) { var r = s.house.rooms[id]; collectItems(s, r); unhouse(s, id); s.wallet.coin -= cost; r.type = type; r.paidPrice = def.price; memory(s, '把房间改成' + def.name + '，又多了一个新点子。'); });
-      clearUndo(); Game.runtime.selected = null; Game.bus.emit('room:changed', { roomId: id, type: type }); return ok('房间换好啦，原来的家具已放回背包。');
-    }
-  };
-  function decorRoom(state, id) { return Game.store.decorRoom(state, id); }
-  function atticSpace(id) { return id === Game.store.atticRoomId; }
-  function itemIn(roomId, uid) { var room = decorRoom(Game.state, roomId); return room && room.items.find(function (i) { return i.uid === uid; }); }
-  function positioned(def, room, x, y, parentId, movingUid) {
-    var result = { x: U.clamp(x, 0, B.roomWidth - def.w), y: y, parent: null };
-    if (def.place === 'floor') result.y = B.floorLine - def.h;
-    else if (def.place === 'ceiling') result.y = B.ceilingLine;
-    else if (def.place === 'wall') result.y = U.clamp(y, B.ceilingLine, B.wallBottom - def.h);
-    else if (def.place === 'table') {
-      var candidates = room.items.filter(function (i) { return i.uid !== movingUid && !i.parent && !!D.furnitureById[i.defId].surface; });
-      var parent = parentId ? candidates.find(function (i) { return i.uid === parentId; }) : null;
-      if (!parentId) {
-        candidates.sort(function (a, b) { return b.z - a.z; });
-        parent = candidates.find(function (i) { var surf = D.furnitureById[i.defId].surface; return result.x + def.w / 2 >= i.x + surf.x0 && result.x + def.w / 2 <= i.x + surf.x1 && Math.abs(y + def.h - (i.y + surf.y)) <= 65; });
-      }
-      if (parent) {
-        var surface = D.furnitureById[parent.defId].surface;
-        if (surface.x1 - surface.x0 >= def.w) { result.x = U.clamp(result.x, parent.x + surface.x0, parent.x + surface.x1 - def.w); result.y = parent.y + surface.y - def.h; result.parent = parent.uid; }
-        else result.y = B.floorLine - def.h;
-      } else result.y = B.floorLine - def.h;
-    }
-    return result;
-  }
-  // 撤销只保存涉及的房间和背包差值，之后买的家具不会被撤回。
-  function decorate(ids, change, eventName, eventData, remember) {
-    var before = Object.create(null), inventoryBefore = U.clone(Game.state.inventory), extra;
-    ids.forEach(function (id) { before[id] = U.clone(decorRoom(Game.state, id)); });
-    // 只有涉及阁楼的新事务先持久保存；普通装饰保留原自动保存语义。
-    Game.store.update(function (s) { extra = change(s); if (remember) memory(s, remember); }, ids.some(atticSpace) ? { persist: true } : undefined);
-    var delta = {}, all = new Set(Object.keys(inventoryBefore).concat(Object.keys(Game.state.inventory)));
-    all.forEach(function (id) { var d = (Game.state.inventory[id] || 0) - (inventoryBefore[id] || 0); if (d) delta[id] = d; });
-    undoStack.push({ rooms: before, delta: delta }); if (undoStack.length > B.undoLimit) undoStack.shift();
-    if (eventName) Game.bus.emit(eventName, Object.assign({}, eventData, extra || {}));
-    return extra;
-  }
+  // 装饰兼容接口只有只读评分；旧房间、旧坐标和库存差值撤销写链已退役。
   Game.sys.decorating = {
     clearUndo: clearUndo,
-    preview: function (id, roomId, x, y, parent, movingUid) {
-      var def = D.furnitureById[id], room = decorRoom(Game.state, roomId);
-      return def && room ? positioned(def, room, x, y, parent, movingUid) : null;
-    },
-    place: function (id, roomId, x, y, parent, depth) {
-      var def = D.furnitureById[id], room = decorRoom(Game.state, roomId);
-      if (!room) return fail(D.messages.noRoom); if (!def || !(Game.state.inventory[id] > 0)) return fail(D.messages.noItem);
-      if (def.place === 'yard') return fail('庭院家具要摆在前院里。');
-      if (!validNumber(x) || !validNumber(y)) return fail('点一下房间里想摆放的位置吧。');
-      if (depth !== undefined && (def.place !== 'floor' || !validNumber(depth) || depth < 0 || depth > 1)) return fail('落地家具的前后位置请选择 0 到 1 之间的数值。');
-      if (Game.store.decorRooms(Game.state).reduce(function (n, entry) { return n + entry[1].items.length; }, Game.state.house.yard.items.length) >= B.maxItems) return fail('小屋已经很热闹啦，先收起一件家具吧。');
-      var pos = positioned(def, room, x, y, parent), uid = U.uid('i'), levels = [];
-      decorate([roomId], function (s) {
-        var r = decorRoom(s, roomId); s.inventory[id] -= 1;
-        var placedItem = { uid: uid, defId: id, x: pos.x, y: pos.y, parent: pos.parent, z: def.template === 'rug' ? -100 : Math.max(0, r.items.reduce(function (z, i) { return Math.max(z, i.z); }, 0)) + 1, flip: false, color: null };
-        if (def.place === 'floor') placedItem.depth = depth === undefined ? 0.75 : depth;
-        r.items.push(placedItem);
-        stats(s, 'itemsPlaced');
-        var flag = 'placed_' + id; if (!s.tutorial.seenTips[flag]) { s.tutorial.seenTips[flag] = true; levels = expInto(s, B.firstPlaceExp); }
-      }, 'item:placed', { roomId: roomId, uid: uid, defId: id }, '摆好一件' + def.name + '，小屋又多了一点温柔。');
-      emitLevels(levels); return ok(pos.parent ? '稳稳地摆在台面上啦！' : '摆好啦！', { uid: uid, roomId: roomId, parent: pos.parent });
-    },
-    move: function (roomId, uid, targetRoomId, x, y, parent, depth) {
-      var item = itemIn(roomId, uid), target = decorRoom(Game.state, targetRoomId);
-      if (!item || !target) return fail('先选中一件家具和目标房间吧。');
-      if (!validNumber(x) || !validNumber(y)) return fail('请把家具放在房间里。');
-      var def = D.furnitureById[item.defId];
-      if (depth !== undefined && (def.place !== 'floor' || !validNumber(depth) || depth < 0 || depth > 1)) return fail('落地家具的前后位置请选择 0 到 1 之间的数值。');
-      var position = positioned(def, target, x, y, parent, uid), children = decorRoom(Game.state, roomId).items.filter(function (i) { return i.parent === uid; });
-      decorate(roomId === targetRoomId ? [roomId] : [roomId, targetRoomId], function (s) {
-        var source = decorRoom(s, roomId), destination = decorRoom(s, targetRoomId), moving = source.items.find(function (i) { return i.uid === uid; }), dx = position.x - moving.x, dy = position.y - moving.y;
-        var childIds = children.map(function (i) { return i.uid; });
-        var group = source.items.filter(function (i) { return i.uid === uid || childIds.indexOf(i.uid) >= 0; });
-        if (source !== destination) { source.items = source.items.filter(function (i) { return i.uid !== uid && childIds.indexOf(i.uid) < 0; }); Array.prototype.push.apply(destination.items, group); }
-        moving.x = position.x; moving.y = position.y; moving.parent = position.parent;
-        if (def.place === 'floor') moving.depth = depth === undefined ? (moving.depth === undefined ? 0.75 : moving.depth) : depth;
-        group.forEach(function (i) { if (i.uid !== uid) { i.x += dx; i.y += dy; } });
-      }, 'item:moved', { roomId: targetRoomId, uid: uid });
-      return ok('换个位置，也很好看。');
-    },
-    remove: function (roomId, uid) {
-      var item = itemIn(roomId, uid); if (!item) return fail('这件家具已经收好啦。');
-      decorate([roomId], function (s) { var r = decorRoom(s, roomId); r.items = r.items.filter(function (i) { if (i.uid === uid || i.parent === uid) { if (!D.furnitureById[i.defId].customArt) s.inventory[i.defId] = (s.inventory[i.defId] || 0) + 1; return false; } return true; }); }, 'item:removed', { roomId: roomId, uid: uid });
-      Game.runtime.selected = null; return ok('已经放回背包啦。');
-    },
-    recolor: function (roomId, uid, color) {
-      var item = itemIn(roomId, uid); if (!item) return fail('先选择一件家具吧。');
-      if (!D.furnitureById[item.defId].recolor) return fail('这件家具已经穿着特别的颜色啦。');
-      if (color !== null && !/^#[0-9a-f]{6}$/i.test(color)) return fail('请选择一种颜色。');
-      decorate([roomId], function (s) { decorRoom(s, roomId).items.find(function (i) { return i.uid === uid; }).color = color; }); return ok('新颜色真好看！');
-    },
-    flip: function (roomId, uid) { if (!itemIn(roomId, uid)) return fail('先选择一件家具吧。'); decorate([roomId], function (s) { var i = decorRoom(s, roomId).items.find(function (i) { return i.uid === uid; }); i.flip = !i.flip; }); return ok('转过来啦。'); },
-    layer: function (roomId, uid, delta) {
-      var item = itemIn(roomId, uid);
-      if (!item || !validNumber(delta)) return fail('先选择一件家具吧。');
-      if (D.furnitureById[item.defId].template === 'rug') return fail('地毯会一直柔柔地铺在最下层。');
-      var sorted = decorRoom(Game.state, roomId).items.filter(function (i) { return D.furnitureById[i.defId].template !== 'rug'; }).sort(function (a, b) { return a.z - b.z; });
-      var index = sorted.findIndex(function (i) { return i.uid === uid; }), target = index + Math.sign(delta);
-      if (target < 0 || target >= sorted.length || target === index) return ok('已经在这一侧的最外层啦。');
-      var swap = sorted[target]; sorted[target] = sorted[index]; sorted[index] = swap;
-      var order = sorted.map(function (i) { return i.uid; });
-      decorate([roomId], function (s) { decorRoom(s, roomId).items.forEach(function (i) { i.z = D.furnitureById[i.defId].template === 'rug' ? -100 : order.indexOf(i.uid) + 1; }); });
-      return ok('层次调整好啦。');
-    },
-    wallpaper: function (roomId, pattern, color, color2) {
-      if (!decorRoom(Game.state, roomId)) return fail(D.messages.noRoom);
-      if (B.wallpaperPatterns.indexOf(pattern) < 0 || !/^#[0-9a-f]{6}$/i.test(color) || (color2 !== undefined && !/^#[0-9a-f]{6}$/i.test(color2))) return fail('选一个喜欢的墙纸图案和颜色吧。');
-      decorate([roomId], function (s) { decorRoom(s, roomId).wallpaper = { pattern: pattern, color: color, color2: color2 || '#FFFFFF' }; stats(s, 'wallpaperChanges'); }, 'room:decorated', { roomId: roomId }, '给房间换了新墙纸，像为小屋写了一封彩色的信。'); return ok('墙纸换好啦。');
-    },
-    floor: function (roomId, pattern, color) {
-      if (!decorRoom(Game.state, roomId)) return fail(D.messages.noRoom);
-      if (B.floorPatterns.indexOf(pattern) < 0 || !/^#[0-9a-f]{6}$/i.test(color)) return fail('选一个喜欢的地板吧。');
-      decorate([roomId], function (s) { decorRoom(s, roomId).floor = { pattern: pattern, color: color }; stats(s, 'floorChanges'); }, 'room:decorated', { roomId: roomId }); return ok('地板铺好啦。');
-    },
-    undo: function () {
-      if (!undoStack.length) return fail('还没有需要撤销的装扮。');
-      var entry = undoStack[undoStack.length - 1], ids = Object.keys(entry.rooms);
-      if (ids.some(function (id) { return !decorRoom(Game.state, id); })) { clearUndo(); return fail('房间已经改变，接着创造新的装扮吧。'); }
-      if (Object.keys(entry.delta).some(function (id) { return (Game.state.inventory[id] || 0) - entry.delta[id] < 0; })) return fail('收起的物品已经送出了，无法撤销这一步。');
-      Game.store.update(function (s) { ids.forEach(function (id) { if (!Game.store.replaceDecorRoom(s, id, U.clone(entry.rooms[id]))) throw new Error('装饰空间已经改变'); }); Object.keys(entry.delta).forEach(function (id) { s.inventory[id] = (s.inventory[id] || 0) - entry.delta[id]; }); }, ids.some(atticSpace) ? { persist: true } : undefined);
-      undoStack.pop(); Game.runtime.selected = null; Game.bus.emit('decoration:undone', {}); return ok('回到上一步啦。');
-    },
     score: function (roomId) {
-      var r = Game.state.house.rooms[roomId]; if (!r) return 1;
-      var def = roomDef(r.type), comfort = 0, themes = {}, tags = {};
-      r.items.forEach(function (i) { var d = D.furnitureById[i.defId]; comfort += d.comfort; themes[d.theme] = (themes[d.theme] || 0) + 1; d.tags.forEach(function (tag) { tags[tag] = true; }); });
+      var room = contentRoom(roomId); if (!room) return 1;
+      var definition = roomDef(room.type) || roomDef('bedroom'), comfort = 0, themes = {}, tags = {};
+      room.items.forEach(function (item) {
+        var furniture = D.furnitureById[item.defId]; if (!furniture) return;
+        comfort += Number(furniture.comfort) || 0;
+        if (furniture.theme) themes[furniture.theme] = (themes[furniture.theme] || 0) + 1;
+        (furniture.tags || []).forEach(function (tag) { tags[tag] = true; });
+      });
       var largest = Math.max.apply(null, [0].concat(Object.keys(themes).map(function (id) { return themes[id]; })));
-      var score = 1 + (comfort >= def.comfortCap / 2 ? 1 : 0) + (largest >= 6 ? 2 : largest >= 3 ? 1 : 0) + (def.required.some(function (t) { return tags[t]; }) ? 1 : 0);
+      var score = 1 + (comfort >= definition.comfortCap / 2 ? 1 : 0) + (largest >= 6 ? 2 : largest >= 3 ? 1 : 0) + ((definition.required || []).some(function (tag) { return tags[tag]; }) ? 1 : 0);
       return U.clamp(score, 1, 5);
     }
   };
-  // 阁楼拒写返回明确失败，保存完成前不允许重入装饰并消费同一份库存。
-  // 没有阁楼参与时保留旧普通装饰的提交方式和异常边界。
-  var decoratingBusy = false;
-  ['place', 'move', 'remove', 'recolor', 'flip', 'layer', 'wallpaper', 'floor', 'undo'].forEach(function (name) {
-    var action = Game.sys.decorating[name];
-    Game.sys.decorating[name] = function () {
-      if (decoratingBusy) return fail('阁楼正在保存这次布置，稍等一下再继续吧。');
-      var ids = name === 'undo' ? undoStack.length ? Object.keys(undoStack[undoStack.length - 1].rooms) : [] : name === 'place' ? [arguments[1]] : name === 'move' ? [arguments[0], arguments[2]] : [arguments[0]];
-      if (!ids.some(atticSpace)) return action.apply(this, arguments);
-      decoratingBusy = true;
-      try { return action.apply(this, arguments); }
-      catch (error) { return fail(error && error.message || '阁楼布置还没有保存，原来的家具保持原样。'); }
-      finally { decoratingBusy = false; }
-    };
-  });
   function roomHas(room, tag) { return room.items.some(function (i) { return D.furnitureById[i.defId].tags.indexOf(tag) >= 0; }); }
   function qualifiedBedroom(id, room) {
-    if (!room || room.type !== 'bedroom') return false;
+    if (!isRoomType(room, 'bedroom')) return false;
     var definition = residentDef(id), admission = definition && definition.admission;
     if (admission) return (admission.requiredTags || []).every(function (tag) { return roomHas(room, tag); }) && (!admission.theme || room.items.filter(function (item) { return D.furnitureById[item.defId].theme === admission.theme; }).length >= (admission.themeCount || 1));
     if (id === 'lily') return roomHas(room, 'bed');
@@ -244,26 +83,56 @@
     return true;
   }
   function happiness(id, resident) {
-    var def = residentDef(id), room = Game.state.house.rooms[resident.roomId]; if (!room) return 30;
+    var def = residentDef(id), room = contentRoom(resident.roomId); if (!room) return 30;
     var favorites = room.items.filter(function (i) { return D.furnitureById[i.defId].theme === def.favoriteTheme || i.color === def.favoriteColor; }).length;
     return U.clamp(30 + Game.sys.decorating.score(resident.roomId) * 9 + favorites * 3 + (resident.interactDate === U.dateKey() ? 10 : 0), 0, 100);
   }
   function affectionLevel(value) { var level = 1; B.affectionLevels.forEach(function (need, index) { if (value >= need) level = index + 1; }); return level; }
+  function relocation(id, state) {
+    state = state || Game.state;
+    var resident = state.residents[id], definition = residentDef(id), extra = { needed: false, roomIds: [] };
+    if (!definition || !resident || !resident.movedIn) return Object.assign(fail('先邀请这位朋友入住吧。'), extra);
+    if (contentRoom(resident.roomId, state)) return Object.assign(fail('朋友的房间还在，不需要重新安置。'), extra);
+    var roomIds = Object.keys(contentRooms(state)).filter(function (roomId) {
+      if (!qualifiedBedroom(id, contentRoom(roomId, state))) return false;
+      return Object.keys(state.residents).filter(function (otherId) { var other = state.residents[otherId]; return otherId !== id && other.movedIn && other.roomId === roomId; }).length < B.maxResidentsPerRoom;
+    });
+    return { ok: roomIds.length > 0, needed: true, roomIds: roomIds, message: roomIds.length ? '给' + definition.name + '选一间现有卧室，继续住在一起吧。' : '先准备一间符合' + definition.name + '入住心愿且留有位置的卧室，再来重新安置吧。' };
+  }
   Game.sys.residents = {
     affectionLevel: affectionLevel,
+    relocation: relocation,
+    relocate: function (id, roomId) {
+      if (relocating) return fail('正在收好朋友的新地址，稍等一下。');
+      var status = relocation(id); if (!status.ok) return status;
+      if (status.roomIds.indexOf(roomId) < 0) return fail('为这位朋友选一间现有、合格且有空位的卧室吧。');
+      var previous = Game.state.residents[id].roomId; relocating = true;
+      try {
+        Game.store.update(function (state) {
+          var current = relocation(id, state);
+          if (!current.ok || current.roomIds.indexOf(roomId) < 0) throw new Error('小屋刚刚有了变化，请重新选择卧室。');
+          // 安置只修复地址，不重发入住奖励、不改友谊或库存，也不跟随建筑撤销回滚。
+          state.residents[id].roomId = roomId;
+          memory(state, '改建小屋后，为' + residentDef(id).name + '收好新的卧室地址，原来的友谊继续留在这里。');
+        }, { persist: true });
+        Game.bus.emit('resident:rehoused', { id: id, roomId: roomId, previousRoomId: previous });
+        return ok(residentDef(id).name + '重新安置好啦，友谊和小心意都保留着。', { id: id, roomId: roomId });
+      } catch (error) { return fail(error.message || '新地址还没有保存，朋友和原来的进度保持原样。'); }
+      finally { relocating = false; }
+    },
     eligibility: function (id) {
       var def = residentDef(id); if (!def) return Object.assign(fail('朋友还在云海的另一边。'), { roomIds: [], missing: [] });
       if (Game.state.residents[id] && Game.state.residents[id].movedIn) return Object.assign(fail(D.messages.duplicateResident), { roomIds: [], missing: [] });
-      var admission = def.admission || { unlockLv: def.unlockLv, requiredRoomTypes: id === 'orange' ? ['studio'] : [] }, allRooms = Object.keys(Game.state.house.rooms), missing = [], needLevel = admission.unlockLv || def.unlockLv;
+      var admission = def.admission || { unlockLv: def.unlockLv, requiredRoomTypes: id === 'orange' ? ['studio'] : [] }, allRooms = Object.keys(contentRooms()), missing = [], needLevel = admission.unlockLv || def.unlockLv;
       if (Game.state.level < needLevel) missing.push({ type: 'level', text: '小屋达到 Lv.' + needLevel, panel: 'quests', progress: Game.state.level, target: needLevel });
-      (admission.requiredRoomTypes || []).forEach(function (type) { if (!allRooms.some(function (key) { return Game.state.house.rooms[key].type === type; })) missing.push({ type: 'room', text: '建造一间' + ((roomDef(type) || {}).name || type), panel: 'build', roomType: type, target: 1, progress: 0 }); });
-      (admission.requiredHouseTags || []).forEach(function (tag) { if (!allRooms.some(function (key) { return roomHas(Game.state.house.rooms[key], tag); })) missing.push({ type: 'furniture', text: '在小屋摆好' + ({ bathtub: '浴缸', bed: '小床', piano: '钢琴', mirror: '镜子' }[tag] || tag), panel: 'decor', tag: tag, target: 1, progress: 0 }); });
+      (admission.requiredRoomTypes || []).forEach(function (type) { if (!allRooms.some(function (key) { return isRoomType(contentRoom(key), type); })) missing.push({ type: 'room', text: '建造一间' + ((roomDef(type) || {}).name || type), panel: 'build', roomType: type, target: 1, progress: 0 }); });
+      (admission.requiredHouseTags || []).forEach(function (tag) { if (!allRooms.some(function (key) { return roomHas(contentRoom(key), tag); })) missing.push({ type: 'furniture', text: '在小屋摆好' + ({ bathtub: '浴缸', bed: '小床', piano: '钢琴', mirror: '镜子' }[tag] || tag), panel: 'decor', tag: tag, target: 1, progress: 0 }); });
       if (admission.minRooms && allRooms.length < admission.minRooms) missing.push({ type: 'room', text: '建好 ' + admission.minRooms + ' 间房间', panel: 'build', target: admission.minRooms, progress: allRooms.length });
       var collected = Object.keys(Game.state.collection).filter(function (key) { return Game.state.collection[key]; }).length;
       if (admission.minCollection && collected < admission.minCollection) missing.push({ type: 'collection', text: '收集 ' + admission.minCollection + ' 种家具', panel: 'shop', target: admission.minCollection, progress: collected });
       if (admission.minChapter && Game.state.quests.main.chapter < admission.minChapter) missing.push({ type: 'chapter', text: '推进主线到第 ' + admission.minChapter + ' 章', panel: 'quests', target: admission.minChapter, progress: Game.state.quests.main.chapter });
-      if (admission.houseTheme) { var most = Math.max.apply(null, [0].concat(allRooms.map(function (key) { return Game.state.house.rooms[key].items.filter(function (item) { return D.furnitureById[item.defId].theme === admission.houseTheme; }).length; }))), need = admission.houseThemeCount || 3; if (most < need) missing.push({ type: 'theme', text: '一间房里摆好 ' + need + ' 件' + ((D.themes[admission.houseTheme] || {}).name || admission.houseTheme) + '家具', panel: 'decor', theme: admission.houseTheme, target: need, progress: most }); }
-      var qualified = allRooms.filter(function (key) { var room = Game.state.house.rooms[key]; return room.type === (admission.roomType || 'bedroom') && qualifiedBedroom(id, room); }), available = qualified.filter(function (key) { return Object.keys(Game.state.residents).filter(function (rid) { var resident = Game.state.residents[rid]; return resident.movedIn && resident.roomId === key; }).length < B.maxResidentsPerRoom; });
+      if (admission.houseTheme) { var most = Math.max.apply(null, [0].concat(allRooms.map(function (key) { return contentRoom(key).items.filter(function (item) { return D.furnitureById[item.defId].theme === admission.houseTheme; }).length; }))), need = admission.houseThemeCount || 3; if (most < need) missing.push({ type: 'theme', text: '一间房里摆好 ' + need + ' 件' + ((D.themes[admission.houseTheme] || {}).name || admission.houseTheme) + '家具', panel: 'decor', theme: admission.houseTheme, target: need, progress: most }); }
+      var qualified = allRooms.filter(function (key) { var room = contentRoom(key); return isRoomType(room, admission.roomType || 'bedroom') && qualifiedBedroom(id, room); }), available = qualified.filter(function (key) { return Object.keys(Game.state.residents).filter(function (rid) { var resident = Game.state.residents[rid]; return resident.movedIn && resident.roomId === key; }).length < B.maxResidentsPerRoom; });
       if (!qualified.length) missing.push({ type: admission.theme ? 'theme' : 'room', text: def.requirement || '准备一间符合心愿的卧室', panel: admission.theme || (admission.requiredTags || []).length ? 'decor' : 'build', theme: admission.theme, roomType: 'bedroom' });
       else if (!available.length) missing.push({ type: 'space', text: '卧室里留一个入住位置（每间最多2位）', panel: 'build' });
       return missing.length ? Object.assign(fail(def.name + '希望：' + missing.map(function (entry) { return entry.text; }).join('；') + '。'), { roomIds: available, missing: missing }) : ok('朋友已经准备好来拜访啦。', { roomIds: available, missing: [] });
@@ -336,14 +205,14 @@
     }
   };
   function metric(name) {
-    var s = Game.state, rooms = Object.keys(s.house.rooms).map(function (id) { return { id: id, room: s.house.rooms[id] }; });
+    var s = Game.state, rooms = Game.contentSpaces.entries(s).map(function (entry) { return { id: entry[0], room: entry[1] }; });
     if (name.indexOf('resident_') === 0) { var resident = s.residents[name.slice(9)]; return resident && resident.movedIn ? 1 : 0; }
     if (name === 'collection') return Object.keys(s.collection).filter(function (id) { return s.collection[id]; }).length;
     if (name === 'named') return s.house.name !== '我的小屋' || s.tutorial.step >= 2 ? 1 : 0;
-    if (name === 'bedroom' || name === 'kitchen') return rooms.filter(function (r) { return r.room.type === name; }).length;
-    if (name === 'bed') return rooms.some(function (r) { return r.room.type === 'bedroom' && roomHas(r.room, 'bed'); }) ? 1 : 0;
+    if (name === 'bedroom' || name === 'kitchen') return rooms.filter(function (r) { return isRoomType(r.room, name); }).length;
+    if (name === 'bed') return rooms.some(function (r) { return isRoomType(r.room, 'bedroom') && roomHas(r.room, 'bed'); }) ? 1 : 0;
     if (['lily', 'pudding', 'orange'].indexOf(name) >= 0) return s.residents[name] && s.residents[name].movedIn ? 1 : 0;
-    if (name === 'bedroomStars') return Math.max.apply(null, [0].concat(rooms.filter(function (r) { return r.room.type === 'bedroom'; }).map(function (r) { return Game.sys.decorating.score(r.id); })));
+    if (name === 'bedroomStars') return Math.max.apply(null, [0].concat(rooms.filter(function (r) { return isRoomType(r.room, 'bedroom'); }).map(function (r) { return Game.sys.decorating.score(r.id); })));
     return s.quests.stats[name] || 0;
   }
   Game.sys.quests = {

@@ -9,7 +9,7 @@
   function validCount(count) { return Number.isInteger(count) && count >= 1 && count <= C.maxBatch; }
   function record(state) { return state.crafting || { counts: {}, last: null }; }
   function total(state) { return Object.values(record(state).counts).reduce((sum, amount) => sum + amount, 0); }
-  function rooms(state, recipe) { return recipe.requireRoom ? Object.keys(state.house.rooms).filter(id => state.house.rooms[id].type === recipe.requireRoom).sort() : []; }
+  function rooms(state, recipe) { return recipe.requireRoom ? G.contentSpaces.list(state).filter(room => G.contentSpaces.isType(room, recipe.requireRoom)).map(room => room.id).sort() : []; }
   function quoteFor(state, recipe, count) {
     const counts = record(state).counts;
     // 只签相关条件；游玩计时、天气和居民幸福度刷新不会打断正在看的配方。

@@ -11,24 +11,22 @@
     s.exp += amount || 0; const levels = [];
     while (s.level < B.maxLevel && s.exp >= B.expBase + B.expStep * s.level) { s.exp -= B.expBase + B.expStep * s.level; levels.push(++s.level); }
     if (s.level === B.maxLevel) s.exp = Math.min(s.exp, B.expBase + B.expStep * B.maxLevel);
-    let capacity = B.floorUnlocks[0]; B.floorUnlocks.forEach(value => { if (s.level >= value.level) capacity = value; });
-    while (s.house.floors.length < capacity.floors) s.house.floors.push({ slots: [null, null, null] });
     levels.forEach(level => memory(s, '小屋升到 Lv.' + level + '，新的故事正在云海里发芽。')); return levels;
   }
   function emitLevels(levels) { levels.forEach(level => G.bus.emit('level:up', { level })); }
   function metric(name) {
-    const s = state(), rooms = Object.values(s.house.rooms), residents = Object.values(s.residents).filter(value => value.movedIn);
+    const s = state(), rooms = G.contentSpaces.list(s), residents = Object.values(s.residents).filter(value => value.movedIn);
     if (!name) return 0;
     if (name.startsWith('resident_')) return s.residents[name.slice(9)]?.movedIn ? 1 : 0;
-    if (name.startsWith('room_')) return rooms.filter(room => room.type === name.slice(5)).length;
+    if (name.startsWith('room_')) return rooms.filter(room => G.contentSpaces.isType(room, name.slice(5))).length;
     if (name.startsWith('theme_')) return rooms.reduce((n, room) => n + room.items.filter(item => D.furnitureById[item.defId]?.theme === name.slice(6)).length, 0);
     if (name === 'named') return s.house.name !== '我的小屋' || s.tutorial.step >= 2 ? 1 : 0;
-    if (name === 'bedroom' || name === 'kitchen') return rooms.filter(room => room.type === name).length;
-    if (name === 'bed') return rooms.some(room => room.type === 'bedroom' && room.items.some(item => D.furnitureById[item.defId]?.template === 'bed')) ? 1 : 0;
+    if (name === 'bedroom' || name === 'kitchen') return rooms.filter(room => G.contentSpaces.isType(room, name)).length;
+    if (name === 'bed') return rooms.some(room => G.contentSpaces.isType(room, 'bedroom') && room.items.some(item => D.furnitureById[item.defId]?.template === 'bed')) ? 1 : 0;
     if (['lily', 'pudding', 'orange'].includes(name)) return s.residents[name]?.movedIn ? 1 : 0;
-    if (name === 'bedroomStars' || name === 'bestRoomStars') return Math.max(0, ...Object.entries(s.house.rooms).filter(([, room]) => name !== 'bedroomStars' || room.type === 'bedroom').map(([id]) => G.sys.decorating.score(id)));
+    if (name === 'bedroomStars' || name === 'bestRoomStars') return Math.max(0, ...rooms.filter(room => name !== 'bedroomStars' || G.contentSpaces.isType(room, 'bedroom')).map(room => G.sys.decorating.score(room.id)));
     if (name === 'level') return s.level;
-    if (name === 'floors') return s.house.floors.length;
+    if (name === 'floors') return G.contentSpaces.floors(s).filter(floor => floor.id !== 'legacy_yard').length;
     if (name === 'roomCount') return rooms.length;
     if (name === 'residentCount') return residents.length;
     if (name === 'maxAffection') return Math.max(0, ...residents.map(resident => resident.affection));

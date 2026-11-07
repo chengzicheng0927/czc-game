@@ -1,6 +1,7 @@
 'use strict';
 // Canvas编码使用替身，只检查拍照成功/失败的事务、容量与下载边界，不替代真实照片目视验收。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
+const spaces = require('./fixtures/free-spaces.cjs');
 const root = path.resolve(__dirname, '..');
 const JPEG = 'data:image/jpeg;base64,/9j/AA==', PNG = 'data:image/png;base64,iVBORw0KGgo=';
 function setup() {
@@ -16,8 +17,8 @@ function setup() {
   const document = { hidden: false, addEventListener() {}, getElementById(id) { return id === 'scene' ? source : null; }, body: { append() {}, appendChild() {} }, createElement(tag) { if (tag === 'canvas') return canvas(); if (tag === 'a') return { style: {}, remove() {}, click() { downloads.push({ href: this.href, filename: this.download }); } }; throw new Error('unexpected element ' + tag); } };
   class Image { set src(value) { this.value = value; Promise.resolve().then(() => this.onload()); } }
   const c = vm.createContext({ console, Date: TestDate, document, Image, Blob, atob, URL: { createObjectURL(blob) { const id = 'blob:photo-' + blobs.size; blobs.set(id, blob); return id; }, revokeObjectURL() {} }, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {} }); c.window = c;
-  for (const file of ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/garden.js', 'js/data/photography.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/systems/systems.js', 'js/render/photo-decoration.js', 'js/systems/photography.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), c, { filename: file });
-  c.Game.store.init();
+  for (const file of ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/garden.js', 'js/data/photography.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/content-spaces.js', 'js/systems/systems.js', 'js/render/photo-decoration.js', 'js/systems/photography.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), c, { filename: file });
+  spaces.register(c.Game, c.CottageBuilding); c.Game.store.init();
   return { G: c.Game, source, document, canvas, calls, downloads, blobs, at: value => { clock = value; }, encodingFails: value => { encodeError = value; } };
 }
 const tests = [];
@@ -63,7 +64,7 @@ test('最新照片下载PNG，旧相册小图可重编码PNG；下载不增加�
 });
 test('整屋/指定房间离屏取景，相同草稿及贴纸编辑不重画世界，主动刷新才更新', () => {
   const { G, canvas } = setup(), frames = [];
-  const room = G.sys.building.buildRoom(0, 0, 'bedroom'); assert.ok(room.ok);
+  const room = spaces.buildSpace(G, 0, 0, 'bedroom'); assert.ok(room.ok);
   G.render = { captureScene(options) { frames.push(JSON.parse(JSON.stringify(options))); return canvas(1280, 960); } };
   const before = JSON.stringify(G.state), first = G.sys.photography.prepare({ scope: 'house' });
   assert.ok(first.ok); assert.equal(first.width, 1280); assert.equal(frames.length, 1); assert.equal(G.sys.photography.prepare({ scope: 'house' }).canvas, first.canvas);

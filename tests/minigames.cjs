@@ -4,13 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
+const spaces = require('./fixtures/free-spaces.cjs');
 const root = path.resolve(__dirname, '..');
 let count = 0;
 function sandbox() {
   const context = vm.createContext({ console, Date, Math, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {}, document: { addEventListener() {} }, Blob, URL });
   context.window = context; context.addEventListener = () => {}; context.localStorage = { getItem: () => null, setItem() {} };
-  for (const file of ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/minigames.js', 'js/data/garden.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/systems.js', 'js/systems/minigames.js', 'js/systems/garden.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
-  const G = context.Game; G.store.init(G.save.load()); G.sys.init(); return G;
+  for (const file of ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/minigames.js', 'js/data/garden.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js', 'js/systems/systems.js', 'js/systems/minigames.js', 'js/systems/garden.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
+  const G = context.Game; spaces.register(G, context.CottageBuilding); G.store.init(G.save.load()); G.sys.init(); return G;
 }
 function test(name, fn) { fn(); count++; console.log('✓ ' + name); }
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -111,7 +112,7 @@ test('新的一天重置四游戏计数并从轮换池选3个每日任务', () =
   if (G.data.dailyQuestsForDate) assert.deepEqual(plain(G.state.quests.daily.list.map(item => item.id)), plain(G.data.dailyQuestsForDate(G.utils.dateKey()).map(item => item.id)));
 });
 test('花园init接入，作物喜欢+20/普通+8，蛋糕与作物共用每日送礼限制', () => {
-  const G = sandbox(), room = G.sys.building.buildRoom(0, 0, 'bedroom'); assert.equal(G.sys.decorating.place('bed_basic', room.roomId, 10, 50).ok, true); assert.equal(G.sys.residents.invite('lily', room.roomId).ok, true);
+  const G = sandbox(), room = spaces.buildSpace(G, 0, 0, 'bedroom'); assert.equal(spaces.placeItem(G, 'bed_basic', room.roomId, 10, 50).ok, true); assert.equal(G.sys.residents.invite('lily', room.roomId).ok, true);
   G.data.residents.find(resident => resident.id === 'lily').birthday = '02-30';
   G.store.update(state => { state.garden.harvest.carrot = 2; state.garden.harvest.daisy = 2; state.inventory.cake_strawberry = 2; });
   assert.ok(G.state.garden.plots.length >= G.data.gardenConfig.basePlots);
@@ -121,7 +122,7 @@ test('花园init接入，作物喜欢+20/普通+8，蛋糕与作物共用每日�
   G.store.update(state => { state.residents.lily.giftDate = ''; }); const cake = G.sys.residents.gift('lily'); assert.equal(cake.ok, true); assert.equal(cake.favorite, false); assert.equal(cake.affection, 8); assert.equal(G.state.inventory.cake_strawberry, 1);
 });
 test('没有作物/非法作物不扣库存，生日作物好感翻倍', () => {
-  const G = sandbox(), room = G.sys.building.buildRoom(0, 0, 'bedroom'); G.sys.decorating.place('bed_basic', room.roomId, 10, 50); G.sys.residents.invite('lily', room.roomId);
+  const G = sandbox(), room = spaces.buildSpace(G, 0, 0, 'bedroom'); spaces.placeItem(G, 'bed_basic', room.roomId, 10, 50); G.sys.residents.invite('lily', room.roomId);
   const before = JSON.stringify(G.state); assert.equal(G.sys.residents.gift('lily', 'carrot').ok, false); assert.equal(G.sys.residents.gift('lily', 'not_a_crop').ok, false); assert.equal(JSON.stringify(G.state), before);
   G.data.residents.find(resident => resident.id === 'lily').birthday = G.utils.dateKey().slice(5); G.store.update(state => { state.garden.harvest.carrot = 1; });
   const gift = G.sys.residents.gift('lily', 'carrot'); assert.equal(gift.affection, 40); assert.equal(G.state.garden.harvest.carrot, 0);

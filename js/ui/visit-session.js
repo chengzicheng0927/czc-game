@@ -199,8 +199,9 @@
   // 点空地面走过去：只有已连上的 live 串门才接管，用对方小屋的布局换算目的地。
   function walkTo(point) {
     var visit = G.runtime && G.runtime.visit;
-    if (!committed || !visit || visit.mode !== 'live' || !visitState || !G.liveAvatars || !G.live) return false;
-    var destination = G.liveAvatars.destination(visitState.house, point, null); if (!destination) return false;
+    if (!committed || !visit || visit.mode !== 'live' || !visitState || !G.liveSpace || !G.live) return false;
+    var view = G.render && G.render.getHouseView && G.render.getHouseView();
+    var destination = G.liveSpace.destination(visitState, point, view && view.floor); if (!destination) return false;
     G.live.move(destination.zone, destination.x, destination.y); return true;
   }
   function state() {

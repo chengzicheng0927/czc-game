@@ -2,8 +2,10 @@
 // 隔离的浏览器时钟、Cookie会话与内存存储，加载真实store/save/sync；不监听端口或接触真实存档。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..'), saveKey = 'marshmallow_cottage_save_v1', metaKey = 'marshmallow_cottage_cloud_v1', leaseKey = 'marshmallow_cottage_owner_v1';
-const core = new Set(['js/core/namespace.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js']);
-const files = [...fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map(match => match[1].split('?')[0]).filter(file => core.has(file) || file.startsWith('js/data/') || file.startsWith('js/systems/'));
+const core = new Set(['js/core/namespace.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js']);
+const files = JSON.parse(fs.readFileSync(path.join(root, 'scripts/legacy-assets.json'), 'utf8')).filter(file => core.has(file) || file.startsWith('js/data/') || file.startsWith('js/systems/'));
+for (const file of core) assert.ok(files.includes(file), '实际清单缺少同步依赖：' + file);
+assert.ok(files.indexOf('js/building/schema.js') < files.indexOf('js/core/store.js'), '建筑schema须在store之前加载');
 const plain = value => JSON.parse(JSON.stringify(value));
 function canonical(value) { if (value === null || typeof value !== 'object') return JSON.stringify(value); return Array.isArray(value) ? '[' + value.map(canonical).join(',') + ']' : '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}'; }
 const hash = value => crypto.createHash('sha256').update(canonical(value)).digest('hex');
@@ -76,8 +78,10 @@ test('file与裸源码页面完全不请求账号API，正式release正确识别
 
 test('首次登录不上传或覆盖已有本机，明确关联后创建并自动同步真实成功保存', async () => {
   const server = fakeServer(), b = browser(server); await b.init(); b.update('我的旧单机小屋', 777); const before = b.memory.get(saveKey);
+  assert.equal(b.state().building.schema, 2); assert.equal(b.state().building.walls.length, 0);
   assert.ok((await b.G.cloud.register(credentials)).ok); assert.equal(b.status().phase, 'choose'); assert.equal(b.memory.get(saveKey), before); assert.equal(server.saves.size, 0);
   assert.ok((await b.G.cloud.bindLocal()).ok); assert.equal(b.status().binding, true); assert.equal(server.saves.get('child_1').save.wallet.coin, 777);
+  assert.deepEqual(server.saves.get('child_1').save.building, b.state().building);
   b.update('今天的新名字', 778); assert.equal(server.saves.get('child_1').save.wallet.coin, 777); await b.advance(1500); assert.equal(server.saves.get('child_1').save.wallet.coin, 778);
   const remote = server.saves.get('child_1'); assert.equal(remote.contentHash, hash(b.state()), '浏览器SHA256必须与Node摘要一致');
 });

@@ -2,16 +2,15 @@
 (function (G) {
   'use strict';
   let session = null, serial = 0, busy = false;
-  const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
   const fail = message => ({ ok: false, message });
   const guests = () => G.data.residents.filter(def => G.state.residents[def.id]?.movedIn).map(def => def.id);
   function status() {
-    const rooms = Object.keys(G.state.house.rooms).filter(id => G.state.house.rooms[id].type === 'music'), people = guests();
+    const rooms = G.contentSpaces.list(G.state).filter(room => G.contentSpaces.isType(room, 'music')).map(room => room.id), people = guests();
     return { roomIds: rooms, guests: people, completed: (G.state.quests.stats.concerts || 0) > 0, canStart: rooms.length > 0 && people.length > 0, reason: !rooms.length ? '先建好一间音乐室，再邀请朋友来听歌。' : !people.length ? '先邀请一位朋友入住，小合奏就能开始啦。' : '三段小合奏，和已入住的朋友一起完成。没有倒计时。' };
   }
   function current(id) {
     if (!session || typeof id !== 'string' || session.id !== id) return null;
-    if (!own(G.state.house.rooms, session.roomId) || G.state.house.rooms[session.roomId].type !== 'music' || guests().join('|') !== session.guests.join('|')) return null;
+    if (!G.contentSpaces.isType(G.contentSpaces.get(session.roomId, G.state), 'music') || guests().join('|') !== session.guests.join('|')) return null;
     return session;
   }
   function begin(roomId) {

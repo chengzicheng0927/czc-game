@@ -6,12 +6,10 @@
   <meta name="theme-color" content="#FFF8FB">
   <meta name="description" content="在云海上的棉花糖岛，建造小屋、装饰房间，和可爱的小动物成为朋友。可离线游玩，使用账号同步每个孩子的小屋进度。">
   <title>棉花糖小屋 · 今天也住在喜欢里</title>
-  <link rel="stylesheet" href="css/style.css?v=e4e436167b">
+    <link rel="stylesheet" href="css/style.css?v=e4e436167b">
   <link rel="stylesheet" href="css/quests.css?v=25871e93dd">
   <link rel="stylesheet" href="css/creative.css?v=73a0daeb5c">
   <link rel="stylesheet" href="css/gifts.css?v=5c91c7c1e8">
-  <link rel="stylesheet" href="css/house-design.css?v=9dbc0422ff">
-  <link rel="stylesheet" href="css/room-layout.css?v=4a19ac45ee">
   <link rel="stylesheet" href="css/observatory.css?v=81578dd925">
   <link rel="stylesheet" href="css/deals.css?v=e54a852132">
   <link rel="stylesheet" href="css/login.css?v=8843194b97">
@@ -25,13 +23,15 @@
   <link rel="stylesheet" href="css/photography.css?v=50171bb5f6">
   <link rel="stylesheet" href="css/cloud-account.css?v=ab592266bd">
   <link rel="stylesheet" href="css/neighbors.css?v=9d9b772dd0">
-  <link rel="stylesheet" href="css/visit.css?v=8acd153aa5">
   <link rel="stylesheet" href="css/live-room.css?v=945d15aba1">
+  <link rel="stylesheet" href="css/visit.css?v=8acd153aa5">
   <link rel="stylesheet" href="css/visit-session.css?v=0c20dcf1ce">
   <link rel="stylesheet" href="css/game-feel.css?v=55c568339d">
   <link rel="stylesheet" href="css/character-visual.css?v=5f93d76c62">
   <link rel="stylesheet" href="css/garden-visual.css?v=30eba39291">
   <link rel="stylesheet" href="css/shell.css?v=8d807e4143">
+  <link rel="stylesheet" href="css/house-design.css?v=9dbc0422ff">
+  <link rel="stylesheet" href="css/building.css?v=8b6383be29">
 </head>
 <body>
   <!-- THESIS: 住在可探索的云岛里；真实家园是主角，操作沿场景边缘展开。
@@ -137,7 +137,7 @@
   <div id="modal-root"></div>
   <div id="toast-root" role="status" aria-live="polite" aria-atomic="false"></div>
   <noscript><p class="noscript">请开启浏览器 JavaScript，和糯米一起建造小屋。</p></noscript>
-  <script src="js/core/namespace.js?v=9754ea6c8b"></script>
+    <script src="js/core/namespace.js?v=9754ea6c8b"></script>
   <script src="js/data/balance.js?v=9abe55527a"></script>
   <script src="js/data/content.js?v=fe074e0911"></script>
   <script src="js/data/furniture-expansion.js?v=e5077b326c"></script>
@@ -164,98 +164,80 @@
   <script src="js/data/observatory.js?v=01e02d3fec"></script>
   <script src="js/data/deals.js?v=279a0cce75"></script>
   <script src="js/data/login.js?v=e1d13377ea"></script>
-  <script src="js/core/store.js?v=d3e1499124"></script>
-  <script src="js/core/public-house.js?v=4501ac7061"></script>
-  <script src="js/core/save.js?v=a197e58384"></script>
-  <script src="js/core/cloud-sync.js?v=0eadd75b75"></script>
+  <script src="js/building/schema.js?v=36a0757064"></script>
+  <script src="js/core/store.js?v=47dc5f69ad"></script>
+  <script src="js/core/public-house.js?v=31d62d5a45"></script>
+  <script src="js/core/save.js?v=24bf2d2ffa"></script>
+  <script src="js/core/cloud-sync.js?v=46115e968d"></script>
   <script src="js/core/live.js?v=989485253e"></script>
   <script src="js/core/offline.js?v=27e8507bf9"></script>
   <script src="js/core/audio.js?v=28a1d7a8a4"></script>
-  <script src="js/systems/systems.js?v=6d579baa3d"></script>
-  <script src="js/systems/resident-life.js?v=e8f885666e"></script>
-  <script src="js/systems/concert.js?v=c1ccf4275d"></script>
+  <script src="js/core/content-spaces.js?v=5d7bb16087"></script>
+  <script src="js/core/live-space.js?v=264236e8a1"></script>
+  <script src="js/systems/systems.js?v=17ee877ba2"></script>
+  <script src="js/systems/concert.js?v=1de82b1057"></script>
   <script src="js/systems/minigames.js?v=46487d1c49"></script>
-  <script src="js/systems/garden.js?v=ca45f0d8e9"></script>
+  <script src="js/systems/garden.js?v=7a73617da2"></script>
   <script src="js/systems/time.js?v=9d48f27c68"></script>
-  <script src="js/systems/avatar.js?v=3b43a75505"></script>
-  <script src="js/systems/yard.js?v=3fb322a62e"></script>
-  <script src="js/systems/exterior.js?v=9e42bd2d81"></script>
-  <script src="js/systems/resident-wishes.js?v=e182f8a866"></script>
-  <script src="js/systems/quests.js?v=a345802f38"></script>
-  <script src="js/systems/crafting.js?v=681bb46a16"></script>
-  <script src="js/systems/creative.js?v=5ea32995b4"></script>
-  <script src="js/systems/gifts.js?v=58412dc56e"></script>
+  <script src="js/systems/avatar.js?v=ce725395d0"></script>
+  <script src="js/systems/exterior.js?v=7fdbf7143b"></script>
   <script src="js/systems/house-styles.js?v=942b99e9a8"></script>
-  <script src="js/systems/layout-templates.js?v=6b89a2ec96"></script>
-  <script src="js/systems/room-layout.js?v=96ac23ea3d"></script>
-  <script src="js/systems/observatory.js?v=d91473bc80"></script>
+  <script src="js/systems/resident-wishes.js?v=ab5fc637d0"></script>
+  <script src="js/systems/resident-life.js?v=5acd84f3a7"></script>
+  <script src="js/systems/quests.js?v=7fa8510e59"></script>
+  <script src="js/systems/crafting.js?v=778737a5f7"></script>
+  <script src="js/systems/creative.js?v=517e9fd33d"></script>
+  <script src="js/systems/gifts.js?v=58412dc56e"></script>
+  <script src="js/systems/observatory.js?v=90a0adec89"></script>
   <script src="js/systems/deals.js?v=b110750364"></script>
   <script src="js/systems/login.js?v=60c5bb3834"></script>
-  <script src="js/systems/collection-book.js?v=d687cdac43"></script>
-  <script src="js/systems/photography.js?v=5767fbcceb"></script>
-  <script src="js/render/atmosphere.js?v=bb40279b66"></script>
+  <script src="js/systems/collection-book.js?v=e48b01ae49"></script>
+  <script src="js/systems/photography.js?v=c712e9b4f1"></script>
   <script src="js/render/festival.js?v=f439e07491"></script>
-  <script src="js/render/exterior.js?v=ab49d841d8"></script>
-  <script src="js/render/room-space.js?v=940c43bf6a"></script>
   <script src="js/render/creative.js?v=c573a3d58b"></script>
-  <script src="js/render/room-shell.js?v=ea2b092631"></script>
+  <script src="js/render/photo-decoration.js?v=677b93f1bf"></script>
+  <script src="js/render/crafting.js?v=9794c0dc5f"></script>
+  <script src="js/render/observatory.js?v=39319f3611"></script>
   <script src="js/render/furniture-extra.js?v=8a618ffa42"></script>
   <script src="js/render/resident-extra.js?v=9ff41b0350"></script>
-  <script src="js/render/photo-decoration.js?v=677b93f1bf"></script>
-  <script src="js/render/observatory.js?v=39319f3611"></script>
-  <script src="js/render/crafting.js?v=9794c0dc5f"></script>
-  <script src="js/render/cloud-sea.js?v=7c03c51af0"></script>
-  <script src="js/render/polish.js?v=f1ffcac924"></script>
-  <script src="js/render/sea-map.js?v=0c87723b58"></script>
-  <script src="js/render/world3d-models.js?v=333496f303"></script>
-  <script src="js/render/world3d.js?v=05142708d9"></script>
-  <script src="js/render/world3d-avatar.js?v=fc6ad4baf3"></script>
-  <script src="js/render/prototype-yard3d.js?v=8e3f955d0b"></script>
-  <script src="js/render/garden-page3d.js?v=e13492de06"></script>
-  <script src="js/render/scene.js?v=cb1c670d3f"></script>
-  <script src="js/render/live-avatars.js?v=c07efaff1c"></script>
-  <script src="js/render/live-peers.js?v=babd6abfb3"></script>
-  <script src="js/render/avatar.js?v=e5d36d2f75"></script>
-  <script src="js/render/player-movement.js?v=72a90628ce"></script>
   <script src="js/render/yard.js?v=a954dd2bda"></script>
+  <script src="js/render/catalog-art.js?v=1fa71ee0cb"></script>
+  <script src="js/render/live-labels.js?v=fe73515ed3"></script>
+  <script src="js/render/avatar.js?v=e5d36d2f75"></script>
   <script src="js/render/garden-visual.js?v=5ea7fa08e5"></script>
   <script src="js/ui/furniture-rarity.js?v=9ddd163324"></script>
   <script src="js/ui/concert.js?v=89e5296c8e"></script>
   <script src="js/ui/birthday.js?v=dc225045ec"></script>
   <script src="js/ui/harvest-feedback.js?v=aaff25dc35"></script>
   <script src="js/ui/controls.js?v=1d348afb2a"></script>
-  <script src="js/ui/bakery.js?v=6a0fc945b6"></script>
-  <script src="js/ui/minigames.js?v=1fef7cfab1"></script>
+  <script src="js/ui/bakery.js?v=1ba44b7ab9"></script>
+  <script src="js/ui/minigames.js?v=db153af668"></script>
   <script src="js/ui/garden.js?v=70ff6dcae9"></script>
   <script src="js/ui/calendar.js?v=be98b63198"></script>
-  <script src="js/ui/avatar.js?v=1559acbbc4"></script>
-  <script src="js/ui/yard.js?v=af03b79cf8"></script>
-  <script src="js/ui/house-design.js?v=6b8a4c7cc9"></script>
-  <script src="js/ui/exterior.js?v=0825b1e00b"></script>
-  <script src="js/ui/residents.js?v=8e20d71d30"></script>
+  <script src="js/ui/avatar.js?v=f2a80e9636"></script>
+  <script src="js/ui/residents.js?v=b240efdcf9"></script>
   <script src="js/ui/resident-notices.js?v=f36a60ab26"></script>
   <script src="js/ui/quest-party.js?v=f86c2c66f5"></script>
   <script src="js/ui/quests.js?v=065e8d3329"></script>
   <script src="js/ui/crafting.js?v=1cf191ae55"></script>
-  <script src="js/ui/creative.js?v=129e98427e"></script>
+  <script src="js/ui/creative.js?v=834cc3756f"></script>
   <script src="js/ui/gifts.js?v=cc6bd9baa6"></script>
   <script src="js/ui/collection-book.js?v=6b601140f4"></script>
-  <script src="js/ui/photo-editor.js?v=624f2e52a8"></script>
+  <script src="js/ui/photo-editor.js?v=b8ed453671"></script>
   <script src="js/ui/photography.js?v=2f2de23a47"></script>
-  <script src="js/ui/observatory.js?v=85f916f1df"></script>
+  <script src="js/ui/observatory.js?v=cb22f45058"></script>
   <script src="js/ui/deals.js?v=bfb0b45a90"></script>
   <script src="js/ui/login.js?v=ba3318789e"></script>
-  <script src="js/ui/room-layout.js?v=912026c50d"></script>
-  <script src="js/ui/cloud-account.js?v=c679d8bc56"></script>
+  <script src="js/ui/cloud-account.js?v=6fbe7ea13a"></script>
   <script src="js/ui/neighbors.js?v=b3f1532309"></script>
-  <script src="js/ui/sea-map.js?v=d39f16a78a"></script>
-  <script src="js/ui/visual-shell.js?v=848f67ea3d"></script>
-  <script src="js/ui/ui.js?v=07cdaec9d0"></script>
   <script src="js/ui/live-room.js?v=50bd2a137a"></script>
-  <script src="js/ui/visit.js?v=c1bc11b399"></script>
+  <script src="js/ui/house-design.js?v=6ac81b0a3e"></script>
+  <script src="js/ui/exterior.js?v=b9fbce0624"></script>
+  <script src="js/ui/visual-shell.js?v=da324a36c3"></script>
+  <script src="js/ui/ui.js?v=4aacb7f31d"></script>
+  <script src="js/ui/host-room.js?v=83cb0a619f"></script>
+  <script src="js/ui/visit-session.js?v=8c2501dd3a"></script>
   <script src="js/ui/reception.js?v=5f1071ef6e"></script>
-  <script src="js/ui/host-room.js?v=826d4b8cfe"></script>
-  <script src="js/ui/visit-session.js?v=843522e247"></script>
-  <script src="js/main.js?v=da8a33d9be"></script>
+  <script src="js/building/app.js?v=4a4931b360"></script>
 </body>
 </html>

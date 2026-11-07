@@ -32,23 +32,20 @@
     c.clearRect(0, 0, canvas.width, canvas.height); G.draw.creative.drawFrame(c, art, 8, 8, canvas.width - 16, canvas.height - 16);
   }
   function roomChoices() {
-    return G.store.decorRooms(G.state).map(([id, room]) => {
-      if (id === G.store.atticRoomId) return { id, name: '阁楼天文台 · 独立阁楼' };
-      const def = G.data.rooms.find(value => value.id === room.type); let position = '';
-      G.state.house.floors.forEach((floor, f) => { const slot = floor.slots.indexOf(id); if (slot >= 0) position = (f + 1) + '楼第' + (slot + 1) + '间'; });
-      return { id, name: (def?.name || '房间') + ' · ' + position };
-    });
+    return G.contentSpaces.entries().map(([id, room]) => ({ id, name: (G.data.rooms.find(value => value.id === room.type)?.name || '自由空间') + ' · ' + (G.state.building.floors.find(floor => floor.id === room.floorId)?.name || '') }));
   }
-  function goBuild(handle) { handle.close(); ui.open('build', { roomType: C.roomType }); }
+  function goBuild(handle) { handle.close(); ui.open('build'); }
   function currentHandle(handle) { return active?.handle === handle && handle.element.isConnected; }
   function paintingLocation(target, artId) {
     if (!target || !sys().get(artId)) return null;
-    const room = G.store.decorRoom(G.state, target.roomId); if (!room) return null;
     if (target.uid) {
-      const current = sys().placement(artId);
-      if (!current || current.roomId !== target.roomId || current.uid !== target.uid || !room.items.some(item => item.uid === target.uid && item.defId === C.frameId && item.artId === artId)) return null;
-    } else if (room.wallpaper.pattern !== 'custom' || room.wallpaper.artId !== artId) return null;
-    return { roomId: target.roomId, uid: target.uid || null };
+      const item = G.state.building.furniture.find(value => value.id === target.uid && value.artId === artId);
+      return item ? { uid: item.id, floorId: item.floorId } : null;
+    }
+    const ids = target.wallIds || [];
+    const space = target.roomId && G.contentSpaces.get(target.roomId);
+    const wall = G.state.building.walls.find(value => value.artId === artId && (ids.length ? ids.includes(value.id) : !space || space.floorId === value.floorId));
+    return wall ? { wallId: wall.id, wallIds: [wall.id], floorId: wall.floorId } : null;
   }
   function focusPainting(handle, target, artId, latest) {
     if (!currentHandle(handle)) return false;
@@ -57,13 +54,8 @@
     if (!location) { ui.toast('画作的位置有了变化，请重新打开详情。'); return false; }
     const epoch = archiveEpoch;
     handle.close(); if (epoch !== archiveEpoch) return false;
-    ui.panel.close(); if (epoch !== archiveEpoch || !paintingLocation(location, artId)) return false;
-    G.runtime.placing = null; G.runtime.mode = 'explore'; G.runtime.activeRoomId = location.roomId;
-    G.runtime.selected = location.uid ? { roomId: location.roomId, uid: location.uid } : null;
-    const floor = location.roomId === G.store.atticRoomId ? 'attic' : G.state.house.floors.findIndex(row => row.slots.includes(location.roomId)) + 1;
-    if (typeof G.render.setHouseView === 'function') G.render.setHouseView({ floor: floor || 'all', view: 'cutaway', previewFourFloors: false });
-    if (epoch !== archiveEpoch) return false;
-    G.render.camera.focusRoom(location.roomId); if (epoch !== archiveEpoch) return false; ui.selection(); return true;
+    ui.panel.close();
+    return location.uid ? G.buildingEditor.focusFurniture(location.uid) : G.buildingEditor.focusWall(location.wallId);
   }
   async function download(id, control) {
     const owner = active; if (!owner || control.disabled) return;
@@ -132,7 +124,7 @@
       picker.dataset.uiFocus = 'creative-room'; info.append(ui.controls.label(picker, '选一间房或阁楼来布置'));
       const arrange = el('div', 'creative-actions');
       const hang = button(placement ? '这幅已挂好了' : '装框挂墙', () => { const result = sys().place(id, picker.value); if (!currentHandle(handle)) return; if (announce(result) && focusPainting(handle, result, id)) ui.toast('挂好啦！可以直接拖动画框，挪到喜欢的位置。'); }, 'ui-button ui-button-soft'); hang.disabled = !!placement;
-      arrange.append(hang, button('铺成墙纸', () => { const result = sys().wallpaper(picker.value, id); if (!currentHandle(handle)) return; if (announce(result)) focusPainting(handle, { roomId: picker.value }, id); }, 'ui-button ui-button-soft')); info.append(arrange);
+      arrange.append(hang, button('铺成墙纸', () => { const result = sys().wallpaper(picker.value, id); if (!currentHandle(handle)) return; if (announce(result)) focusPainting(handle, result, id); }, 'ui-button ui-button-soft')); info.append(arrange);
     }
     const manage = el('div', 'creative-actions creative-manage-actions'), rename = button('改名字', () => showRename(art)); rename.disabled = !status.unlocked;
     manage.append(rename, button('删除作品', () => showDelete(id), 'ui-button ui-button-danger')); info.append(manage, button('返回画册', () => showGallery())); body.append(picture, info);

@@ -1,7 +1,8 @@
 'use strict';
 const assert = require('node:assert/strict');
-const { setup, village, advance } = require('./fixtures/quest-village.cjs');
+const { setup, village, advance } = require('./fixtures/content-concert.cjs');
 let passed = 0;
+const spaces = require('./fixtures/free-spaces.cjs');
 const plain = value => JSON.parse(JSON.stringify(value));
 function test(name, fn) { fn(); passed++; console.log('✓ ' + name); }
 function prepared() { const env = setup(), built = village(env.G); return { ...env, built }; }
@@ -9,7 +10,7 @@ function perform(G, roomId) { const result = G.sys.concert.begin(roomId); assert
 test('没有音乐室或入住朋友时不能举办，未知/原型房间ID被拒绝', () => {
   const { G } = setup(); assert.equal(G.sys.concert.status().canStart, false); assert.equal(G.sys.concert.begin().ok, false);
   G.store.update(s => { s.level = 30; s.wallet.coin = 5000; });
-  assert.ok(G.sys.building.buildRoom(0, 0, 'music').ok); assert.equal(G.sys.concert.begin().ok, false);
+  assert.ok(spaces.buildSpace(G, 0, 0, 'music').ok); assert.equal(G.sys.concert.begin().ok, false);
   const full = prepared().G; for (const id of ['__proto__', 'constructor', 'no_room', {}, null]) assert.equal(full.sys.concert.begin(id).ok, false);
 });
 test('必须完成三段再谢幕，中途关闭没有财富/任务/回忆变化', () => {
@@ -38,11 +39,11 @@ test('同步保存与状态通知中的重入不能抢演出或重复谢幕', ()
   const off = G.bus.on('state:change', () => { assert.equal(performance.finish().ok, false); rejected++; });
   assert.ok(performance.finish().ok); off(); assert.equal(rejected, 2); assert.equal(G.state.quests.stats.concerts, 1);
 });
-test('换档、房间换用途或参加朋友改变后旧会话失效', () => {
+test('换档、音乐空间拆除或参加朋友改变后旧会话失效', () => {
   for (const mutation of ['replace', 'room', 'guests']) {
     const { G, parse, built } = prepared(), performance = perform(G, built.auxiliary.music);
     if (mutation === 'replace') G.store.replace(parse(plain(G.state)));
-    if (mutation === 'room') assert.ok(G.sys.building.changeRoomType(built.auxiliary.music, 'dining').ok);
+    if (mutation === 'room') assert.ok(spaces.removeSpace(G, built.auxiliary.music).ok);
     if (mutation === 'guests') G.store.update(s => { s.residents.lily.movedIn = false; });
     assert.equal(performance.finish().ok, false); assert.equal(G.state.quests.stats.concerts, 0);
   }

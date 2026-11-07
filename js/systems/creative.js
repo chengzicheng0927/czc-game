@@ -4,8 +4,10 @@
   const D = G.data, C = D.creativeConfig, B = D.balance;
   const clone = value => G.utils.clone(value), fail = message => ({ ok: false, message });
   const rawArt = id => G.state.customArts.find(art => art.id === id);
+  const domain = () => window.CottageBuilding;
+  const rooms = state => Object.values(G.contentSpaces.rooms(state));
   function status() {
-    const hasStudio = Object.values(G.state.house.rooms).some(room => room.type === C.roomType), unlocked = G.state.level >= C.unlockLv && hasStudio;
+    const hasStudio = rooms().some(room => G.contentSpaces.isType(room, C.roomType)), unlocked = G.state.level >= C.unlockLv && hasStudio;
     return { unlocked, reason: unlocked ? C.texts.ready : G.state.level < C.unlockLv ? C.texts.needLevel : C.texts.needStudio, count: G.state.customArts.length, maxArts: C.maxArts, hasStudio, unlockLv: C.unlockLv };
   }
   function list() { return clone(G.state.customArts); }
@@ -15,7 +17,7 @@
     state.quests.stats[name] = (state.quests.stats[name] || 0) + 1;
     state.quests.daily.list.forEach(entry => { const definition = D.dailyQuests.find(item => item.id === entry.id); if (definition?.metric === name) { entry.progress++; entry.done = entry.progress >= definition.target; } });
   }
-  function changed(id, type) { G.bus.emit('creative:changed', { id, type }); }
+  function changed(id, type, details) { G.bus.emit('creative:changed', Object.assign({ id, type }, details || {})); }
   function newId() {
     for (let attempt = 0; attempt < 8; attempt++) { const id = G.utils.uid('art'); if (!rawArt(id)) return id; }
     throw new Error('这幅画的名字牌还没准备好，稍后再试一次吧。');
@@ -48,59 +50,100 @@
     try {
       G.store.update(state => {
         const index = state.customArts.findIndex(value => value.id === id); if (index < 0) throw new Error('这幅画暂时找不到啦。');
-        state.customArts.splice(index, 1);
-        G.store.decorRooms(state).forEach(([, room]) => {
-          room.items = room.items.filter(item => !(item.defId === C.frameId && item.artId === id));
-          if (room.wallpaper.artId === id) room.wallpaper = { pattern: 'solid', color: room.wallpaper.color, color2: room.wallpaper.color2 };
-        });
+        let building = state.building;
+        const wallIds = building.walls.filter(wall => wall.artId === id).map(wall => wall.id);
+        if (wallIds.length) building = domain().executeCommand(building, { type: 'wall.decorate', wallIds, artId: null }, D.furnitureById);
+        for (const item of building.furniture.filter(item => item.artId === id)) building = domain().executeCommand(building, { type: 'entity.remove', id: item.id }, D.furnitureById);
+        state.building = building; state.customArts.splice(index, 1);
         memory(state, '整理画册，移走「' + art.name + '」及它的挂画和墙纸引用。');
       }, { persist: true });
     } catch (_) { return fail(C.texts.unavailable); }
-    // 旧装饰撤销中可能还有已删作品引用，不能把它恢复成孤立挂件。
-    if (G.sys.decorating.clearUndo) G.sys.decorating.clearUndo();
-    if (G.runtime.selected?.roomId && !G.store.decorRoom(G.state, G.runtime.selected.roomId)?.items.some(item => item.uid === G.runtime.selected.uid)) G.runtime.selected = null;
+    // 新建筑宿主收到removed后清理历史，不能让撤销恢复不存在的作品引用。
+    if (G.runtime.selected?.uid && !G.state.building.furniture.some(item => item.id === G.runtime.selected.uid)) G.runtime.selected = null;
     changed(id, 'removed'); return { ok: true, message: '画作已移走，相关挂画与墙纸也整理好了。' };
   }
   function placement(id) {
-    for (const [roomId, room] of G.store.decorRooms(G.state)) { const item = room.items.find(value => value.defId === C.frameId && value.artId === id); if (item) return { roomId, uid: item.uid }; }
+    const item = G.state.building.furniture.find(value => value.defId === C.frameId && value.artId === id);
+    if (!item) return null;
+    const room = rooms().find(value => value.floorId === item.floorId && value.items.some(entry => entry.uid === item.id));
+    return { roomId: room?.id || null, floorId: item.floorId, uid: item.id, artId: id };
+  }
+  function wallLength(wall) { return Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z); }
+  function surfaces(state, targetId) {
+    const direct = state.building.walls.find(wall => wall.id === targetId);
+    if (direct) return { room: null, floorId: direct.floorId, segments: [{ wall: direct, from: 0, to: wallLength(direct), side: 1 }] };
+    const room = G.contentSpaces.get(targetId, state) || rooms(state).find(value => value.spaceId === targetId);
+    if (!room) return null;
+    const segments = [];
+    for (const polygon of [room.polygon].concat(room.holes || [])) for (let index = 0; index < polygon.length; index++) {
+      const a = polygon[index], b = polygon[(index + 1) % polygon.length], ex = b.x - a.x, ez = b.z - a.z;
+      for (const wall of state.building.walls.filter(value => value.floorId === room.floorId)) {
+        const dx = wall.end.x - wall.start.x, dz = wall.end.z - wall.start.z, length = wallLength(wall);
+        if (Math.abs(dx * (a.z - wall.start.z) - dz * (a.x - wall.start.x)) > .00001 * length || Math.abs(dx * ez - dz * ex) > .00001 * length) continue;
+        const offset = point => ((point.x - wall.start.x) * dx + (point.z - wall.start.z) * dz) / length;
+        const first = offset(a), last = offset(b), from = Math.max(0, Math.min(first, last)), to = Math.min(length, Math.max(first, last));
+        if (to - from > .00001) segments.push({ wall, from, to, side: dx * ex + dz * ez >= 0 ? 1 : -1 });
+      }
+    }
+    return { room, floorId: room.floorId, segments };
+  }
+  function mountingPosition(state, target, dimensions, options) {
+    const candidates = target.segments.filter(segment => !options.wallId || segment.wall.id === options.wallId).sort((a, b) => (b.to - b.from) - (a.to - a.from));
+    for (const segment of candidates) {
+      const wall = segment.wall, length = wallLength(wall), half = dimensions.width / 2;
+      if (segment.to - segment.from < dimensions.width + .04 || wall.height < dimensions.height + .1) continue;
+      const bottom = options.bottom === undefined ? Math.min(1.2, wall.height - dimensions.height - .05) : options.bottom;
+      if (!Number.isFinite(bottom) || bottom < 0 || bottom + dimensions.height > wall.height) continue;
+      const openings = state.building.openings.filter(opening => opening.wallId === wall.id);
+      const centers = options.offset === undefined ? [(segment.from + segment.to) / 2, segment.from + half + .03, segment.to - half - .03].concat(openings.flatMap(opening => [opening.offset - half - .03, opening.offset + opening.width + half + .03])) : [options.offset];
+      for (const center of centers) {
+        if (!Number.isFinite(center) || center - half < segment.from + .01 || center + half > segment.to - .01) continue;
+        if (openings.some(opening => center - half < opening.offset + opening.width && center + half > opening.offset && bottom < opening.sill + opening.height && bottom + dimensions.height > opening.sill)) continue;
+        const dx = (wall.end.x - wall.start.x) / length, dz = (wall.end.z - wall.start.z) / length, offset = wall.thickness / 2 + dimensions.depth / 2 + .015;
+        return { wallId: wall.id, position: { x: wall.start.x + dx * center - dz * offset * segment.side, y: bottom, z: wall.start.z + dz * center + dx * offset * segment.side }, rotation: Math.atan2(dz, dx) + (segment.side < 0 ? Math.PI : 0) };
+      }
+    }
     return null;
   }
-  function place(id, roomId, x, y) {
+  function place(id, targetId, options) {
     const available = status(); if (!available.unlocked) return fail(available.reason);
-    const art = rawArt(id), room = G.store.decorRoom(G.state, roomId);
-    if (!art || !room) return fail('先选一幅画和一间已经建好的房间吧。');
+    const art = rawArt(id), target = surfaces(G.state, targetId);
+    if (!art || !target?.segments.length) return fail('先选一幅画和实际围合的空间，或指定一面墙吧。');
     const existing = placement(id); if (existing) return Object.assign(fail('这幅画已经挂在小屋里啦，可以直接拖动它换个位置。'), existing, { artId: id });
-    if (x !== undefined && (typeof x !== 'number' || !Number.isFinite(x)) || y !== undefined && (typeof y !== 'number' || !Number.isFinite(y))) return fail('请选择墙面上的位置。');
-    const count = G.store.decorRooms(G.state).reduce((total, [, value]) => total + value.items.length, G.state.house.yard.items.length);
-    if (count >= B.maxItems) return fail('小屋已经很热闹啦，先收起一件家具再挂画吧。');
-    const uid = G.utils.uid('painting'), position = { x: G.utils.clamp(x === undefined ? (B.roomWidth - C.frameWidth) / 2 : x, 0, B.roomWidth - C.frameWidth), y: G.utils.clamp(y === undefined ? (B.ceilingLine + B.wallBottom - C.frameHeight) / 2 : y, B.ceilingLine, B.wallBottom - C.frameHeight) };
+    if (options !== undefined && (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => !['wallId', 'offset', 'bottom'].includes(key)))) return fail('请选择真实墙面位置；偏移与高度使用米。');
+    options = options || {};
+    const dimensions = domain().furnitureDimensions(D.furnitureById[C.frameId]), mount = mountingPosition(G.state, target, dimensions, options);
+    if (!mount) return fail('这面墙没有足够的完整位置挂画，请换一面墙或避开门窗。');
+    const uid = G.utils.uid('painting'), roomId = target.room?.id || null, entity = { id: uid, defId: C.frameId, artId: id, floorId: target.floorId, position: mount.position, rotation: mount.rotation, dimensions }, buildingBefore = clone(G.state.building);
     try {
       G.store.update(state => {
-        const target = G.store.decorRoom(state, roomId);
-        if (!state.customArts.some(value => value.id === id) || !target || G.store.decorRooms(state).some(([, value]) => value.items.some(item => item.defId === C.frameId && item.artId === id))) throw new Error('小屋刚刚有了变化，请重新打开画册。');
-        target.items.push({ uid, defId: C.frameId, artId: id, x: position.x, y: position.y, z: Math.max(0, ...target.items.map(item => item.z)) + 1, flip: false, color: null, parent: null });
+        if (!state.customArts.some(value => value.id === id) || !state.building.walls.some(wall => wall.id === mount.wallId) || state.building.furniture.some(item => item.artId === id && item.defId === C.frameId)) throw new Error('小屋刚刚有了变化，请重新打开画册。');
+        state.building = domain().executeCommand(state.building, { type: 'furniture.add', furniture: entity }, D.furnitureById);
         statistic(state, 'itemsPlaced'); memory(state, '把「' + art.name + '」装进小相框，挂在温暖的墙上。');
       }, { persist: true });
     } catch (_) { return fail(C.texts.unavailable); }
-    if (G.sys.decorating.clearUndo) G.sys.decorating.clearUndo();
-    G.bus.emit('item:placed', { roomId, uid, defId: C.frameId, artId: id }); changed(id, 'placed');
-    return { ok: true, message: '画作挂好啦！可以在房间里拖动，找到最喜欢的位置。', roomId, uid, artId: id };
+    const buildingAfter = clone(G.state.building);
+    G.bus.emit('item:placed', { roomId, floorId: target.floorId, uid, defId: C.frameId, artId: id });
+    changed(id, 'placed', { buildingBefore, buildingAfter, label: '挂上「' + art.name + '」' });
+    return { ok: true, message: '画作挂在真实墙面上啦，可以继续调整位置。', roomId, floorId: target.floorId, wallId: mount.wallId, uid, artId: id };
   }
-  function wallpaper(roomId, id) {
+  function wallpaper(targetId, id) {
     const available = status(); if (!available.unlocked) return fail(available.reason);
-    const art = rawArt(id), room = G.store.decorRoom(G.state, roomId); if (!art || !room) return fail('先选一幅画和一间已经建好的房间吧。');
-    if (room.wallpaper.pattern === 'custom' && room.wallpaper.artId === id) return { ok: true, unchanged: true, roomId, artId: id, message: '这间房已经穿着这幅画的墙纸啦。' };
+    const art = rawArt(id), target = surfaces(G.state, targetId); if (!art || !target?.segments.length) return fail('先选一幅画和真实围合空间，或明确选择一面墙吧。');
+    const wallIds = [...new Set(target.segments.map(segment => segment.wall.id))], roomId = target.room?.id || null;
+    if (wallIds.every(wallId => G.state.building.walls.find(wall => wall.id === wallId)?.artId === id)) return { ok: true, unchanged: true, roomId, wallIds, floorId: target.floorId, artId: id, message: '所选墙面已经使用这幅画的墙纸啦。' };
+    const buildingBefore = clone(G.state.building);
     try {
       G.store.update(state => {
-        const target = G.store.decorRoom(state, roomId);
-        if (!state.customArts.some(value => value.id === id) || !target) throw new Error('房间刚刚有了变化，请重新打开画册。');
-        target.wallpaper = { pattern: 'custom', color: target.wallpaper.color, color2: target.wallpaper.color2, artId: id };
-        statistic(state, 'wallpaperChanges'); memory(state, '用「' + art.name + '」设计墙纸，让自己的颜色铺满一间小屋。');
+        if (!state.customArts.some(value => value.id === id)) throw new Error('作品刚刚有了变化，请重新打开画册。');
+        state.building = domain().executeCommand(state.building, { type: 'wall.decorate', wallIds, artId: id }, D.furnitureById);
+        statistic(state, 'wallpaperChanges'); memory(state, '用「' + art.name + '」设计墙纸，让自己的颜色住进真实墙面。');
       }, { persist: true });
     } catch (_) { return fail(C.texts.unavailable); }
-    if (G.sys.decorating.clearUndo) G.sys.decorating.clearUndo();
-    G.bus.emit('room:decorated', { roomId, artId: id }); changed(id, 'wallpaper');
-    return { ok: true, roomId, artId: id, message: '自己的墙纸铺好啦！画板更新时，这份颜色也会一起长大。' };
+    const buildingAfter = clone(G.state.building);
+    G.bus.emit('room:decorated', { roomId, floorId: target.floorId, wallIds, artId: id });
+    changed(id, 'wallpaper', { buildingBefore, buildingAfter, label: '铺上「' + art.name + '」墙纸' });
+    return { ok: true, roomId, floorId: target.floorId, wallIds, artId: id, message: '自己的墙纸已应用到真实墙面，修改画作时也会一起更新。' };
   }
   async function download(id) {
     const art = rawArt(id); if (!art) return fail('这幅画暂时找不到啦。');

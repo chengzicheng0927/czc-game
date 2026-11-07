@@ -4,14 +4,14 @@
   const G = window.Game;
   const ui = G.ui = G.ui || {};
   const view = { panel: null, options: {}, category: 'all', theme: 'all', search: '', decorSearch: '', decorTab: 'items', decorTheme: 'all', decorCategory: 'all', decorRoomSwitchOpen: false, decorMoreOpen: false, decorShopReturn: null, shopTab: 'all', shopPage: 0, decorPage: 0, returnFocus: null, modal: null, tutorialBusy: false, speech: null, saveRestoreWarning: '', archiveEpoch: 0, placementSerial: 0, dragPreparing: false };
+  ui.view = view;
   const $ = id => document.getElementById(id);
   const S = () => G.state;
   const data = () => G.data;
-  const rooms = () => Object.entries(S().house.rooms);
-  // 装饰空间包含独立阁楼；建房、居民与教学仍只使用普通 rooms()。
-  const decorRoom = id => G.store.decorRoom(S(), id);
-  const decorRooms = () => G.store.decorRooms(S());
-  const isAttic = id => id === G.store.atticRoomId;
+  const rooms = () => G.contentSpaces.entries(S());
+  const decorRoom = id => G.contentSpaces.get(id, S());
+  const decorRooms = rooms;
+  const isAttic = id => ['legacy_attic', 'observatory_floor'].includes(decorRoom(id)?.floorId);
   const roomDef = id => data().rooms.find(r => r.id === id);
   const furnDef = id => data().furnitureById[id];
   const num = value => Number(value || 0).toLocaleString('zh-CN');
@@ -60,7 +60,7 @@
   }
   function activeRoom() {
     const id = G.runtime.activeRoomId;
-    if (id && S().house.rooms[id]) return id;
+    if (id && decorRoom(id)) return id;
     const first = rooms()[0]; if (first) { G.runtime.activeRoomId = first[0]; return first[0]; }
     return null;
   }
@@ -71,26 +71,20 @@
     return null;
   }
   function focusDecorRoom(id) {
-    if (!decorRoom(id)) return;
-    if (isAttic(id)) {
-      updateHouseView({ floor: 'attic', view: 'cutaway', previewFourFloors: false });
-      G.render.camera?.focusObservatory?.();
-    } else {
-      const floor = S().house.floors.findIndex(level => level.slots.includes(id));
-      if (floor >= 0) updateHouseView({ floor: floor + 1, view: 'cutaway', previewFourFloors: false });
-      G.render.camera?.focusRoom?.(id);
-    }
+    const room = decorRoom(id); if (!room) return;
+    updateHouseView({ floor: room.floorId, view: 'cutaway' }); G.render.camera?.focusRoom?.(id);
   }
   function cancelPlacement() {
     view.placementSerial++;
-    if (typeof G.render.cancelPlacement === 'function') G.render.cancelPlacement();
+    if (typeof G.buildingEditor?.cancelPlacement === 'function') G.buildingEditor.cancelPlacement();
+    else if (typeof G.render.cancelPlacement === 'function') G.render.cancelPlacement();
     else { G.runtime.placing = null; G.runtime.mode = 'explore'; G.render.redraw?.(); }
     ui.selection(); updateHint();
   }
   function beginRoomPlacement(def, roomId, keepPanel) {
     const epoch = view.archiveEpoch;
-    if (!decorRoom(roomId)) { ui.toast('这个房间已经不在了，请重新选择房间。'); return false; }
-    const result = typeof G.render.beginPlacement === 'function' ? G.render.beginPlacement(def.id, roomId) : { ok: false, message: '摆放还没有准备好，请稍后再试。' };
+    if (roomId && !decorRoom(roomId)) { ui.toast('这个空间的墙已经变动啦，请重新选择。'); return false; }
+    const result = typeof G.buildingEditor?.beginPlacement === 'function' ? G.buildingEditor.beginPlacement(def.id, roomId || null) : { ok: false, message: '摆放还没有准备好，请稍后再试。' };
     if (!result?.ok) { ui.toast(result?.message || '这次没有开始摆放，请重新选择家具。'); ui.selection(); updateHint(); return false; }
     const serial = ++view.placementSerial;
     ui.selection();
@@ -104,14 +98,12 @@
     updateHint(); return true;
   }
   function roomName(id) {
-    const room = decorRoom(id); if (!room) return '房间';
-    if (isAttic(id)) return '星空天文台（独立阁楼）';
-    let position = '';
-    S().house.floors.forEach((floor, f) => { const slot = floor.slots.indexOf(id); if (slot >= 0) position = (f + 1) + '楼 · 第' + (slot + 1) + '间'; });
-    return ((roomDef(room.type) || {}).name || room.type) + '（' + position + '）';
+    const room = decorRoom(id); if (!room) return id ? '原来的空间' : '小屋地块';
+    const floor = S().building.floors.find(value => value.id === room.floorId);
+    return ((roomDef(room.type) || {}).name || '自由空间') + '（' + (floor?.name || '小屋') + ' · ' + Math.round(room.area * 10) / 10 + '㎡）';
   }
   function roomPicker(container, callback) {
-    if (!rooms().length) { container.append(notice('先建一间房，再来慢慢装饰吧。')); return null; }
+    if (!rooms().length) { container.append(notice('先用墙围出一处空间，再来慢慢装饰吧。')); return null; }
     const id = activeRoom();
     const picker = select(rooms().map(([rid]) => ({ id: rid, name: roomName(rid) })), id, rid => {
       G.runtime.activeRoomId = rid;
@@ -271,50 +263,24 @@
     if (view.panel === 'build' || view.panel === 'decor') renderCurrent();
   }
   function houseNavigation(extraClass = '') {
-    const hv = houseViewState();
-    const cap = G.sys?.building?.capacity ? G.sys.building.capacity() : { floors: Math.max(1, (S()?.house?.floors || []).length || 1), slots: 3 };
-    const maxFloors = hv.previewFourFloors ? 4 : Math.max(3, cap.floors || 1);
+    const hv = houseViewState(), definitions = S().building.floors;
     const nav = el('section', 'house-navigation' + (extraClass ? ' ' + extraClass : ''));
     nav.setAttribute('aria-label', '小屋楼层与视角');
     if (extraClass === 'house-nav-world') nav.append(el('h3', 'house-nav-title', '小屋楼层与视角'));
     const summary = el('div', 'house-summary');
-    summary.append(
-      el('strong', '', (hv.previewFourFloors ? '预览 ' : '已开放 ') + (hv.previewFourFloors ? 4 : cap.floors) + ' 层 · 每层 ' + cap.slots + ' 格'),
-      el('span', '', hv.previewFourFloors ? 'Lv.25 扩建预览' : ('Lv.' + (S()?.level || 1) + ' · 阁楼独立'))
-    );
+    summary.append(el('strong', '', definitions.length + ' 层 · 自由画墙'), el('span', '', '每一处空间，都由自己的墙围起来'));
     const floorTabs = el('div', 'house-floor-tabs'); floorTabs.setAttribute('role', 'group'); floorTabs.setAttribute('aria-label', '选择楼层');
-    const floorList = [{ id: 'all', label: '整屋' }];
-    for (let f = 1; f <= maxFloors; f++) floorList.push({ id: f, label: f + 'F' + (f > cap.floors ? hv.previewFourFloors ? ' · 预览' : ' · 未开放' : ''), locked: f > cap.floors && !hv.previewFourFloors });
-    floorList.push({ id: 'attic', label: '阁楼' });
-    floorList.forEach(item => {
-      const active = String(hv.floor) === String(item.id);
-      const b = button(item.label, () => updateHouseView({ floor: item.id }), 'ui-button ui-button-soft' + (active ? ' is-active' : ''));
-      b.dataset.floorFocus = String(item.id);
-      b.disabled = !!item.locked;
-      b.setAttribute('aria-label', item.id === 'all' ? '查看整座小屋' : item.id === 'attic' ? '查看独立阁楼' : '查看第' + item.id + '层' + (item.locked ? '，尚未开放' : hv.previewFourFloors && item.id > cap.floors ? '扩建预览' : ''));
-      b.setAttribute('aria-pressed', String(active));
-      floorTabs.append(b);
+    [{ id: 'all', name: '整屋' }].concat(definitions).forEach(floor => {
+      const active = hv.floor === floor.id, control = button(floor.name, () => updateHouseView({ floor: floor.id }), 'ui-button ui-button-soft' + (active ? ' is-active' : ''));
+      control.dataset.floorFocus = floor.id; control.setAttribute('aria-pressed', String(active)); floorTabs.append(control);
     });
     const viewTabs = el('div', 'house-view-tabs'); viewTabs.setAttribute('role', 'group'); viewTabs.setAttribute('aria-label', '小屋视角');
     [{ id: 'cutaway', label: '全屋剖面' }, { id: 'exterior', label: '小屋外观' }].forEach(item => {
-      const active = hv.view === item.id;
-      const b = button(item.label, () => updateHouseView({ view: item.id }), 'ui-button ui-button-soft' + (active ? ' is-active' : ''));
-      b.dataset.houseView = item.id;
-      b.setAttribute('aria-pressed', String(active));
-      viewTabs.append(b);
+      const control = button(item.label, () => updateHouseView({ view: item.id }), 'ui-button ui-button-soft' + (hv.view === item.id ? ' is-active' : ''));
+      control.dataset.houseView = item.id; control.setAttribute('aria-pressed', String(hv.view === item.id)); viewTabs.append(control);
     });
-    const expandBtn = button(
-      hv.previewFourFloors ? '收起第4层预览，回到当前小屋' : '看看第4层扩建预览 · Lv.25',
-      () => {
-        const next = !hv.previewFourFloors;
-        const nextFloor = !next && hv.floor === 4 && (cap.floors || 1) < 4 ? 'all' : hv.floor;
-        updateHouseView({ previewFourFloors: next, floor: nextFloor });
-      },
-      'ui-button ui-button-soft house-expansion' + (hv.previewFourFloors ? ' is-active' : '')
-    );
-    expandBtn.setAttribute('aria-pressed', String(!!hv.previewFourFloors));
-    append(nav, summary, floorTabs, viewTabs, expandBtn);
-    return nav;
+    const expand = button('给小屋再添一层', () => ui.open('build', { tool: 'floor' }), 'ui-button ui-button-soft house-expansion');
+    append(nav, summary, floorTabs, viewTabs, expand); return nav;
   }
   ui.houseNavigation = houseNavigation;
   let worldHouseNav = null;
@@ -334,9 +300,9 @@
     const items = [
       { id: 'decor', label: '🛋 家具', open: () => ui.open('decor') },
       { id: 'build', label: '🏠 房间', open: () => ui.open('build') },
-      { id: 'houseDesign', label: '🎨 外观', open: () => ui.houseDesign ? ui.houseDesign.open('styles') : ui.open('exterior') },
+      { id: 'houseDesign', label: '🎨 外观', open: () => ui.houseDesign.open('styles') },
       { id: 'yard', label: '🌿 前院', open: () => ui.open('yard') },
-      { id: 'roomLayout', label: '↔ 布局', open: () => ui.roomLayout ? ui.roomLayout.open() : (ui.houseDesign && ui.houseDesign.open('layouts')) }
+      { id: 'roomLayout', label: '↔ 布局', open: () => ui.open('roomLayout') }
     ];
     items.forEach(item => {
       const active = activeId === item.id;
@@ -348,133 +314,14 @@
     return bar;
   }
 
-  function buildPanel() {
-    const body = el('div', 'ui-stack');
-    body.append(decorateSuiteTabs('build'), houseNavigation());
-    const cap = G.sys.building.capacity();
-    const hv = houseViewState();
-    const displayFloors = hv.previewFourFloors ? 4 : cap.floors;
-    const available = [];
-    for (let f = 0; f < cap.floors; f++) for (let slot = 0; slot < cap.slots; slot++) {
-      if (!(S().house.floors[f] && S().house.floors[f].slots[slot])) available.push({ id: f + ':' + slot, name: (f + 1) + '楼 · 第' + (slot + 1) + '格' });
-    }
-    let selected = view.options.floorIdx !== undefined ? view.options.floorIdx + ':' + view.options.slotIdx : (available[0] || {}).id;
-    if (!available.some(o => o.id === selected)) selected = (available[0] || {}).id;
-    const slotOverview = el('section', 'house-layout-grid'); slotOverview.setAttribute('aria-label', '多层房间格总览');
-    const atticRow = el('div', 'house-floor-row is-attic');
-    atticRow.append(
-      el('span', 'house-floor-badge', '阁楼'),
-      button(S().house.attic ? '🔭 星空天文台（已建成 · 观星与布置）' : '🔭 屋顶独立阁楼 · 星空天文台（' + (data().observatoryConfig?.unlockLv || 17) + '级解锁 · ' + num(data().observatoryConfig?.price || 1000) + '糖果）', () => {
-        updateHouseView({ floor: 'attic' });
-        if (ui.observatory) ui.open('observatory');
-      }, 'ui-button ui-button-soft house-slot-pill is-attic-slot')
-    );
-    slotOverview.append(atticRow);
-    for (let f = displayFloors - 1; f >= 0; f--) {
-      if (hv.floor !== 'all' && hv.floor !== 'attic' && Number(hv.floor) !== f + 1) continue;
-      const row = el('div', 'house-floor-row');
-      row.append(el('span', 'house-floor-badge', (f + 1) + 'F'));
-      const slotsWrap = el('div', 'house-floor-slots');
-      for (let slot = 0; slot < 3; slot++) {
-        const rid = S().house.floors[f] && S().house.floors[f].slots[slot];
-        if (rid && S().house.rooms[rid]) {
-          const r = S().house.rooms[rid], rDef = roomDef(r.type) || { name: r.type, icon: '🏠' };
-          const pill = button((rDef.icon || '🏠') + ' ' + rDef.name, () => {
-            G.runtime.activeRoomId = rid;
-            if (G.render.camera) G.render.camera.focusRoom(rid);
-            renderCurrent();
-          }, 'ui-button ui-button-soft house-slot-pill is-occupied' + (G.runtime.activeRoomId === rid ? ' is-active' : ''));
-          slotsWrap.append(pill);
-        } else if (f >= cap.floors) {
-          const pill = button('未解锁房间格 · Lv.25', () => updateHouseView({ floor: f + 1, previewFourFloors: true }), 'ui-button ui-button-soft house-slot-pill is-preview');
-          slotsWrap.append(pill);
-        } else {
-          const slotKey = f + ':' + slot;
-          const pill = button('＋ 空房间格', () => {
-            view.options = { floorIdx: f, slotIdx: slot };
-            renderCurrent();
-          }, 'ui-button ui-button-soft house-slot-pill is-empty' + (selected === slotKey ? ' is-active' : ''));
-          slotsWrap.append(pill);
-        }
-      }
-      row.append(slotsWrap);
-      slotOverview.append(row);
-    }
-    body.append(slotOverview);
-    if (available.length) {
-      const picker = select(available, selected, value => { const [f, slot] = value.split(':').map(Number); view.options = { floorIdx: f, slotIdx: slot }; renderCurrent(); });
-      append(body, field('选择一块空地', picker));
-      const grid = el('div', 'ui-grid');
-      data().rooms.forEach(def => {
-        const locked = S().level < def.unlockLv;
-        const free = S().quests.stats.roomsBuilt === 0 && def.id === 'bedroom';
-        const item = card((def.icon || '🏠') + ' ' + def.name, locked ? '小屋 ' + def.unlockLv + ' 级后解锁' : (free ? '第一间卧室，糯米请客！' : '🍬 ' + num(def.price)));
-        const choose = button(locked ? '🔒 ' + def.unlockLv + '级' : '建造' + def.name, () => {
-          const [f, slot] = picker.value.split(':').map(Number);
-          const result = G.sys.building.buildRoom(f, slot, def.id);
-          if (doAction(result, '新房间建好啦！')) {
-            const roomId = result.roomId || result.id || S().house.floors[f].slots[slot];
-            G.runtime.activeRoomId = roomId; if (G.render.camera) G.render.camera.focusRoom(roomId); ui.open('decor');
-          }
-        }, 'ui-button ui-button-primary');
-        choose.disabled = locked || (!free && S().wallet.coin < def.price); item.append(choose); grid.append(item);
-      });
-      body.append(grid);
-    } else body.append(notice('这一层已经住满温暖啦！升到下一个等级，就会有更多空间。'));
-    if (rooms().length) {
-      const existing = card('照顾已有的房间');
-      const roomId = roomPicker(existing);
-      append(existing, el('div', 'ui-actions'));
-      const actions = existing.lastElementChild;
-      append(actions, button('换个用途', () => changeRoom(roomId)), button('↔ 房间换位置', () => ui.roomLayout.open(roomId)), button('拆除房间', async () => {
-        if (await ui.confirm('拆除' + roomName(roomId) + '？家具会放回背包，实际花费的建造糖果币会全部退还。住在这里的朋友会先搬出去，之后可以重新邀请。', { title: '拆除房间', danger: true, accept: '拆除并退币' })) doAction(G.sys.building.demolishRoom(roomId), '房间收好啦，家具也都回到背包了。');
-      }, 'ui-button ui-button-soft'));
-      body.append(existing);
-    }
-    return { title: '🔨 一起盖小屋', subtitle: '一砖一瓦，装下你的想象', content: body };
-  }
-  function changeRoom(roomId) {
-    if (!roomId) return;
-    const body = el('div', 'ui-stack'); body.append(paragraph('更换房间用途后，家具会回到背包，朋友会先搬出去。新旧房间的价格会补退差额。'));
-    data().rooms.forEach(def => {
-      const b = button((def.icon || '🏠') + ' ' + def.name + (S().level < def.unlockLv ? ' · ' + def.unlockLv + '级解锁' : ''), async () => {
-        modal.close();
-        const difference = def.price - S().house.rooms[roomId].paidPrice;
-        if (await ui.confirm('把' + roomName(roomId) + '改成' + def.name + '？' + (difference >= 0 ? '需补' : '将退回') + Math.abs(difference) + '颗糖果。家具会收好，朋友可重新邀请。', { accept: '更换用途' })) doAction(G.sys.building.changeRoomType(roomId, def.id), '房间有了新用途！');
-      }); b.disabled = S().level < def.unlockLv || S().house.rooms[roomId].type === def.id; body.append(b);
-    });
-    const modal = ui.modal({ title: '换个房间用途', content: body });
+  function buildingPanel(name, options) {
+    if (!G.buildingEditor || typeof G.buildingEditor.panel !== 'function') throw new Error('小屋的建造工具还没有准备好，请保留存档后重新打开。');
+    return G.buildingEditor.panel(name, options || view.options);
   }
   function roomMenu(roomId) {
-    const room = S().house.rooms[roomId]; if (!room) return;
-    const inThisRoom = G.runtime?.player?.zone === roomId;
-    const people = data().residents.filter(def => S().residents[def.id] && S().residents[def.id].movedIn && S().residents[def.id].roomId === roomId).map(def => def.name);
-    const body = append(el('div', 'ui-stack'), paragraph('⭐'.repeat(G.sys.decorating.score(roomId)) + ' · ' + room.items.length + '件家具'), paragraph(people.length ? people.join('、') + '住在这里，真暖和。' : '这里还可以添一点喜欢的家具。'));
-    const enterRoomBtn = button(inThisRoom ? '🌿 去院子里走走' : '🚶 进入房间', () => {
-      modal.close();
-      if (inThisRoom) {
-        if (G.playerMovement?.toYard) G.playerMovement.toYard(-0.6, 2.4);
-        else { G.runtime.player = G.runtime.player || {}; G.runtime.player.zone = 'yard'; G.runtime.player.x = -0.6; G.runtime.player.z = 2.4; }
-        ui.toast('小人来到前院散步啦～');
-      } else {
-        if (G.playerMovement?.enterRoom) G.playerMovement.enterRoom(roomId);
-        else { G.runtime.player = G.runtime.player || {}; G.runtime.player.zone = roomId; G.runtime.activeRoomId = roomId; focusDecorRoom(roomId); ui.toast('小人进入了「' + roomName(roomId) + '」～'); }
-      }
-      G.render?.redraw?.();
-    }, 'ui-button ui-button-primary');
-    body.append(enterRoomBtn);
-    body.append(button('↔ 房间换位置', () => { modal.close(); ui.roomLayout.open(roomId); }, 'ui-button ui-button-soft'));
-    if (room.type === 'workshop') body.append(button('🧁 制作高级蛋糕', () => { modal.close(); ui.crafting.open('strawberry_deluxe'); }, 'ui-button ui-button-primary'));
-    if (room.type === 'music') body.append(button('♫ 举办小合奏', () => { modal.close(); ui.concert.open(roomId); }, 'ui-button ui-button-primary'));
-    if (room.type === 'studio') body.append(button('🎨 打开创意画板', () => { modal.close(); ui.creative.open(); }, 'ui-button ui-button-primary'));
-    if (room.type === 'wardrobe') body.append(button('👗 打开换装间', () => { modal.close(); ui.open('avatar'); }, 'ui-button ui-button-primary'));
-    append(body, button('🛋 装扮这个房间', () => { modal.close(); ui.open('decor', { roomId }); }, 'ui-button ui-button-primary'), button('🏠 换个房间用途', () => { modal.close(); changeRoom(roomId); }), button('收起这个房间', async () => {
-      modal.close();
-      if (await ui.confirm('收起' + roomName(roomId) + '？家具会回到背包，实际花费的建造币会全部退还。朋友会先搬出去，之后可以重新邀请。', { title: '收起房间', accept: '收起并退币', danger: true })) doAction(G.sys.building.demolishRoom(roomId), '房间收好了，期待新的创意。');
-    }, 'ui-button ui-button-soft'));
-    const modal = ui.modal({ title: roomName(roomId), content: body });
+    if (!decorRoom(roomId)) return;
+    G.runtime.activeRoomId = roomId; ui.open('decor', { roomId });
   }
-
   function decorRoomContext(roomId) {
     const context = el('section', 'decor-room-context'), epoch = view.archiveEpoch;
     const headerRow = el('div', 'ui-row ui-between');
@@ -504,7 +351,6 @@
   }
   function openDecorShop() {
     const context = decorShopContext();
-    if (!context.roomId) { ui.toast('先选一间房，再给它挑家具吧。'); return; }
     view.decorShopReturn = context;
     view.theme = context.theme; view.search = context.search; view.category = context.category; view.shopPage = 0;
     const query = context.search.trim();
@@ -513,97 +359,20 @@
     ui.open('shop', { fromDecor: true });
   }
   function returnToDecor(context) {
-    if (context.epoch !== view.archiveEpoch || !decorRoom(context.roomId)) { ui.toast('原来的房间已经不在了，请重新选择房间。'); return; }
+    if (context.epoch !== view.archiveEpoch || context.roomId && !decorRoom(context.roomId)) { ui.toast('原来的空间已经变动，请重新选择。'); return; }
     view.decorTheme = context.theme; view.decorCategory = context.category; view.decorSearch = context.search; view.decorTab = context.tab; view.decorPage = context.page; view.decorShopReturn = null;
     ui.open('decor', { roomId: context.roomId });
   }
-  function decorPanel() {
+  // 保留原背包的卡片、主题、分类、分页和去杂货铺再返回；实体修改只交新建筑命令。
+  function backpackPanel() {
     const body = el('div', 'ui-stack decor-panel'), epoch = view.archiveEpoch, roomId = activeDecorRoom();
     body.append(decorRoomContext(roomId));
-    if (isAttic(roomId)) {
-      const observatory = button('去观星 · 星空天文台', () => ui.open('observatory'), 'ui-button ui-button-soft'); observatory.dataset.uiFocus = 'decor-observatory';
-      body.append(append(el('div', 'decor-attic-actions'), paragraph('布置背包里的家具、墙纸和地板。固定望远镜仍在阁楼，观星记录照常保留。', 'ui-small ui-muted'), observatory));
-    }
     const controls = el('div', 'ui-row decor-controls');
-    controls.append(tabs([
-      { id: 'items', name: '🛋 背包 ' + inventoryCount() },
-      { id: 'walls', name: '🎨 墙纸' },
-      { id: 'floors', name: '🪵 地板' },
-      { id: 'exterior', name: '🏠 屋顶外观' }
-    ], view.decorTab, id => {
-      if (id === 'exterior') { ui.open('exterior'); return; }
-      view.decorTab = id; renderCurrent();
-    }));
-    const undo = button('↶ 撤销', () => doAction(G.sys.decorating.undo(), '已撤销上一步'), 'ui-button ui-button-soft'); controls.append(undo); body.append(controls);
+    controls.append(el('strong', '', '🛋 背包 ' + inventoryCount()), button('↶ 撤销', () => doAction(G.buildingEditor.undo({ redo: false }), '已撤销上一步'), 'ui-button ui-button-soft'));
+    body.append(controls);
     const more = el('details', 'decor-more-tools'); more.open = view.decorMoreOpen;
     const moreSummary = el('summary', '', '建造、外观与前院'); moreSummary.dataset.uiFocus = 'decor-more-tools'; more.append(moreSummary, decorateSuiteTabs('decor'));
     more.addEventListener('toggle', () => { if (epoch === view.archiveEpoch && more.isConnected) view.decorMoreOpen = more.open; });
-    if (view.decorTab !== 'items') {
-      const allRooms = decorRooms();
-      let activeRoomId = roomId;
-      if (!activeRoomId && allRooms.length > 0) activeRoomId = allRooms[0][0];
-      if (!activeRoomId) {
-        body.append(notice('小屋还没有建好房间呢，先去建一间房吧！'), button('去建房', () => ui.open('build'), 'ui-button ui-button-primary'), more);
-        return { title: '🛋 装扮小屋', content: body };
-      }
-      const wall = view.decorTab === 'walls', room = decorRoom(activeRoomId), current = wall ? room.wallpaper : room.floor;
-      if (!room) { body.append(more); return { title: '🛋 装扮小屋', content: body }; }
-
-      if (allRooms.length > 1) {
-        const roomOptions = allRooms.map(([id, r]) => {
-          const def = data().rooms.find(d => d.id === r.type);
-          const fIndex = S().house.floors.findIndex(fl => fl.slots.includes(id));
-          return { id, name: (fIndex >= 0 ? (fIndex + 1) + '楼 · ' : '') + (def?.name || '房间') };
-        });
-        const roomPicker = select(roomOptions, activeRoomId, nextId => {
-          G.runtime.activeRoomId = nextId;
-          focusDecorRoom(nextId);
-          renderCurrent();
-        });
-        body.append(field('正在装扮的房间', roomPicker));
-      }
-
-      const choices = (wall ? data().wallpaperPatterns : data().floorPatterns) || (wall ? patterns : floors);
-      const normalize = arr => arr.map(p => typeof p === 'string' ? { id: p, name: p } : p);
-      const patternPicker = select(normalize(choices), current.pattern === 'custom' ? 'solid' : current.pattern);
-      if (wall && current.pattern === 'custom') { const art = S().customArts.find(value => value.id === current.artId); body.append(notice('正在使用「' + (art?.name || '我的画作') + '」墙纸。换上普通图案会替换它，作品仍留在画册。')); }
-      if (wall) body.append(button('🎨 用我的画作设计墙纸', () => ui.creative.open(), 'ui-button ui-button-soft'));
-      const colorPicker = input('color', current.color, 'wall-color'); colorPicker.setAttribute('aria-label', wall ? '墙纸主色' : '地板颜色');
-      const second = input('color', current.color2 || '#FFFFFF', 'wall-color2');
-      const formRow = el('div', 'ui-row appearance-controls'); append(formRow, field('图案', patternPicker), field('喜欢的颜色', colorPicker));
-      if (wall) formRow.append(field('点缀颜色', second));
-      body.append(formRow);
-
-      const wallSwatches = [
-        { name: '草莓软陶', hex: '#FFE0E9' },
-        { name: '温暖杏黄', hex: '#FFF2DF' },
-        { name: '薄荷清新', hex: '#E2F3E7' },
-        { name: '星空浅紫', hex: '#EDDDE7' },
-        { name: '晴空冰蓝', hex: '#E0F0F8' },
-        { name: '奶油白', hex: '#FFFDF7' }
-      ];
-      const swatchRow = el('div', 'swatch-row decor-color-swatches');
-      wallSwatches.forEach(sw => {
-        const swBtn = el('button', 'swatch' + (sw.hex.toUpperCase() === String(current.color || '').toUpperCase() ? ' is-active' : ''));
-        swBtn.type = 'button';
-        swBtn.style.backgroundColor = sw.hex;
-        swBtn.setAttribute('aria-label', sw.name + ' ' + sw.hex);
-        swBtn.title = sw.name;
-        swBtn.addEventListener('click', () => {
-          colorPicker.value = sw.hex;
-          const res = wall ? G.sys.decorating.wallpaper(activeRoomId, patternPicker.value, sw.hex, second.value) : G.sys.decorating.floor(activeRoomId, patternPicker.value, sw.hex);
-          doAction(res, wall ? '换上「' + sw.name + '」墙纸啦！' : '新地板换好啦！');
-          swatchRow.querySelectorAll('.swatch').forEach(s => s.classList.remove('is-active'));
-          swBtn.classList.add('is-active');
-        });
-        swatchRow.append(swBtn);
-      });
-      body.append(swatchRow);
-
-      body.append(button(wall ? '换上新墙纸' : '铺上新地板', () => doAction(wall ? G.sys.decorating.wallpaper(activeRoomId, patternPicker.value, colorPicker.value, second.value) : G.sys.decorating.floor(activeRoomId, patternPicker.value, colorPicker.value), wall ? '墙纸换好啦！' : '新地板真好看！'), 'ui-button ui-button-primary'));
-      body.append(more);
-      return { title: '🛋 装扮小屋', subtitle: '随心搭配，怎样都好看', content: body };
-    }
     const defs = data().furniture.filter(def => S().inventory[def.id] > 0);
     const searchRow = el('div', 'ui-row decor-filter-row');
     const search = input('search', view.decorSearch, 'decor-search');
@@ -627,8 +396,7 @@
     if (filteredDefs.length > 24) body.append(page.controls());
     page.items.forEach(def => {
       const b = button('', () => {
-        if (def.place === 'yard') { ui.open('yard'); G.runtime.placing = def.id; ui.panel.close({ keepPlacing: true }); G.render.camera.focusYard(); ui.toast('点前院，摆放' + def.name); return; }
-        const targetRoomId = roomId; if (!targetRoomId) { ui.toast('先建一间房间吧。'); return; }
+        const targetRoomId = def.place === 'yard' ? null : roomId;
         if (!beginRoomPlacement(def, targetRoomId, false)) return;
         ui.toast('点一下房间，放下' + def.name + (def.place === 'floor' ? '；也可以拖动调整前后位置。' : '。')); updateHint();
       }, 'item-card' + (G.runtime.placing === def.id ? ' is-active' : ''));
@@ -639,17 +407,13 @@
       b.addEventListener('dragstart', event => {
         if (epoch !== view.archiveEpoch) { event.preventDefault(); return; }
         const targetRoomId = def.place === 'yard' ? null : roomId;
-        if (def.place !== 'yard' && !targetRoomId) { event.preventDefault(); ui.toast('先建一间房间吧。'); return; }
-        if (def.place !== 'yard') {
-          view.dragPreparing = true;
-          if (!beginRoomPlacement(def, targetRoomId, true)) { view.dragPreparing = false; event.preventDefault(); return; }
-        }
-        if (def.place === 'yard') { G.runtime.placing = def.id; G.runtime.mode = 'decorate'; G.runtime.selected = null; ui.selection(); }
+        view.dragPreparing = true;
+        if (!beginRoomPlacement(def, targetRoomId, true)) { view.dragPreparing = false; event.preventDefault(); return; }
         event.dataTransfer.setData('application/x-marshmallow-item', def.id);
         event.dataTransfer.setData('application/x-marshmallow-furniture', def.id);
         event.dataTransfer.setData('text/plain', def.id); event.dataTransfer.effectAllowed = 'copy'; updateHint();
         // 先让浏览器捕获原生拖影，再隐藏来源面板，避免dragstart被display:none取消。
-        if (targetRoomId) requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
           view.dragPreparing = false;
           if (epoch !== view.archiveEpoch || G.runtime.placing !== def.id) return;
           ui.panel.close({ keepPlacing: true }); updateHint();
@@ -664,6 +428,8 @@
     body.append(browse, more);
     return { title: '🛋 装扮小屋', subtitle: placing ? '已选' + placing.name + ' · 点一下房间放下' : '点家具，再点房间摆放；也能直接拖进去', content: body };
   }
+
+  ui.backpackPanel = backpackPanel;
 
   function catalogPage(definitions, key, size = 24) {
     const count = Math.max(1, Math.ceil(definitions.length / size));
@@ -683,7 +449,7 @@
     const body = el('div', 'ui-stack shop-panel');
     const context = view.decorShopReturn;
     if (context && context.epoch === view.archiveEpoch) {
-      const back = button('返回装扮 · ' + roomName(context.roomId), () => returnToDecor(context), 'ui-button ui-button-primary'); back.dataset.uiFocus = 'decor-return'; back.disabled = !decorRoom(context.roomId);
+      const back = button('返回装扮 · ' + roomName(context.roomId), () => returnToDecor(context), 'ui-button ui-button-primary'); back.dataset.uiFocus = 'decor-return'; back.disabled = !!context.roomId && !decorRoom(context.roomId);
       body.append(append(el('div', 'decor-shop-return'), paragraph('为' + roomName(context.roomId) + '挑选 · 返回时保留原主题与筛选', 'ui-small ui-muted'), back));
     }
     body.append(tabs([{ id: 'all', name: '云朵杂货' }, { id: 'deals', name: '🍬 今日特惠' }, { id: 'festival', name: '🎁 节日限定' }, { id: 'gifts', name: '🎀 惊喜礼盒' }], view.shopTab, id => { view.shopTab = id; view.category = 'all'; view.shopPage = 0; renderCurrent(); }));
@@ -709,7 +475,7 @@
       const text = locked ? '🔒 ' + def.unlockLv + '级解锁' : (!purchasable ? '特别礼物' : short > 0 ? ('还差 ' + num(short) + (currency === 'heart' ? ' 颗爱心' : ' 颗糖果')) : icon + ' ' + num(price) + (price < def.price ? ' · 今日八折' : ' · 买一件'));
       const buy = button(text, () => doAction(G.sys.economy.buy(def.id, price), '买到' + def.name + '啦！到背包里看看。'), 'ui-button ' + (short || locked ? 'ui-button-soft' : 'ui-button-primary'));
       buy.disabled = locked || short > 0 || !purchasable || (S().inventory[def.id] || 0) >= 9999; item.append(buy);
-      const owned = (S().inventory[def.id] || 0) + decorRooms().reduce((n, [, room]) => n + room.items.filter(i => i.defId === def.id).length, 0) + S().house.yard.items.filter(i => i.defId === def.id).length;
+      const owned = (S().inventory[def.id] || 0) + S().building.furniture.filter(item => item.defId === def.id).length;
       if (owned) item.append(el('span', 'ui-badge', '已拥有 ' + owned)); grid.append(item);
     });
     body.append(grid);
@@ -763,15 +529,14 @@
   }
   function placeCraft(itemId) {
     const def = furnDef(itemId); if (!def || !(S().inventory[itemId] > 0)) { ui.toast('成品已经用完啦，再做一份小心意吧。'); return; }
-    if (def.place === 'yard') { ui.yard.choose(itemId); return; }
-    const target = activeDecorRoom(); if (!target) { ui.toast('先建一间房间，再给成品找位置吧。'); ui.open('build'); return; }
+    const target = def.place === 'yard' ? null : activeDecorRoom();
     if (beginRoomPlacement(def, target, false)) ui.toast('点房间，放下' + def.name + (def.place === 'table' ? '；也能放到桌面上。' : '。'));
   }
   function inviteResident(id) {
     const def = data().residents.find(r => r.id === id), body = el('div', 'ui-stack');
     append(body, residentThumb(id), paragraph('“' + def.intro + '”'));
     const eligible = G.sys.residents.eligibility(id);
-    const bedrooms = rooms().filter(([rid, r]) => r.type === 'bedroom' && (!eligible.roomIds || eligible.roomIds.includes(rid)) && Object.values(S().residents).filter(v => v.movedIn && v.roomId === rid).length < 2);
+    const bedrooms = rooms().filter(([rid, r]) => G.contentSpaces.isType(r, 'bedroom') && (!eligible.roomIds || eligible.roomIds.includes(rid)) && Object.values(S().residents).filter(v => v.movedIn && v.roomId === rid).length < 2);
     if (!bedrooms.length) append(body, notice('还没有空余的卧室。先建一间卧室并摆好床吧。'), button('🔨 去建卧室', () => { modal.close(); ui.open('build'); }));
     else {
       const picker = select(bedrooms.map(([rid]) => ({ id: rid, name: roomName(rid) })), bedrooms[0][0]);
@@ -964,10 +729,10 @@
   }
   const guideSteps = [
     '给小屋起一个喜欢的名字。',
-    '点空地上的＋，建造一间卧室。第一间卧室免费。',
+    '打开建造，用墙围出一个喜欢的空间，也可以斜着画。',
     '打开装饰背包，点赠送的小床，再点卧室摆放。',
     '打开居民面板，邀请莉莉住进卧室。',
-    '再建一间厨房，去游乐场做一局蛋糕。',
+    '再围一处空间、摆上炉灶，去游乐场做一局蛋糕。',
     '去商店买一盏台灯，背包里还有赠送的床头柜。',
     '把床头柜摆进房间，再把台灯放到柜面上。'
   ];
@@ -975,7 +740,7 @@
     const body = el('div', 'ui-stack');
     body.append(notice('☁ 我是糯米。彩虹暴风吹散了小屋，我们一起给小动物盖个暖暖的家。'));
     const list = el('ol', 'guide-steps'); guideSteps.forEach(text => list.append(el('li', '', text))); body.append(list);
-    append(body, paragraph('拖动画面可到处看看；滚轮或＋/−可以缩放；双击房间放大。家具点选后，可翻转、换色、调层级和收回；Ctrl+Z（Mac用⌘Z）能撤销装扮。', 'ui-small ui-muted'));
+    append(body, paragraph('拖动画面可到处看看；滚轮或＋/−可以缩放。用墙围出空间，给墙安上门窗，再摆放家具；点选家具可调整位置和方向。Ctrl+Z（Mac用⌘Z）能撤销，Shift+Ctrl+Z能重做。', 'ui-small ui-muted'));
     if (!S().tutorial.done) append(body, button('带我做下一步', guideNext, 'ui-button ui-button-primary'), button('跳过引导，自由玩', () => finishTutorial(true), 'ui-button ui-button-soft'));
     else body.append(button('🔨 开始盖小屋', () => ui.open('build'), 'ui-button ui-button-primary'));
     return { title: '☁ 糯米的小贴士', subtitle: '想怎么装扮，就怎么装扮', content: body };
@@ -986,7 +751,7 @@
     else if (step === 2) ui.open('build');
     else if (step === 3 || step === 7) ui.open('decor');
     else if (step === 4) ui.open('residents');
-    else if (step === 5) ui.open(rooms().some(([, r]) => r.type === 'kitchen') ? 'play' : 'build');
+    else if (step === 5) ui.open(rooms().some(([, r]) => G.contentSpaces.isType(r, 'kitchen')) ? 'play' : 'build');
     else if (step === 6) ui.open('shop');
   }
   function finishTutorial(skipped) {
@@ -994,25 +759,25 @@
     G.store.update(state => { state.tutorial.done = true; state.tutorial.step = 8; if (!state.tutorial.rewarded) { state.tutorial.rewarded = true; state.wallet.coin += 300; } });
     if (view.modal) view.modal.close(); updateHint();
     ui.toast(skipped ? '可以自由装扮啦！糯米送你300颗糖果。' : '你的小屋已经暖起来啦！糯米送你300颗糖果，接下来尽情创造吧。');
-    if (ui.calendar) setTimeout(() => ui.calendar.maybeGreet(), 600);
+    if (!G.runtime.reviewMode && ui.calendar) setTimeout(() => ui.calendar.maybeGreet(), 600);
   }
   function showWelcome() {
-    if (S().tutorial.done || S().tutorial.step > 0) return;
+    if (G.runtime.reviewMode || S().tutorial.done || S().tutorial.step > 0) return;
     if (ui.avatar && ui.avatar.needsPreset()) { ui.avatar.pickPreset({ first: true, onDone: () => setTimeout(showWelcome, 200) }); return; }
     const body = append(el('div', 'ui-stack'), el('div', 'welcome-cloud', '☁'), paragraph('你好呀，我是云朵精灵糯米。'), paragraph('彩虹暴风吹散了岛上的房子，小动物们正在寻找新家。和我一起盖一座软乎乎、暖洋洋的小屋吧！'), append(el('div', 'ui-actions'), button('一起开始吧', () => { modal.close(); G.store.update(s => { s.tutorial.step = 1; }); renameHouse(true); }, 'ui-button ui-button-primary'), button('跳过引导，自由玩', () => { modal.close(); finishTutorial(true); }, 'ui-button ui-button-soft')));
     const modal = ui.modal({ title: '欢迎来到棉花糖岛', content: body, speechText: '你好呀，我是云朵精灵糯米。彩虹暴风吹散了岛上的房子，小动物们正在寻找新家。和我一起盖一座软乎乎、暖洋洋的小屋吧！' });
   }
   function advanceGuide() {
     const tutorial = S().tutorial;
-    if (tutorial.done || view.tutorialBusy) return;
+    if (G.runtime.reviewMode || tutorial.done || view.tutorialBusy) return;
     let next = tutorial.step || 0;
-    const bedroom = rooms().filter(([, room]) => room.type === 'bedroom');
+    const bedroom = rooms().filter(([, room]) => G.contentSpaces.isType(room, 'bedroom'));
     if (next === 2 && bedroom.length) next = 3;
     if (next === 3 && bedroom.some(([, room]) => room.items.some(i => (furnDef(i.defId).tags || []).includes('bed')))) next = 4;
     if (next === 4 && S().residents.lily && S().residents.lily.movedIn) next = 5;
     if (next === 5 && (S().minigames.bakery.playsToday > 0 || S().minigames.bakery.best > 0)) next = 6;
     if (next === 6 && tutorial.seenTips.lampBought) next = 7;
-    if (next === 7 && rooms().some(([, room]) => room.items.some(i => furnDef(i.defId).template === 'desk_lamp' && i.parent))) { finishTutorial(false); return; }
+    if (next === 7 && S().building.furniture.some(item => furnDef(item.defId).template === 'desk_lamp' && item.position.y > .2)) { finishTutorial(false); return; }
     if (next !== tutorial.step) { view.tutorialBusy = true; G.store.update(state => { state.tutorial.step = next; }); view.tutorialBusy = false; ui.toast('☁ ' + guideSteps[Math.max(0, next - 1)]); }
   }
   function cameraInteractionMode() {
@@ -1033,6 +798,9 @@
   }
   function updateHint() {
     const hint = $('scene-hint'); if (!hint) return;
+    const buildingHint = G.buildingEditor?.hint?.();
+    if (typeof buildingHint === 'string' && buildingHint) { hint.textContent = buildingHint; return; }
+    if (G.runtime.placing || ['build', 'decor', 'yard', 'roomLayout', 'houseDesign', 'exterior'].includes(view.panel)) return;
     const mode = cameraInteractionMode(), dragHint = mode === 'orbit' ? '鼠标或单指拖动转动视角' : mode === 'pan' ? '鼠标或单指拖动平移' : '鼠标或单指拖动场景';
     if (G.runtime.placing) hint.textContent = furnDef(G.runtime.placing)?.place === 'yard' ? '✨ 点前院摆放 · Esc取消' : '✨ 点房间摆放 · Esc取消';
     else if (!S().tutorial.done) hint.textContent = '☁ ' + (guideSteps[Math.max(0, (S().tutorial.step || 1) - 1)] || '点糯米看看下一步') + ' · ' + dragHint;
@@ -1040,75 +808,12 @@
   }
 
   ui.selection = function () {
-    const root = $('selection-tools'), epoch = view.archiveEpoch; root.replaceChildren();
-    const placing = G.runtime.placing && furnDef(G.runtime.placing);
-    if (placing) {
-      const target = G.runtime.activeRoomId, yard = placing.place === 'yard';
-      root.className = 'selection-toolbar placement-toolbar'; root.setAttribute('role', 'toolbar'); root.setAttribute('aria-label', '正在摆放的家具');
-      root.append(el('span', 'placement-status', '正在摆放「' + placing.name + '」 → ' + (yard ? '前院' : decorRoom(target) ? roomName(target) : '请重新选择房间')));
-      const cancel = button('取消摆放', cancelPlacement, 'ui-button ui-button-soft'); cancel.dataset.uiFocus = 'placement-cancel';
-      const change = button('换一件', () => { cancelPlacement(); ui.open(yard ? 'yard' : 'decor', yard ? undefined : { roomId: target }); }, 'ui-button ui-button-primary'); change.dataset.uiFocus = 'placement-change';
-      root.append(cancel, change); return;
-    }
-    const selected = G.runtime.selected; if (!selected) { root.classList.add('hidden'); return; }
-    if (selected.yard && G.sys.yard) {
-      const item = G.sys.yard.get(selected.uid);
-      if (!item) { G.runtime.selected = null; root.classList.add('hidden'); return; }
-      const def = furnDef(item.defId); root.classList.remove('hidden'); root.className = 'selection-toolbar'; root.setAttribute('role', 'toolbar'); root.setAttribute('aria-label', def.name + '的庭院工具');
-      root.append(el('span', 'ui-small', def.name));
-      const action = (label, fn) => root.append(button(label, () => { doAction(fn()); ui.selection(); }, 'ui-button ui-button-soft'));
-      action('↔ 翻转', () => G.sys.yard.flip(item.uid)); action('↑ 前一层', () => G.sys.yard.layer(item.uid, 1)); action('↓ 后一层', () => G.sys.yard.layer(item.uid, -1));
-      if (def.recolor) { const color = input('color', item.color || def.color || '#D8BE9C'); color.setAttribute('aria-label', '给' + def.name + '换色'); color.addEventListener('change', () => doAction(G.sys.yard.recolor(item.uid, color.value))); root.append(field('🎨 换色', color)); }
-      action('📦 收起来', () => G.sys.yard.remove(item.uid)); root.append(button('🌿 继续布置', () => ui.open('yard'), 'ui-button ui-button-soft')); return;
-    }
-    const room = decorRoom(selected.roomId), item = room && room.items.find(i => i.uid === selected.uid);
-    if (!item) { G.runtime.selected = null; root.classList.add('hidden'); return; }
-    const def = furnDef(item.defId), artwork = def.customArt && S().customArts.find(value => value.id === item.artId), itemName = artwork ? artwork.name : def.name; root.classList.remove('hidden'); root.className = 'selection-toolbar'; root.setAttribute('role', 'toolbar'); root.setAttribute('aria-label', itemName + '的装饰工具');
-    root.append(el('span', 'ui-small', itemName));
-    if (artwork) root.append(button('🎨 编辑画作', () => ui.creative.open({ mode: 'editor', id: artwork.id }), 'ui-button ui-button-soft'));
-    const action = (label, fn) => root.append(button(label, () => { doAction(fn()); ui.selection(); }, 'ui-button ui-button-soft'));
-    action('↔ 翻转', () => G.sys.decorating.flip(selected.roomId, selected.uid));
-    action('↑ 向上一层', () => G.sys.decorating.layer(selected.roomId, selected.uid, 1));
-    action('↓ 向下一层', () => G.sys.decorating.layer(selected.roomId, selected.uid, -1));
-    if (def.place === 'floor') {
-      const depth = input('range', String(item.depth === undefined ? .75 : item.depth), 'item-depth-' + selected.uid);
-      depth.min = '0'; depth.max = '1'; depth.step = '0.01'; depth.dataset.cuteControl = 'depth'; depth.setAttribute('aria-label', '家具的前后位置，左边靠里，右边靠前');
-      const labels = el('div', 'selection-depth-labels'), value = el('span', 'selection-depth-value');
-      labels.append(el('span', '', '靠里'), value, el('span', '', '靠前'));
-      const syncDepth = () => { const percent = Math.round(Number(depth.value) * 100); value.textContent = '前后位置 ' + percent + '%'; depth.setAttribute('aria-valuetext', percent + '%，越大越靠前'); };
-      depth.addEventListener('input', syncDepth);
-      depth.addEventListener('pointerdown', () => depth.focus({ preventScroll: true }));
-      depth.addEventListener('change', () => {
-        if (epoch !== view.archiveEpoch) return;
-        const currentRoom = decorRoom(selected.roomId), current = currentRoom && currentRoom.items.find(entry => entry.uid === selected.uid);
-        if (!current) { ui.selection(); return; }
-        // 只在一轮调整结束时写入，避免连续滑动生成几十条撤销记录；保留同一个控件与焦点。
-        doAction(G.sys.decorating.move(selected.roomId, selected.uid, selected.roomId, current.x, current.y, null, Number(depth.value)), '前后位置调整好啦。');
-        if (epoch !== view.archiveEpoch) return;
-        const saved = decorRoom(selected.roomId)?.items.find(entry => entry.uid === selected.uid);
-        if (saved) depth.value = String(saved.depth === undefined ? .75 : saved.depth);
-        syncDepth();
-      });
-      const control = el('div', 'selection-depth'); control.append(labels, depth); root.append(control); syncDepth();
-    }
-    if (def.recolor) {
-      const color = input('color', item.color || (((data().themes[def.theme] || {}).palette || [])[0]) || '#FFB6C8'); color.setAttribute('aria-label', '给' + def.name + '换色');
-      color.addEventListener('change', () => {
-        if (epoch !== view.archiveEpoch) return;
-        doAction(G.sys.decorating.recolor(selected.roomId, selected.uid, color.value), '换上喜欢的颜色啦！');
-        if (epoch !== view.archiveEpoch) return;
-        const saved = decorRoom(selected.roomId)?.items.find(entry => entry.uid === selected.uid);
-        if (saved) color.value = saved.color || (((data().themes[def.theme] || {}).palette || [])[0]) || '#FFB6C8';
-      });
-      root.append(field('🎨 换色', color));
-    }
-    action('📦 收起来', () => G.sys.decorating.remove(selected.roomId, selected.uid));
-    root.append(button('✕', () => { G.runtime.selected = null; ui.selection(); }, 'ui-button ui-button-icon'));
+    if (typeof G.buildingEditor?.selection === 'function') G.buildingEditor.selection();
+    else { const root = $('selection-tools'); root.replaceChildren(); root.classList.add('hidden'); }
   };
-  const renderers = { neighbors: () => ui.neighbors.panel(), cloudAccount: () => ui.cloudAccount.panel(), houseDesign: () => ui.houseDesign.panel(), crafting: () => ui.crafting.panel(view.options), roomLayout: () => ui.roomLayout.panel(view.options), observatory: () => ui.observatory.panel(), login: () => ui.login.panel(), build: buildPanel, decor: decorPanel, shop: shopPanel, residents: residentsPanel, quests: questsPanel, play: playPanel, garden: () => ui.garden.panel(), avatar: () => ui.avatar.panel(), yard: () => ui.yard.panel(), exterior: () => ui.exterior ? ui.exterior.panel() : { title: '小屋外观', content: notice('小屋的新衣正在准备，先看看前院吧。') }, settings: settingsPanel, memories: memoriesPanel, collection: () => ui.collectionBook.panel({ doAction, navigate: navigateToContent }), help: helpPanel };
+  const renderers = { neighbors: () => ui.neighbors.panel(), cloudAccount: () => ui.cloudAccount.panel(), houseDesign: () => ui.houseDesign.panel(), crafting: () => ui.crafting.panel(view.options), roomLayout: () => buildingPanel('roomLayout'), observatory: () => ui.observatory.panel(), login: () => ui.login.panel(), build: () => buildingPanel('build'), decor: () => buildingPanel('decor'), shop: shopPanel, residents: residentsPanel, quests: questsPanel, play: playPanel, garden: () => ui.garden.panel(), avatar: () => ui.avatar.panel(), yard: () => buildingPanel('yard'), exterior: () => ui.exterior.panel(), settings: settingsPanel, memories: memoriesPanel, collection: () => ui.collectionBook.panel({ doAction, navigate: navigateToContent }), help: helpPanel };
   function renderCurrent() {
     if (view.dragPreparing) return;
-    if (ui.roomLayout?.isInteracting()) return;
     if (!view.panel || !renderers[view.panel]) return;
     // 账号与公开表单保留同一组DOM；计时和同步刷新不重挂，避免输入与焦点被打断。
     const cloudPanel = view.panel === 'cloudAccount' && ui.cloudAccount ? ui.cloudAccount.panel() : view.panel === 'neighbors' && ui.neighbors ? ui.neighbors.panel() : null;
@@ -1126,7 +831,7 @@
     if (!renderers[name]) return;
     if (name === 'shop' && !options?.fromDecor) view.decorShopReturn = null;
     if (name === 'decor' && options?.theme && data().themes[options.theme]) view.decorTheme = options.theme;
-    if (name === 'decor' && options?.roomId !== undefined) {
+    if (name === 'decor' && options?.roomId != null) {
       if (!decorRoom(options.roomId)) { ui.toast('这个房间已经不在了，请重新选择房间。'); return; }
       G.runtime.activeRoomId = options.roomId;
     }
@@ -1148,10 +853,13 @@
     updateHint();
     // 只确定要装饰哪间房，不再跟着切到它的楼层：默认保持“整屋”，用户自己在房间下拉里换房时才会定位到那层（见 focusDecorRoom 的调用处）。
     if (name === 'decor') activeDecorRoom();
-    if (name === 'observatory' && decorRoom(G.store.atticRoomId)) {
-      G.runtime.activeRoomId = G.store.atticRoomId; focusDecorRoom(G.store.atticRoomId);
+    const observatoryFloor = name === 'observatory' && S().building.floors.find(floor => ['observatory_floor', 'legacy_attic'].includes(floor.id));
+    if (observatoryFloor) {
+      const observatoryRoom = rooms().find(([, room]) => room.floorId === observatoryFloor.id);
+      G.runtime.activeRoomId = observatoryRoom?.[0] || null;
+      updateHouseView({ floor: observatoryFloor.id, view: 'cutaway' });
       const epoch = view.archiveEpoch;
-      requestAnimationFrame(() => { if (epoch === view.archiveEpoch && view.panel === 'observatory' && !$('panel').classList.contains('hidden') && decorRoom(G.store.atticRoomId)) G.render.camera?.focusObservatory?.(); });
+      requestAnimationFrame(() => { if (epoch === view.archiveEpoch && view.panel === 'observatory' && !$('panel').classList.contains('hidden') && S().building.floors.some(floor => floor.id === observatoryFloor.id)) G.render.camera?.focusObservatory?.(); });
     }
     if (name === 'garden' && G.render.camera.focusGarden) requestAnimationFrame(() => G.render.camera.focusGarden());
     if (name === 'yard') requestAnimationFrame(() => G.render.camera.focusYard());
@@ -1201,10 +909,12 @@
   ui.audio = G.audio;
   ui.init = function () {
     G.audio.init();
-    if (ui.cloudAccount) ui.cloudAccount.init();
-    if (ui.neighbors) ui.neighbors.init();
-    if (ui.seaMap) ui.seaMap.init();
-    if (ui.reception) ui.reception.init();
+    if (!G.runtime.reviewMode) {
+      if (ui.cloudAccount) ui.cloudAccount.init();
+      if (ui.neighbors) ui.neighbors.init();
+      if (ui.seaMap) ui.seaMap.init();
+      if (ui.reception) ui.reception.init();
+    }
     if (ui.harvestFeedback) ui.harvestFeedback.init();
     const houseNavHost = $('house-view-controls') || $('home-paper') || $('world');
     if (houseNavHost && houseNavHost.append && !worldHouseNav) {
@@ -1286,7 +996,7 @@
       if (view.modal || ui.controls.isOpen()) return;
       const typing = e.target.closest('input, textarea, select, [contenteditable]');
       if (e.key === 'Escape') { if (G.runtime.placing || G.runtime.selected) { G.runtime.selected = null; cancelPlacement(); renderCurrent(); } else ui.panel.close(); }
-      if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doAction(G.sys.decorating.undo(), '已撤销上一步'); }
+      if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doAction(G.buildingEditor.undo({ redo: e.shiftKey }), e.shiftKey ? '已重做上一步' : '已撤销上一步'); }
     });
     G.bus.on('state:change', queueRefresh);
     G.bus.on('state:replace', () => {
@@ -1304,7 +1014,7 @@
     G.bus.on('save:status', () => { $('save-status').textContent = G.save.status || '自动存档'; });
     G.bus.on('time:change', () => { updateWeather(); queueRefresh(); });
     G.bus.on('scene:empty', options => ui.open('build', options));
-    G.bus.on('scene:room-layout', ({ roomId }) => ui.roomLayout.open(roomId));
+    G.bus.on('scene:room-layout', ({ roomId }) => ui.open('roomLayout', { roomId }));
     G.bus.on('crafting:place_requested', ({ itemId }) => placeCraft(itemId));
     G.bus.on('crafting:gift_requested', ({ itemId }) => chooseGiftRecipient(itemId));
     G.bus.on('resident:invite_requested', ({ id }) => inviteResident(id));
@@ -1331,9 +1041,12 @@
       const debugButton = button('🐞', () => { ui.open('settings'); requestAnimationFrame(() => { const tools = document.querySelector('.debug-tools'); if (tools) tools.scrollIntoView({ block: 'start' }); }); }, 'debug-button');
       debugButton.setAttribute('aria-label', '打开开发者工具'); document.body.append(debugButton);
     }
-    ui.refresh(); updateWeather(); if (ui.residentNotices) ui.residentNotices.init(); setTimeout(showWelcome, 350);
-    if (ui.calendar) setTimeout(() => ui.calendar.maybeGreet(), 650);
-    if (ui.login) setTimeout(() => ui.login.maybePrompt(), 1100);
+    ui.refresh(); updateWeather();
+    if (!G.runtime.reviewMode) {
+      if (ui.residentNotices) ui.residentNotices.init(); setTimeout(showWelcome, 350);
+      if (ui.calendar) setTimeout(() => ui.calendar.maybeGreet(), 650);
+      if (ui.login) setTimeout(() => ui.login.maybePrompt(), 1100);
+    }
   };
   function updateWeather() {
     if (!G.sys.time) return;

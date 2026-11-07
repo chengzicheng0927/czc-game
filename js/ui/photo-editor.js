@@ -5,12 +5,10 @@
   let activeSession = null;
   const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
   function roomOptions() {
-    return G.store.decorRooms(G.state).map(([id, room]) => {
-      if (id === G.store.atticRoomId) return { id, name: '阁楼天文台 · 独立阁楼' };
+    return G.contentSpaces.list(G.state).map(room => {
       const definition = G.data.rooms.find(value => value.id === room.type);
-      let position = '';
-      G.state.house.floors.forEach((floor, index) => { const slot = floor.slots.indexOf(id); if (slot >= 0) position = (index + 1) + '楼第' + (slot + 1) + '间'; });
-      return { id, name: (definition?.name || '房间') + ' · ' + position };
+      const floor = G.state.building.floors.find(value => value.id === room.floorId);
+      return { id: room.id, name: (definition?.name || '自由空间') + ' · ' + (floor?.name || '小屋') + ' · ' + room.area.toFixed(1) + '㎡' };
     });
   }
   function open(options = {}) {
@@ -64,9 +62,9 @@
     const shutter = button(editing ? '保存装饰' : '拍一张', save, 'ui-button ui-button-primary photo-shutter'); shutter.disabled = true;
     const footerCopy = el('div', 'photo-editor-footer-copy'); footerCopy.append(status, downloadNote); footerActions.append(album, download, shutter); footer.append(footerCopy, footerActions);
     // 取景目标只在运行态选择；调用前重新核已建空间，不把失效阁楼换成整屋。
-    const missingRoomMessage = '这处空间已经不在这里了。请重新打开取景，选择一个已建好的房间或阁楼。';
+    const missingRoomMessage = '这处空间的墙已经变动啦。请重新打开取景，选择一处实际围合的空间。';
     function roomAvailable(id) {
-      try { return typeof id === 'string' && roomChoices.some(room => room.id === id) && !!G.store.decorRoom(G.state, id); }
+      try { return typeof id === 'string' && roomChoices.some(room => room.id === id) && !!G.contentSpaces.get(id, G.state); }
       catch (_) { return false; }
     }
     const scopeGroup = el('div', 'photo-scope-controls');

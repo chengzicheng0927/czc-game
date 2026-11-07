@@ -1,7 +1,8 @@
 'use strict';
 // 真实规则 + 轻DOM；不启动浏览器/服务，不读取用户存档，不冒充整页几何验收。
 const assert = require('node:assert/strict');
-const { setup } = require('./fixtures/resident-life.cjs');
+const { setup } = require('./fixtures/content-dom.cjs');
+const spaces = require('./fixtures/free-spaces.cjs');
 const tests = []; const test = (name, fn) => tests.push({ name, fn });
 function harness() {
   const env = setup(), { G, document, panel } = env;
@@ -48,15 +49,15 @@ function prepare(env, type) {
   const { G } = env, def = G.data.residentById.lily;
   if (type) def.wishes = [def.wishes.find(wish => wish.type === type)];
   G.store.update(state => { state.level = 30; state.wallet.coin = 100000; state.tutorial.done = true; });
-  if (type === 'food') assert.ok(G.sys.building.buildRoom(0, 1, 'kitchen').ok);
-  const room = G.sys.building.buildRoom(0, 0, 'bedroom').roomId;
-  assert.ok(G.sys.decorating.place('bed_basic', room, 10, 80).ok); assert.ok(G.sys.residents.invite('lily', room).ok); return room;
+  if (type === 'food') assert.ok(spaces.buildSpace(G, 0, 1, 'kitchen').ok);
+  const room = spaces.buildSpace(G, 0, 0, 'bedroom').roomId;
+  assert.ok(spaces.placeItem(G, 'bed_basic', room, 10, 80).ok); assert.ok(G.sys.residents.invite('lily', room).ok); return room;
 }
 function complete(env, type, room) {
   const { G } = env, wish = G.sys.residents.wish('lily').definition;
   if (type === 'furniture' || type === 'theme') {
     const itemId = type === 'furniture' ? wish.itemId : 'chair_strawberry';
-    for (let index = 0; index < (type === 'theme' ? 3 : 1); index++) { assert.ok(G.sys.economy.buy(itemId).ok); assert.ok(G.sys.decorating.place(itemId, room, 30 + index * 30, 80).ok); }
+    for (let index = 0; index < (type === 'theme' ? 3 : 1); index++) { assert.ok(G.sys.economy.buy(itemId).ok); assert.ok(spaces.placeItem(G, itemId, room, 30 + index * 30, 80).ok); }
   } else if (type === 'food' || type === 'flower') G.store.update(state => { if (wish.cropId) state.garden.harvest[wish.cropId] = 1; else state.inventory[wish.itemId] = 1; });
   else if (type === 'activity') { const sessionId = G.sys.minigames.begin(wish.gameId); assert.ok(G.sys.minigames.finish(wish.gameId, { sessionId, score: 20, stars: 1 }).ok); }
   else { assert.ok(G.sys.avatar.equip('top_cloud').ok); assert.ok(G.sys.avatar.equip(wish.outfitId).ok); }
@@ -64,10 +65,10 @@ function complete(env, type, room) {
 function inviteAll(env) {
   const { G } = env; G.store.update(state => { state.level = 30; state.wallet.coin = 1000000; state.quests.main.chapter = 4; state.inventory.bed_basic = 6; });
   const bedrooms = [];
-  for (let index = 0; index < 6; index++) { const result = G.sys.building.buildRoom(Math.floor(index / 3), index % 3, 'bedroom'); assert.ok(result.ok); bedrooms.push(result.roomId); assert.ok(G.sys.decorating.place('bed_basic', result.roomId, 5, 80).ok); }
-  for (const [index, type] of ['studio', 'bathroom', 'wardrobe', 'music', 'game'].entries()) assert.ok(G.sys.building.buildRoom(Math.floor((6 + index) / 3), (6 + index) % 3, type).ok);
-  const bathroom = Object.keys(G.state.house.rooms).find(id => G.state.house.rooms[id].type === 'bathroom');
-  function furnish(id, room, count = 1) { for (let index = 0; index < count; index++) { assert.ok(G.sys.economy.buy(id).ok); assert.ok(G.sys.decorating.place(id, room, 20 + index * 35, 80).ok); } }
+  for (let index = 0; index < 6; index++) { const result = spaces.buildSpace(G, Math.floor(index / 3), index % 3, 'bedroom'); assert.ok(result.ok); bedrooms.push(result.roomId); assert.ok(spaces.placeItem(G, 'bed_basic', result.roomId, 5, 80).ok); }
+  for (const [index, type] of ['studio', 'bathroom', 'wardrobe', 'music', 'game'].entries()) assert.ok(spaces.buildSpace(G, Math.floor((6 + index) / 3), (6 + index) % 3, type).ok);
+  const bathroom = G.contentSpaces.list().find(room => G.contentSpaces.isType(room, 'bathroom')).id;
+  function furnish(id, room, count = 1) { for (let index = 0; index < count; index++) { assert.ok(G.sys.economy.buy(id).ok); assert.ok(spaces.placeItem(G, id, room, 20 + index * 35, 80).ok); } }
   furnish('bathtub_basic', bathroom); ['forest', 'starry', 'oriental', 'princess'].forEach((theme, index) => furnish('chair_' + theme, bedrooms[index], 3));
   G.store.update(state => G.data.furniture.slice(0, 65).forEach(def => { state.collection[def.id] = true; }));
   for (const id of ['lily', 'pudding', 'mimi', ...G.data.residents.map(def => def.id).filter(id => !['lily', 'pudding', 'mimi'].includes(id))]) { const eligibility = G.sys.residents.eligibility(id); assert.ok(eligibility.ok, id); assert.ok(G.sys.residents.invite(id, eligibility.roomIds[0]).ok); }
@@ -90,7 +91,7 @@ test('选择控件聚焦后立即重绘详情、筛选与稳定焦点，直接fo
 test('0/1/12入住与两种空态，资格缺项和可选卧室来自真实eligibility', () => {
   const env = harness(); env.render(); env.chooseFilter('home'); assert.match(env.panel.textContent, /还没有朋友入住/);
   env.chooseFilter('visitors'); env.chooseFriend('lily'); assert.equal(env.key('invite-lily').disabled, true); const missing = env.G.sys.residents.eligibility('lily').missing; missing.forEach(item => assert.ok(env.panel.textContent.includes(item.text)));
-  const room = env.G.sys.building.buildRoom(0, 0, 'bedroom').roomId; env.G.sys.decorating.place('bed_basic', room, 10, 80); env.render(); assert.equal(env.key('invite-lily').disabled, false); assert.ok(env.panel.textContent.includes('已准备好 1 间可选卧室'));
+  const room = spaces.buildSpace(env.G, 0, 0, 'bedroom').roomId; spaces.placeItem(env.G, 'bed_basic', room, 10, 80); env.render(); assert.equal(env.key('invite-lily').disabled, false); assert.ok(env.panel.textContent.includes('已准备好 1 间可选卧室'));
   env.key('invite-lily').click(); assert.deepEqual(env.forwarded.pop(), ['invite', 'lily']);
   const full = harness(); inviteAll(full); assert.equal(full.render().subtitle, '12 位住在这里 · 12 位朋友的温暖小册'); full.chooseFilter('visitors'); assert.match(full.panel.textContent, /12位朋友都已入住/);
 });

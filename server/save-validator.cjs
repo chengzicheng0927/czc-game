@@ -5,7 +5,10 @@ const vm = require('node:vm');
 const { hash, readManifest, readReleaseFile } = require('./releases.cjs');
 const MAX_SAVE_BYTES = 3 * 1024 * 1024, MAX_SAVE_CHARS = 2500000;
 function contractFiles(manifest) {
-  return manifest.files.filter(file => file.path.startsWith('js/data/') || ['js/core/namespace.js', 'js/core/utils.js', 'js/core/store.js'].includes(file.path));
+  const selected = manifest.files.filter(file => file.path.startsWith('js/data/') || ['js/core/namespace.js', 'js/core/utils.js', 'js/building/schema.js', 'js/core/store.js'].includes(file.path));
+  const schemaIndex = selected.findIndex(file => file.path === 'js/building/schema.js'), storeIndex = selected.findIndex(file => file.path === 'js/core/store.js');
+  if (schemaIndex < 0 || storeIndex < 0 || schemaIndex > storeIndex) throw new Error('发布版本缺少建筑校验模块或加载顺序有误。');
+  return selected;
 }
 function contractHash(manifest) { return hash(JSON.stringify(contractFiles(manifest).map(file => [file.path, file.sha256]))); }
 function canonicalValue(value) {
@@ -30,6 +33,7 @@ function createSaveValidator({ dataDir, releaseId }) {
   const validateScript = new vm.Script('JSON.stringify(Game.store.validate(JSON.parse(__inputJson)))');
   const defaultScript = new vm.Script('JSON.stringify(Game.store.defaultState())');
   const projectScript = new vm.Script('JSON.stringify(Game.publicHouse.project(JSON.parse(__publicSave), JSON.parse(__publicOptions)))');
+  const roomCountScript = new vm.Script('(function () { var document = CottageBuilding.validateDocument(JSON.parse(__buildingSummary), Game.data.furnitureById); return document.floors.reduce(function (count, floor) { return count + CottageBuilding.deriveSpaces(document, floor.id).length; }, 0); })()');
   function validate(value) {
     const input = JSON.stringify(value);
     if (typeof input !== 'string' || input.length > MAX_SAVE_CHARS || Buffer.byteLength(input) > MAX_SAVE_BYTES) throw new Error('存档超过 3MiB 或字符容量。');
@@ -53,6 +57,13 @@ function createSaveValidator({ dataDir, releaseId }) {
       return value;
     } finally { delete context.__publicSave; delete context.__publicOptions; }
   }
-  return { releaseId, contractHash: contractHash(manifest), validate, projectPublic, defaultSave: () => JSON.parse(defaultScript.runInContext(context, { timeout: 1000 })) };
+  function countBuildingRooms(building) {
+    const json = JSON.stringify(building);
+    if (typeof json !== 'string' || json.length > MAX_SAVE_CHARS || Buffer.byteLength(json) > MAX_SAVE_BYTES) throw new Error('公开建筑超过容量。');
+    context.__buildingSummary = json;
+    try { return roomCountScript.runInContext(context, { timeout: 1500 }); }
+    finally { delete context.__buildingSummary; }
+  }
+  return { releaseId, contractHash: contractHash(manifest), validate, projectPublic, countBuildingRooms, defaultSave: () => JSON.parse(defaultScript.runInContext(context, { timeout: 1000 })) };
 }
 module.exports = { createSaveValidator, contractHash, MAX_SAVE_BYTES, MAX_SAVE_CHARS };

@@ -3,8 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
+const spaces = require('./fixtures/free-spaces.cjs');
 const root = path.resolve(__dirname, '..');
-const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/systems.js', 'js/systems/garden.js', 'js/systems/time.js'];
+const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js', 'js/systems/systems.js', 'js/systems/garden.js', 'js/systems/time.js'];
 function sandbox(saved) {
   let clock = new Date(2026, 9, 27, 12).getTime(); const RealDate = Date, timers = [];
   class TestDate extends RealDate { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
@@ -12,13 +13,13 @@ function sandbox(saved) {
   context.window = context; context.addEventListener = () => {}; context.localStorage = { getItem: () => null, setItem() {} };
   for (const file of files) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   const G = context.Game, parse = value => vm.runInContext('JSON.parse(' + JSON.stringify(JSON.stringify(value)) + ')', context);
-  G.store.init(saved ? parse(saved) : undefined); G.sys.init();
+  spaces.register(G, context.CottageBuilding); G.store.init(saved ? parse(saved) : undefined); G.sys.init();
   return { G, parse, timers, at: (date, hour = 12) => { const p = date.split('-').map(Number); clock = new Date(p[0], p[1] - 1, p[2], 0).getTime() + hour * 3600000; }, clock: () => clock };
 }
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('✓ ' + name); }
 function has(G, id) { return G.sys.time.current().festivals.some(event => event.festivalId === id); }
-function lily(G) { const roomId = G.sys.building.buildRoom(0, 0, 'bedroom').roomId; G.sys.decorating.place('bed_basic', roomId, 10, 100); assert.ok(G.sys.residents.invite('lily', roomId).ok); }
+function lily(G) { const roomId = spaces.buildSpace(G, 0, 0, 'bedroom').roomId; spaces.placeItem(G, 'bed_basic', roomId, 10, 100); assert.ok(G.sys.residents.invite('lily', roomId).ok); }
 test('2025—2035 春节/中秋22个日期符合香港天文台逐年官方表，不依赖本机Intl结果', () => {
   const { G } = sandbox();
   // 2026-10-27独立读取HKO T{year}e.txt的正月初一、八月十五；来源保留在数据文件。
@@ -67,7 +68,7 @@ test('每年每事件只领一次，刷新存档保留领奖记录，次年可�
   const loaded = sandbox(JSON.parse(snapshot)); loaded.G.sys.time.setDebug({ date: '2026-12-25' }); assert.equal(loaded.G.sys.time.claim('christmas').ok, false); G.sys.time.setDebug({ date: '2027-12-25' }); assert.ok(G.sys.time.claim('christmas').ok); assert.equal(G.state.inventory[gift], 2); assert.equal(G.state.calendar.claimed['2027:christmas'], true);
 });
 test('节外不可购买节日家具，已有家具仍可正常摆放，非法/满库存领取不扣状态', () => {
-  const { G } = sandbox(); G.sys.time.setDebug({ date: '2026-12-25' }); assert.ok(G.sys.economy.buy('festival_christmas_tree').ok); const room = G.sys.building.buildRoom(0, 0, 'bedroom'); G.sys.time.setDebug({ date: '2026-07-01' }); const snapshot = JSON.stringify(G.state); assert.equal(G.sys.economy.buy('festival_christmas_tree').ok, false); assert.equal(G.sys.time.claim('christmas').ok, false); assert.equal(JSON.stringify(G.state), snapshot); assert.ok(G.sys.decorating.place('festival_christmas_tree', room.roomId, 70, 50).ok);
+  const { G } = sandbox(); G.sys.time.setDebug({ date: '2026-12-25' }); assert.ok(G.sys.economy.buy('festival_christmas_tree').ok); const room = spaces.buildSpace(G, 0, 0, 'bedroom'); G.sys.time.setDebug({ date: '2026-07-01' }); const snapshot = JSON.stringify(G.state); assert.equal(G.sys.economy.buy('festival_christmas_tree').ok, false); assert.equal(G.sys.time.claim('christmas').ok, false); assert.equal(JSON.stringify(G.state), snapshot); assert.ok(spaces.placeItem(G, 'festival_christmas_tree', room.roomId, 70, 50).ok);
   G.sys.time.setDebug({ date: '2026-12-25' }); G.store.update(s => { s.inventory.festival_christmas_tree = 9999; }); const full = JSON.stringify(G.state); assert.equal(G.sys.time.claim('christmas').ok, false); assert.equal(JSON.stringify(G.state), full);
 });
 test('旧存档补空日历，错误领奖键/居民/值拒绝且不改变现有进度', () => {

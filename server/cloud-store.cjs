@@ -49,7 +49,8 @@ function openCloudStore({ dataDir, mustExist = false, clock = Date.now }) {
       const value = crypto.randomUUID();
       db.prepare('UPDATE metadata SET value=? WHERE key=?').run(value, 'serverEpoch');
       // 恢复旧数据库不能让后来已经撤下的公开链接重新出现；恢复后需由主人重新发布。
-      db.exec("DELETE FROM sessions; DELETE FROM mutations; DELETE FROM publications; DELETE FROM metadata WHERE key LIKE 'private:%';");
+      // 认证epoch和公开链接可以作废，孩子主动选择的私密偏好必须继续保留。
+      db.exec('DELETE FROM sessions; DELETE FROM mutations; DELETE FROM publications;');
       return value;
     });
   }

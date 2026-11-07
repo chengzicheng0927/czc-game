@@ -1,7 +1,7 @@
 'use strict';
 // 存档边界独立验证：模拟图像仅用于事务与字节限制，不代表画面验收。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
-const { setup } = require('./fixtures/quest-village.cjs'), root = path.resolve(__dirname, '..');
+const { setup } = require('./fixtures/content-state.cjs'), root = path.resolve(__dirname, '..');
 function fixture() { const env = setup(); const c = { window: env.G === undefined ? null : { Game: env.G } }; vm.runInNewContext(fs.readFileSync(path.join(root, 'js/data/photography.js'), 'utf8'), c); return env; }
 const photo = id => ({ id, at: 1, name: '旧照片', image: 'data:image/jpeg;base64,/9j/AA==', width: 414, height: 600 });
 const tests = [];

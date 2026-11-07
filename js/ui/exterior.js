@@ -17,7 +17,7 @@
     previewEpoch++;
     if (previewFrame !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(previewFrame);
     previewFrame = null; if (activeCanvas) activeCanvas.width = activeCanvas.height = 0; activeCanvas = null; activeBody = null; activeDraw = null;
-    if (dispose) G.draw?.exterior?.disposePreview?.();
+
   }
   function panel() {
     releasePreview(false); const token = previewEpoch;
@@ -28,12 +28,12 @@
     activeBody = body; activeCanvas = preview;
     const respond = result => owns(body, token) && action(result);
     const caption = el('p', 'exterior-preview-caption ui-small ui-muted', '按当前小屋的真实楼层和房间预览');
-    const draw = () => {
-      if (!owns(body, token) || document.hidden || !G.draw.exterior) return;
+    const draw = async () => {
+      if (!owns(body, token) || document.hidden || typeof G.render?.previewExterior !== 'function') return;
       try {
-        const result = G.draw.exterior.preview(preview, draft(), G.state.house.name, { width: 560, height: 400 });
-        if (result) caption.textContent = result.mode === 'webgl' ? '按当前小屋的真实楼层和房间预览' : result.mode === 'canvas-isometric' ? '当前楼层与房间的立体结构示意' : '预览暂不可用，仍可查看款式和价格';
-      } catch (_) { caption.textContent = '预览暂不可用，仍可查看款式和价格'; }
+        const result = await G.render.previewExterior(preview, G.utils.clone(draft()));
+        if (owns(body, token) && result) caption.textContent = result.ok === false ? '预览暂不可用，仍可查看款式和价格' : '按当前实际建筑预览 · 试穿不改变存档';
+      } catch (_) { if (owns(body, token)) caption.textContent = '预览暂不可用，仍可查看款式和价格'; }
     };
     activeDraw = draw;
     if (G.ui.houseDesign) body.append(G.ui.houseDesign.navigation('custom'));
@@ -50,8 +50,7 @@
     body.append(G.ui.controls.label(stylePicker, names[category] + '款式'));
     note.textContent = chosen.owned ? '已拥有的款式，选中就会为小屋换上并保存。' : '正在试穿「' + chosen.name + '」。收进小盒子后，就可以为小屋换上啦。';
     const purchase = button(chosen.owned ? current[category] === chosen.id ? '已经换上啦' : '换上这款' : '购买并换上 · ' + price(chosen), () => {
-      if (!chosen.owned && !respond(system.buy(chosen.id))) return;
-      if (respond(system.equip(category, chosen.id))) G.ui.open('exterior');
+      if (respond(chosen.owned ? system.equip(category, chosen.id) : system.buyAndEquip(chosen.id))) G.ui.open('exterior');
     }, 'ui-button ui-button-primary');
     purchase.disabled = chosen.locked || !chosen.owned && !chosen.canAfford || chosen.owned && current[category] === chosen.id;
     const actions = el('div', 'exterior-options ui-row'); actions.append(purchase, button('看看当前外观', () => { selected = {}; G.ui.open('exterior'); }, 'ui-button ui-button-soft')); body.append(actions);

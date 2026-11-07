@@ -48,14 +48,21 @@
     var node = el('button', className || 'ui-button', label); node.type = 'button'; node.dataset.cloudAction = kind || 'network';
     node.addEventListener('click', fn); return node;
   }
-  function currentSummary() {
-    var s = G.state || {}, house = s.house || {}, wallet = s.wallet || {};
-    return { name: house.name || '本机小屋', level: s.level, coin: wallet.coin, roomCount: Object.keys(house.rooms || {}).length };
+  function currentSummary(value) {
+    var s = value || G.state || {}, house = s.house || {}, wallet = s.wallet || {}, count = null;
+    try {
+      // 旧副本仅在独立校验结果里迁移，以便读出空间数；不换档或触发保存。
+      var checked = s.building ? s : G.store.validate(s);
+      count = G.contentSpaces.list(checked).length;
+    } catch (_) { /* 摘要无法计算时显示未知，不能拿旧格子数量代替当前建筑。 */ }
+    return { name: house.name || '本机小屋', level: s.level, coin: wallet.coin, roomCount: count };
   }
   function number(value) { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('zh-CN') : '—'; }
   function date(value) { var d = new Date(value); return value && Number.isFinite(d.getTime()) ? d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; }
   function summary(title, value) {
     var section = el('section', 'cloud-version'), data = value || {}, list = el('dl', 'cloud-version-facts');
+    var fullState = data.state || data.save || data.snapshot && data.snapshot.state || data.house && data;
+    if (fullState && fullState.house) data = Object.assign({}, data, currentSummary(fullState));
     append(section, el('h3', '', title), el('p', 'cloud-house-name', text(data.name, '还没有保存的小屋')));
     [['等级', number(data.level)], ['糖果', number(data.coin)], ['房间', number(data.roomCount)]].forEach(function (row) { append(list, el('dt', '', row[0]), el('dd', '', row[1])); });
     section.append(list); if (date(data.updatedAt)) section.append(el('p', 'ui-small ui-muted', '保存于 ' + date(data.updatedAt))); return section;

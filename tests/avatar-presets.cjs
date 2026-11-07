@@ -4,7 +4,7 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const root = path.resolve(__dirname, '..');
 function sandbox(extraFiles = []) {
   const context = vm.createContext({ console, Blob, URL, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {}, document: { addEventListener() {} } }); context.window = context;
-  const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/systems.js', 'js/systems/avatar.js'].concat(extraFiles);
+  const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js', 'js/systems/systems.js', 'js/systems/avatar.js'].concat(extraFiles);
   for (const file of files) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   return context.Game;
 }
@@ -54,7 +54,7 @@ test('随机预选覆盖全部8套，且任意随机值都落在合法范围', (
 });
 
 test('同屋防撞脸：相同形象互相标记，名牌配色按peerId排序、各端一致', () => {
-  const G = sandbox(['js/render/live-avatars.js']), D = G.data, same = Object.assign(D.defaultAvatar(), D.avatarPresetLook('preset_sunny')), other = Object.assign(D.defaultAvatar(), D.avatarPresetLook('preset_bob'));
+  const G = sandbox(['js/render/live-labels.js']), D = G.data, same = Object.assign(D.defaultAvatar(), D.avatarPresetLook('preset_sunny')), other = Object.assign(D.defaultAvatar(), D.avatarPresetLook('preset_bob'));
   const peers = [{ id: 'p3', avatar: same }, { id: 'p1', avatar: same }, { id: 'p2', avatar: other }];
   const a = plain(G.liveAvatars.markers(peers)), b = plain(G.liveAvatars.markers(peers.slice().reverse()));
   assert.deepEqual(a, b, '顺序不同、结果必须一致');

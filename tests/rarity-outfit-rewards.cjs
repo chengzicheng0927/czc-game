@@ -1,7 +1,7 @@
 'use strict';
 // 公共稀有度装饰与真实领奖/穿着/旧凭据迁移；由主线程串行执行。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
-const { setup } = require('./fixtures/quest-village.cjs');
+const { setup } = require('./fixtures/content-state.cjs');
 const root = path.resolve(__dirname, '..'), plain = value => JSON.parse(JSON.stringify(value));
 let passed = 0;
 function test(name, action) { action(); passed++; console.log('✓ ' + name); }

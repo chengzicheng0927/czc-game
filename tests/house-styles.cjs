@@ -2,7 +2,8 @@
 // 风格报价、原子购买与旧档恢复；真实store/save，串行运行，不接触浏览器存档。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
-const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/furniture-expansion.js', 'js/data/residents-expansion.js', 'js/data/progression.js', 'js/data/achievements.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/data/exterior.js', 'js/data/house-styles.js', 'js/data/yard.js', 'js/data/minigames.js', 'js/data/creative.js', 'js/data/gifts.js', 'js/data/observatory.js', 'js/data/deals.js', 'js/data/login.js', 'js/data/crafting.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/systems.js', 'js/systems/exterior.js', 'js/systems/house-styles.js'];
+const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/furniture-expansion.js', 'js/data/residents-expansion.js', 'js/data/progression.js', 'js/data/achievements.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/data/exterior.js', 'js/data/house-styles.js', 'js/data/yard.js', 'js/data/minigames.js', 'js/data/creative.js', 'js/data/gifts.js', 'js/data/observatory.js', 'js/data/deals.js', 'js/data/login.js', 'js/data/crafting.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/core/content-spaces.js', 'js/systems/systems.js', 'js/systems/exterior.js', 'js/systems/house-styles.js'];
+const spaces = require('./fixtures/free-spaces.cjs');
 const plain = value => JSON.parse(JSON.stringify(value));
 function setup(saved) {
   let rejectWrites = false, writes = 0;
@@ -11,7 +12,7 @@ function setup(saved) {
   context.localStorage = { getItem: key => storage.get(key) || null, setItem(key, value) { if (rejectWrites) throw new Error('QuotaExceededError'); writes++; storage.set(key, value); } };
   for (const file of files) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   const G = context.Game, parse = value => vm.runInContext('JSON.parse(' + JSON.stringify(JSON.stringify(value)) + ')', context);
-  G.store.init(saved ? parse(saved) : undefined); G.utils.download = (name, value) => downloads.push({ name, value });
+  spaces.register(G, context.CottageBuilding); G.store.init(saved ? parse(saved) : undefined); G.utils.download = (name, value) => downloads.push({ name, value });
   return { G, parse, storage, downloads, writes: () => writes, writeFails(value) { rejectWrites = value; } };
 }
 function ready(G, level = 12) { G.store.update(state => { state.level = level; state.wallet.coin = 5000; state.wallet.heart = 500; }); }
@@ -93,7 +94,7 @@ test('同步保存和完成事件重入不能重复扣币、追加回忆或换�
   assert.ok(apply(G, 'mint_cloud').ok); assert.equal(nested.length, 2); assert.ok(nested.every(result => !result.ok)); assert.equal(G.state.wallet.coin, before.wallet.coin - 415); assert.equal(G.state.memories.length, before.memories.length + 1); assert.equal(G.sys.houseStyles.current(), 'mint_cloud');
 });
 test('换风格不改变房间/住户/家具/庭院/任务/经验，只保留外观事实而不加新字段', () => {
-  const { G } = setup(); ready(G); const bedroom = G.sys.building.buildRoom(0, 0, 'bedroom'); assert.ok(bedroom.ok); assert.ok(G.sys.decorating.place('bed_basic', bedroom.roomId, 35, 80).ok); assert.ok(G.sys.residents.invite('lily', bedroom.roomId).ok);
+  const { G } = setup(); ready(G); const bedroom = spaces.buildSpace(G, 0, 0, 'bedroom'); assert.ok(bedroom.ok); assert.ok(spaces.placeItem(G, 'bed_basic', bedroom.roomId, 35, 80).ok); assert.ok(G.sys.residents.invite('lily', bedroom.roomId).ok);
   const before = plain(G.state); assert.ok(apply(G, 'forest_cookie').ok); const after = plain(G.state);
   for (const state of [before, after]) { delete state.house.exterior; delete state.wallet; delete state.memories; }
   assert.deepEqual(after, before); assert.deepEqual(Object.keys(G.state.house.exterior).sort(), ['roof', 'wall', 'window', 'door', 'chimney', 'roofColor', 'wallColor', 'owned'].sort());

@@ -1,52 +1,65 @@
 'use strict';
-// 真实个性化UI + 真实风格/布局事务；轻量DOM代替浏览器，不代替视觉验收。
-const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '..'), plain = value => JSON.parse(JSON.stringify(value));
-const files = ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/furniture-expansion.js', 'js/data/residents-expansion.js', 'js/data/progression.js', 'js/data/achievements.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/outfits.js', 'js/data/exterior.js', 'js/data/house-styles.js', 'js/data/layout-templates.js', 'js/data/yard.js', 'js/data/minigames.js', 'js/data/creative.js', 'js/data/gifts.js', 'js/data/observatory.js', 'js/data/deals.js', 'js/data/login.js', 'js/data/crafting.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/systems.js', 'js/systems/exterior.js', 'js/systems/room-layout.js', 'js/systems/house-styles.js', 'js/systems/layout-templates.js'];
+// 真实外观/风格事务与原面板：Promise预览只替代GPU边界，不替代浏览器视觉验收。
+const assert = require('node:assert/strict');
+const { setup } = require('./fixtures/content-dom.cjs');
+const spaces = require('./fixtures/free-spaces.cjs');
+const plain = value => JSON.parse(JSON.stringify(value));
+const tests = [], test = (name, run) => tests.push({ name, run });
 function sandbox() {
-  const frames = [], toasts = [], audio = [], navigation = [], styleCalls = [], layoutCalls = [], storage = new Map(); let writes = 0, failWrites = false, fitCount = 0, manualLayoutCount = 0;
-  class Node {
-    constructor(tag) { this.tagName = tag.toUpperCase(); this.children = []; this.parentElement = null; this.attributes = {}; this.dataset = {}; this.listeners = {}; this.disabled = false; this.className = ''; this._text = ''; }
-    get isConnected() { return this === document.body || !!this.parentElement?.isConnected; }
-    set textContent(value) { this.replaceChildren(); this._text = String(value); }
-    get textContent() { return this._text + this.children.map(child => child.textContent).join(''); }
-    append(...nodes) { for (const node of nodes) { node.remove(); node.parentElement = this; this.children.push(node); } }
-    replaceChildren(...nodes) { this.children.forEach(node => { node.parentElement = null; }); this.children = []; this._text = ''; this.append(...nodes); }
-    remove() { if (this.parentElement) this.parentElement.children = this.parentElement.children.filter(node => node !== this); this.parentElement = null; }
-    setAttribute(name, value) { this.attributes[name] = String(value); }
-    addEventListener(name, callback) { this.listeners[name] = callback; }
-    click() { if (!this.disabled) this.listeners.click?.({ target: this }); }
-    descendants() { return this.children.flatMap(child => [child, ...child.descendants()]); }
+  const env = setup(), { G, context, panel, document } = env;
+  const frames = new Map(), previewCalls = [], toasts = [], audio = [], navigation = [], styleCalls = [], exteriorCalls = [];
+  let serial = 0, writes = 0, denied = false, preview = () => Promise.resolve({ ok: true }), body = null;
+  context.requestAnimationFrame = callback => { const id = ++serial; frames.set(id, callback); return id; };
+  context.cancelAnimationFrame = id => frames.delete(id);
+  const storeItem = context.localStorage.setItem;
+  context.localStorage.setItem = (key, value) => { if (denied) throw new Error('QuotaExceededError'); writes++; return storeItem(key, value); };
+  ['js/data/house-styles.js', 'js/systems/exterior.js', 'js/systems/house-styles.js'].forEach(env.load);
+  const styleApply = G.sys.houseStyles.apply, buyAndEquip = G.sys.exterior.buyAndEquip;
+  G.sys.houseStyles.apply = (...args) => { styleCalls.push(args); return styleApply(...args); };
+  G.sys.exterior.buyAndEquip = (...args) => { exteriorCalls.push(args); return buyAndEquip(...args); };
+  G.draw = { exterior: { preview() { throw new Error('不得恢复旧外观绘图引擎'); } } };
+  G.audio = { play: name => audio.push(name) };
+  G.render = { previewExterior(canvas, exterior) {
+    canvas.drawnExterior = plain(exterior); previewCalls.push({ canvas, exterior: plain(exterior), building: JSON.stringify(G.state.building) });
+    return preview(canvas, exterior);
+  }, redraw() {} };
+  G.ui.toast = message => toasts.push(message);
+  G.ui.controls.select = (options, value, callback) => {
+    const node = document.createElement('button'); node.value = value; node.options = plain(options);
+    node.choose = next => { node.value = next; callback(next); }; return node;
+  };
+  G.ui.controls.label = (control, text) => { const node = document.createElement('div'), label = document.createElement('span'); label.textContent = text; node.append(label, control); return node; };
+  G.ui.controls.color = (value, key) => { const node = document.createElement('input'); node.type = 'color'; node.value = value; node.dataset.uiFocus = key; return node; };
+  function render(name = 'houseDesign') {
+    panel.className = ''; panel.dataset.kind = name;
+    if (name === 'houseDesign' || name === 'exterior') body = G.ui[name].panel().content;
+    else { body = document.createElement('div'); body.textContent = '自由布局入口'; }
+    panel.replaceChildren(body); G.bus.emit('panel:change', { open: true }); return body;
   }
-  const document = { addEventListener() {}, createElement: tag => new Node(tag), body: null }; document.body = new Node('body');
-  const environment = vm.createContext({ console, Blob, URL, document, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {}, requestAnimationFrame: callback => frames.push(callback) }); environment.window = environment; environment.addEventListener = () => {};
-  environment.localStorage = { getItem: key => storage.get(key) || null, setItem(key, value) { if (failWrites) throw new Error('QuotaExceededError'); writes++; storage.set(key, value); } };
-  for (const file of files) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), environment, { filename: file });
-  const G = environment.Game; G.store.init();
-  const styleApply = G.sys.houseStyles.apply, layoutApply = G.sys.layoutTemplates.apply;
-  G.sys.houseStyles.apply = (...args) => { styleCalls.push(args); return styleApply(...args); }; G.sys.layoutTemplates.apply = (...args) => { layoutCalls.push(args); return layoutApply(...args); };
-  G.draw = { exterior: { preview(canvas, exterior) { canvas.drawnExterior = plain(exterior); } } }; G.audio = { play: name => audio.push(name) }; G.render = { camera: { fit() { fitCount++; } } };
-  let body;
-  G.ui = { toast: message => toasts.push(message), roomLayout: { open() { manualLayoutCount++; } }, controls: {
-    select(options, value, callback) { const node = new Node('button'); node.value = value; node.options = plain(options); node.choose = next => { node.value = next; callback(next); }; return node; },
-    label(control, text) { const node = new Node('div'), label = new Node('span'); label.textContent = text; node.append(label, control); return node; }
-  } };
-  function render() { const view = G.ui.houseDesign.panel(); body = view.content; document.body.replaceChildren(body); while (frames.length) frames.shift()(); return body; }
-  G.ui.open = name => { navigation.push(name); if (name === 'houseDesign') return render(); };
-  vm.runInContext(fs.readFileSync(path.join(root, 'js/ui/house-design.js'), 'utf8'), environment, { filename: 'js/ui/house-design.js' });
-  const focus = name => body.descendants().find(node => node.dataset.uiFocus === name), button = name => body.descendants().find(node => node.tagName === 'BUTTON' && node.textContent === name);
-  return { G, open: tab => G.ui.houseDesign.open(tab), render, body: () => body, focus, button, nodes: () => body.descendants(), styleCalls, layoutCalls, toasts, audio, navigation, writes: () => writes, storage, fail(value) { failWrites = value; }, fitCount: () => fitCount, manualLayoutCount: () => manualLayoutCount };
+  G.ui.open = name => { navigation.push(name); return render(name); };
+  G.ui.panel.close = () => { panel.className = 'hidden'; G.bus.emit('panel:change', { open: false }); };
+  ['js/ui/house-design.js', 'js/ui/exterior.js'].forEach(env.load);
+  const nodes = () => body.querySelectorAll('*'), focus = name => nodes().find(node => node.dataset.uiFocus === name);
+  const button = name => nodes().find(node => node.tagName === 'BUTTON' && node.textContent === name);
+  return { ...env, open: tab => G.ui.houseDesign.open(tab), render, body: () => body, focus, button, nodes,
+    styleCalls, exteriorCalls, previewCalls, toasts, audio, navigation, writes: () => writes,
+    fail(value) { denied = value; }, preview(fn) { preview = fn; },
+    frame() { const entry = frames.entries().next().value; assert.ok(entry, '应有预览帧'); frames.delete(entry[0]); return entry[1](0); },
+    async flushFrames() { let count = 0; while (frames.size) { assert.ok(++count < 100, '预览队列不能循环失控'); const entry = frames.entries().next().value; frames.delete(entry[0]); await entry[1](0); } },
+    pendingFrames: () => frames.size
+  };
 }
 function ready(G) { G.store.update(state => { state.level = 12; state.wallet.coin = 5000; state.wallet.heart = 500; }); }
-function rooms(G) { ready(G); assert.ok(G.sys.building.buildRoom(0, 0, 'bedroom').ok); assert.ok(G.sys.building.buildRoom(0, 1, 'kitchen').ok); }
-let passed = 0; function test(name, run) { run(); passed++; console.log('✓ ' + name); }
+function rooms(G) { ready(G); spaces.buildSpace(G, 0, 0, 'bedroom'); spaces.buildSpace(G, 0, 1, 'kitchen'); }
 
-test('选择器和六张灵感缩略图只试穿，状态与磁盘保持原样', () => {
-  const env = sandbox(); ready(env.G); const before = JSON.stringify(env.G.state), writes = env.writes(); env.open();
-  env.focus('house-style-picker').choose('mint_cloud'); assert.equal(env.focus('house-style-picker').value, 'mint_cloud'); assert.equal(env.styleCalls.length, 0); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes);
+test('选择器和六张灵感缩略图只试穿，真实建筑、状态与磁盘保持原样', async () => {
+  const env = sandbox(); rooms(env.G); const before = JSON.stringify(env.G.state), writes = env.writes(); env.open();
+  env.focus('house-style-picker').choose('mint_cloud'); await env.flushFrames();
+  assert.equal(env.focus('house-style-picker').value, 'mint_cloud'); assert.equal(env.styleCalls.length, 0); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes);
   const stage = env.nodes().find(node => node.tagName === 'CANVAS'); assert.equal(stage.drawnExterior.roof, 'roof_cloud');
   const choices = env.nodes().filter(node => node.className.includes('house-style-choice')); assert.equal(choices.length, 6); choices.find(node => node.attributes['aria-label'].includes('海盐蓝')).click();
-  assert.equal(env.focus('house-style-picker').value, 'sea_salt'); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.equal(env.styleCalls.length, 0);
+  await env.flushFrames(); assert.equal(env.focus('house-style-picker').value, 'sea_salt'); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.equal(env.styleCalls.length, 0);
+  assert.ok(env.previewCalls.every(call => call.building === JSON.stringify(env.G.state.building)), '预览使用当前真实建筑');
 });
 test('主动确认把当前报价交给规则且旧按钮连点只调用一次，成功状态可重看', () => {
   const env = sandbox(); ready(env.G); env.open(); env.focus('house-style-picker').choose('mint_cloud'); const quote = env.G.sys.houseStyles.preview('mint_cloud').quote, accept = env.focus('house-style-apply'), writes = env.writes();
@@ -61,31 +74,53 @@ test('失败的外观持久事务保留预览和重试按钮，不播放成功�
   const env = sandbox(); ready(env.G); env.open(); env.focus('house-style-picker').choose('mint_cloud'); const before = JSON.stringify(env.G.state); env.fail(true); env.focus('house-style-apply').click();
   assert.equal(env.styleCalls.length, 1); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.audio.length, 0); assert.equal(env.focus('house-style-picker').value, 'mint_cloud'); assert.equal(env.focus('house-style-apply').disabled, false); assert.match(env.body().textContent, /还没有保存/); assert.match(env.toasts.at(-1), /保持原样/);
 });
-test('布局选择只画前后位置图，确认才传模板和快照，成功仅定位镜头一次', () => {
-  const env = sandbox(); rooms(env.G); const before = JSON.stringify(env.G.state), writes = env.writes(); env.open('layouts'); env.focus('house-layout-picker').choose('mirror_rows'); const plan = env.G.sys.layoutTemplates.preview('mirror_rows');
-  assert.ok(plan.moves.length > 0); assert.equal(env.layoutCalls.length, 0); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.match(env.body().textContent, /现在的小屋.*试看的布局/); assert.match(env.body().textContent, /家具、装修和朋友一起保留/);
-  const accept = env.focus('house-layout-apply'); accept.click(); accept.click(); assert.deepEqual(env.layoutCalls, [['mirror_rows', plan.signature]]); assert.equal(env.writes(), writes + 1); assert.equal(env.fitCount(), 1); assert.deepEqual(env.audio, ['success']); assert.equal(env.focus('house-layout-apply').disabled, true); assert.match(env.body().textContent, /镜像横排搬好/);
+test('自由搭配与自由布局保留原入口，只导航且不修改真实空间或存档', () => {
+  const env = sandbox(); rooms(env.G); const before = JSON.stringify(env.G.state), writes = env.writes(); env.open(); env.button('自由搭配').click(); assert.equal(env.navigation.at(-1), 'exterior');
+  env.open(); env.button('自由布局').click(); assert.equal(env.navigation.at(-1), 'roomLayout');
+  env.open('layouts'); assert.equal(env.navigation.at(-1), 'roomLayout'); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.equal(env.G.sys.layoutTemplates, undefined); assert.equal(env.G.sys.building, undefined);
 });
-test('布局拒写不改房间、不定位镜头且不播放成功音，可重新确认', () => {
-  const env = sandbox(); rooms(env.G); env.open('layouts'); env.focus('house-layout-picker').choose('mirror_rows'); const before = JSON.stringify(env.G.state); env.fail(true); env.focus('house-layout-apply').click();
-  assert.equal(env.layoutCalls.length, 1); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.fitCount(), 0); assert.equal(env.audio.length, 0); assert.equal(env.focus('house-layout-apply').disabled, false); assert.match(env.body().textContent, /布局还没有保存/);
+test('换档清理风格临时选择、失败消息与旧按钮的写入资格', () => {
+  const env = sandbox(); rooms(env.G); env.open(); env.focus('house-style-picker').choose('mint_cloud'); env.fail(true); env.focus('house-style-apply').click(); env.fail(false);
+  const oldPicker = env.focus('house-style-picker'), oldAccept = env.focus('house-style-apply');
+  env.G.store.replace(env.G.store.defaultState()); env.render(); const before = JSON.stringify(env.G.state), writes = env.writes(), calls = env.styleCalls.length;
+  oldPicker.choose('blueberry_night'); oldAccept.click();
+  assert.equal(env.focus('house-style-picker').value, 'strawberry_cream'); assert.doesNotMatch(env.body().textContent, /还没有保存/); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.equal(env.styleCalls.length, calls);
 });
-test('没有房间显示建造恢复入口，已经相同的布局则显示不可重复确认状态', () => {
-  const env = sandbox(); env.open('layouts'); assert.equal(env.focus('house-layout-apply'), undefined); assert.match(env.body().textContent, /先建一间房/); env.button('去建一间房').click(); assert.equal(env.navigation.at(-1), 'build'); assert.equal(env.layoutCalls.length, 0);
-  assert.ok(env.G.sys.building.buildRoom(0, 0, 'bedroom').ok); env.open('layouts'); assert.equal(env.focus('house-layout-apply').disabled, true); assert.equal(env.focus('house-layout-apply').textContent, '已经是这个排列'); env.focus('house-layout-apply').click(); assert.equal(env.layoutCalls.length, 0);
-});
-test('自由搭配与自己换位置使用既有入口，无额外存档动作', () => {
-  const env = sandbox(); rooms(env.G); const before = JSON.stringify(env.G.state), writes = env.writes(); env.open(); env.button('自由搭配').click(); assert.equal(env.navigation.at(-1), 'exterior'); env.open('layouts'); env.button('自己换位置').click(); assert.equal(env.manualLayoutCount(), 1); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes);
-});
-test('换档清理布局页签、风格/模板临时选择和失败消息', () => {
-  const env = sandbox(); rooms(env.G); env.open(); env.focus('house-style-picker').choose('mint_cloud'); env.fail(true); env.focus('house-style-apply').click(); env.fail(false); env.open('layouts'); env.focus('house-layout-picker').choose('mirror_rows');
-  env.G.store.replace(env.G.store.defaultState()); env.render(); assert.equal(env.focus('house-style-picker').value, 'strawberry_cream'); assert.equal(env.focus('house-layout-picker'), undefined); assert.doesNotMatch(env.body().textContent, /还没有保存/);
-  env.open('layouts'); assert.equal(env.focus('house-layout-picker').value, 'together_rows'); assert.match(env.body().textContent, /先建一间房/);
-});
-test('试穿图/详情标出真实部件和两种颜色，可读语义与单独搭配入口不写盘', () => {
-  const env = sandbox(); ready(env.G); env.open(); env.focus('house-style-picker').choose('mint_cloud'); const before = JSON.stringify(env.G.state), writes = env.writes();
+test('试穿图详情标出真实部件和两种颜色，语义与单独搭配入口保留', async () => {
+  const env = sandbox(); ready(env.G); env.open(); env.focus('house-style-picker').choose('mint_cloud'); await env.flushFrames(); const before = JSON.stringify(env.G.state), writes = env.writes();
   const stage = env.nodes().find(node => node.tagName === 'CANVAS'); assert.equal(stage.drawnExterior.roof, 'roof_cloud'); assert.equal(stage.attributes.role, 'img'); assert.equal(stage.attributes['aria-label'], '薄荷云朵外观预览');
   assert.match(env.body().textContent, /屋顶 #B3D8C5 · 外墙 #E4EFCC/); assert.ok(env.nodes().some(node => node.attributes.role === 'status' && node.attributes['aria-live'] === 'polite')); assert.ok(env.nodes().some(node => node.attributes['aria-label'] === '六套小屋灵感预览'));
   env.button('单独搭配屋顶和颜色').click(); assert.equal(env.navigation.at(-1), 'exterior'); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.equal(env.styleCalls.length, 0);
 });
-console.log('\n' + passed + ' 组小屋个性化UI检查通过（轻量DOM，不替代真实手机/桌面验收）。');
+test('Promise预览迟到、关闭或被换页后，不改旧caption、不复活队列且旧控件不能确认', async () => {
+  const env = sandbox(); ready(env.G); let resolve; env.preview(() => new Promise(done => { resolve = done; })); env.open();
+  const caption = env.nodes().find(node => node.tagName === 'FIGCAPTION'), oldText = caption.textContent, oldPicker = env.focus('house-style-picker'), oldAccept = env.focus('house-style-apply');
+  const pending = env.frame(); env.G.ui.panel.close(); const before = JSON.stringify(env.G.state), writes = env.writes();
+  oldPicker.choose('mint_cloud'); oldAccept.click(); resolve({ ok: false }); await pending;
+  assert.equal(caption.textContent, oldText); assert.equal(env.pendingFrames(), 0); assert.equal(env.styleCalls.length, 0); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes);
+  env.preview(() => Promise.resolve({ ok: true })); env.open(); await env.flushFrames(); assert.equal(env.pendingFrames(), 0); assert.equal(env.previewCalls.length, 8, '旧队列取消，新面板只执行舞台和六张缩略图');
+});
+test('预览失败只显示可读回退，报价和主动确认仍由真实规则决定', async () => {
+  const env = sandbox(); ready(env.G); env.preview(() => Promise.reject(new Error('内存GPU不可用'))); env.open(); env.focus('house-style-picker').choose('mint_cloud'); await env.flushFrames();
+  assert.match(env.body().textContent, /预览暂不可用/); assert.equal(env.focus('house-style-apply').disabled, false); assert.equal(env.styleCalls.length, 0);
+  env.focus('house-style-apply').click(); assert.equal(env.G.sys.houseStyles.current(), 'mint_cloud'); assert.deepEqual(env.audio, ['success']);
+});
+test('外观单款试穿不写盘，购买装备真实一次事务且原按钮失效', async () => {
+  const env = sandbox(); rooms(env.G); env.G.ui.open('exterior');
+  const picker = env.nodes().find(node => node.options?.some(option => option.id === 'roof_cloud'));
+  const before = JSON.stringify(env.G.state), writes = env.writes(); picker.choose('roof_cloud'); await env.flushFrames();
+  assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.writes(), writes); assert.equal(env.G.sys.exterior.owned('roof_cloud'), false);
+  const accept = env.nodes().find(node => node.tagName === 'BUTTON' && node.textContent.startsWith('购买并换上')); assert.ok(accept); accept.click(); accept.click();
+  assert.deepEqual(env.exteriorCalls, [['roof_cloud']]); assert.equal(env.writes(), writes + 1); assert.equal(env.G.state.house.exterior.roof, 'roof_cloud'); assert.equal(env.G.sys.exterior.owned('roof_cloud'), true);
+  assert.equal(env.G.state.wallet.coin, JSON.parse(before).wallet.coin - 140); assert.equal(JSON.stringify(env.G.state.building), JSON.stringify(JSON.parse(before).building));
+});
+test('外观购买拒写与换档都保留经济/建筑，迟到预览和旧颜色按钮不得作用于新档', async () => {
+  const env = sandbox(); ready(env.G); env.G.ui.open('exterior'); env.nodes().find(node => node.options?.some(option => option.id === 'roof_cloud')).choose('roof_cloud');
+  const accept = env.nodes().find(node => node.tagName === 'BUTTON' && node.textContent.startsWith('购买并换上')), before = JSON.stringify(env.G.state);
+  env.fail(true); accept.click(); assert.equal(JSON.stringify(env.G.state), before); assert.equal(env.audio.length, 0); assert.equal(env.G.sys.exterior.owned('roof_cloud'), false); env.fail(false);
+  let resolve; env.preview(() => new Promise(done => { resolve = done; })); const oldColor = env.nodes().find(node => node.attributes['aria-label'] === '蜜桃甜粉 #FF9FB5');
+  const pending = env.frame(); env.G.store.replace(env.G.store.defaultState()); const newState = JSON.stringify(env.G.state), writes = env.writes();
+  oldColor.click(); accept.click(); resolve({ ok: false }); await pending;
+  assert.equal(JSON.stringify(env.G.state), newState); assert.equal(env.writes(), writes); assert.equal(env.pendingFrames(), 0);
+});
+(async () => { for (const item of tests) { await item.run(); console.log('✓ ' + item.name); } console.log(tests.length + ' 组原小屋外观/风格UI检查通过（内存DOM与预览合同，不替代浏览器外观验收）。'); })().catch(error => { console.error(error); process.exitCode = 1; });

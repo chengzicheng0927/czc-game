@@ -31,7 +31,11 @@
       direction: function (name) {
         var state = G.live.status(), self = me(state); if (!self || state.phase !== 'connected') return;
         var step = .08, x = self.x + (name === 'left' ? -step : name === 'right' ? step : 0), y = self.y + (name === 'up' ? -step : name === 'down' ? step : 0);
-        G.live.move(self.zone, Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y)));
+        var source = G.runtime && G.runtime.visit && G.runtime.visit.active ? G.runtime.visit.state : G.state;
+        if (!source || !G.liveSpace) return;
+        var point = G.liveSpace.position(source, { zone: self.zone, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) });
+        var destination = point && G.liveSpace.destination(source, point, point.floorId);
+        if (destination) G.live.move(destination.zone, destination.x, destination.y);
       },
       // 卸载面板；clearPeers 为真时同时清掉主场景里的同屋人物并重画。
       release: function (clearPeers) {
@@ -67,14 +71,20 @@
     var result = await G.live.quickJoin(id);
     if (!result.ok) { joining = false; if (unsubscribe) { unsubscribe(); unsubscribe = null; } toast(result.message || '这次没能进入小屋，请稍后再试。'); return result; }
     joining = false; active = true; getKit().mount({ houseId: id, onState: onState }); onState(G.live.status());
-    var room = G.runtime && G.runtime.activeRoomId;
-    if (room && G.state && G.state.house && G.state.house.rooms && G.state.house.rooms[room]) G.live.move(room, .5, .5);
+    var room = G.contentSpaces && G.contentSpaces.get(G.runtime && G.runtime.activeRoomId);
+    if (room && G.liveSpace) {
+      // 凹形或带庭院的空间中心可能落在室外，先由只读映射找到合法落点。
+      var point = G.liveSpace.position(G.state, { zone: room.spaceId, x: .5, y: .5 });
+      var destination = point && G.liveSpace.destination(G.state, point, room.floorId);
+      if (destination) G.live.move(destination.zone, destination.x, destination.y);
+    }
     return { ok: true };
   }
   // 点空地面走过去；只有同屋会话中才接管点击，其余时候点击行为完全不变。
   function walkTo(point) {
-    if (!active || !G.liveAvatars || !G.state) return false;
-    var destination = G.liveAvatars.destination(G.state.house, point, null); if (!destination) return false;
+    if (!active || !G.liveSpace || !G.state) return false;
+    var view = G.render && G.render.getHouseView && G.render.getHouseView();
+    var destination = G.liveSpace.destination(G.state, point, view && view.floor); if (!destination) return false;
     G.live.move(destination.zone, destination.x, destination.y); return true;
   }
   G.hostRoom = { enter: enter, leave: function () { if (active || joining) { G.live.leave(); end(''); } }, walkTo: walkTo, active: function () { return active; } };

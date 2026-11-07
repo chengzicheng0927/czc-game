@@ -35,7 +35,7 @@
   }
   function snapshotOf(raw) { const state = G.store.validate(typeof raw === 'string' ? JSON.parse(raw) : raw), json = JSON.stringify(state), hash = digest(canonical(state)), semantic = clone(state); delete semantic.profile.playTimeSec; Object.values(semantic.residents).forEach(r => { delete r.lastBubbleAt; }); return { state, json, hash, semanticHash: digest(canonical(semantic)) }; }
   function diskSnapshot(flush) { if (flush && !G.save.flush()) throw new Error('当前进度还没有保存在本机。请先下载JSON备份，再重试。'); const value = G.save.snapshot(); if (!value) throw new Error('本机存档还没有准备好，请先下载JSON备份。'); return snapshotOf(value.state); }
-  function summary(snap, data) { if (!snap) return null; return { name: snap.state.house.name, level: snap.state.level, coin: snap.state.wallet.coin, roomCount: Object.keys(snap.state.house.rooms).length, updatedAt: data && data.updatedAt || null, revision: data && data.revision || null }; }
+  function summary(snap, data) { if (!snap) return null; return { name: snap.state.house.name, level: snap.state.level, coin: snap.state.wallet.coin, roomCount: G.contentSpaces.list(snap.state).length, updatedAt: data && data.updatedAt || null, revision: data && data.revision || null }; }
   function activeSlot() { return meta.slots[meta.active]; }
   function accountKey(value) { if (!value || typeof value.id !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(value.id)) throw new Error('账号资料没有通过检查，请重新登录。'); return 'account_' + value.id; }
   function binding() { return !!(account && meta.active === accountKey(account) && activeSlot().bound); }

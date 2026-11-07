@@ -59,9 +59,9 @@ function createCloudApi({ dataDir, basePath = '/', origin, secureCookies = false
   function compatibleBuild(req) {
     if (req.headers?.['x-mc-protocol'] !== '1') fault(426, 'CLIENT_INCOMPATIBLE', '小屋页面需要更新，请先保留本机进度再刷新。');
     const active = currentValidator();
-    let build;
-    try { build = readManifest(dataDir, req.headers?.['x-mc-build']); } catch (_) { fault(426, 'CLIENT_INCOMPATIBLE', '这份页面版本已不能同步，请先导出JSON再更新。'); }
-    if (build.basePath !== prefix || contractHash(build) !== active.contractHash) fault(426, 'CLIENT_INCOMPATIBLE', '页面与云存档规则已不同，请先保留本机进度再更新。');
+    let build, buildContract;
+    try { build = readManifest(dataDir, req.headers?.['x-mc-build']); buildContract = contractHash(build); } catch (_) { fault(426, 'CLIENT_INCOMPATIBLE', '这份页面版本已不能同步，请先导出JSON再更新。'); }
+    if (build.basePath !== prefix || buildContract !== active.contractHash) fault(426, 'CLIENT_INCOMPATIBLE', '页面与云存档规则已不同，请先保留本机进度再更新。');
     return active;
   }
   function sessionToken(req) {
@@ -181,7 +181,7 @@ function createCloudApi({ dataDir, basePath = '/', origin, secureCookies = false
         const displayName = existingPub?.display_name || defaultPublicName(session.account_id);
         const snapshot = checker.projectPublic(state, { title, displayName });
         const pubId = existingPub?.id || crypto.randomUUID();
-        const roomCount = Object.keys(state.house?.rooms || {}).length;
+        const roomCount = checker.countBuildingRooms(snapshot.building);
         // 公开投影没变（只是钱包等私有数据变了）时只记录来源修订，不改updated_at，避免在线访客被无谓刷新。
         if (existingPub && existingPub.snapshot_json === JSON.stringify(snapshot)) db.prepare('UPDATE publications SET source_revision=? WHERE account_id=?').run(row.revision, session.account_id);
         else db.prepare('INSERT INTO publications(id,account_id,title,display_name,snapshot_json,source_revision,room_count,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET title=excluded.title,display_name=excluded.display_name,snapshot_json=excluded.snapshot_json,source_revision=excluded.source_revision,room_count=excluded.room_count,updated_at=excluded.updated_at').run(pubId, session.account_id, title, displayName, JSON.stringify(snapshot), row.revision, roomCount, clock());
@@ -220,7 +220,7 @@ function createCloudApi({ dataDir, basePath = '/', origin, secureCookies = false
       // 只从本人当前云档投影，不接受或透传客户端公开JSON与所有者字段。
       const state = JSON.parse(saved.json), snapshot = checker.projectPublic(state, { title: input.title, displayName: input.displayName });
       const previous = db.prepare('SELECT id FROM publications WHERE account_id=?').get(session.account_id);
-      const row = { id: previous?.id || crypto.randomUUID(), account_id: session.account_id, title: input.title, display_name: input.displayName, snapshot_json: JSON.stringify(snapshot), source_revision: saved.revision, room_count: Object.keys(state.house.rooms).length, updated_at: clock() };
+      const row = { id: previous?.id || crypto.randomUUID(), account_id: session.account_id, title: input.title, display_name: input.displayName, snapshot_json: JSON.stringify(snapshot), source_revision: saved.revision, room_count: checker.countBuildingRooms(snapshot.building), updated_at: clock() };
       db.prepare('INSERT INTO publications(id,account_id,title,display_name,snapshot_json,source_revision,room_count,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET title=excluded.title,display_name=excluded.display_name,snapshot_json=excluded.snapshot_json,source_revision=excluded.source_revision,room_count=excluded.room_count,updated_at=excluded.updated_at').run(row.id, row.account_id, row.title, row.display_name, row.snapshot_json, row.source_revision, row.room_count, row.updated_at);
       return row;
     });
@@ -273,7 +273,7 @@ function createCloudApi({ dataDir, basePath = '/', origin, secureCookies = false
   function liveHouse(id) {
     const row = db.prepare('SELECT id,account_id,title,snapshot_json,updated_at FROM publications WHERE id=?').get(id); if (!row) return null;
     const snapshot = JSON.parse(row.snapshot_json);
-    return { id: row.id, title: row.title, ownerId: row.account_id, version: hash(row.snapshot_json + '\n' + row.title + '\n' + row.updated_at), zones: Object.keys(snapshot.house.rooms) };
+    return { id: row.id, title: row.title, ownerId: row.account_id, version: hash(row.snapshot_json + '\n' + row.title + '\n' + row.updated_at), zones: snapshot.building ? snapshot.building.floors.map(floor => floor.id) : Object.keys(snapshot.house.rooms) };
   }
   function liveAvatar(accountId) {
     const checker = currentValidator(), saved = db.prepare('SELECT json FROM saves WHERE account_id=?').get(accountId);
@@ -373,7 +373,7 @@ function createCloudApi({ dataDir, basePath = '/', origin, secureCookies = false
             if (saved) {
               const checker = compatibleBuild(req), state = JSON.parse(saved.json);
               const title = (typeof state.house?.name === 'string' && state.house.name.trim()) || '我的小屋', displayName = defaultPublicName(session.account_id);
-              const snapshot = checker.projectPublic(state, { title, displayName }), pubId = crypto.randomUUID(), now = clock(), roomCount = Object.keys(state.house?.rooms || {}).length;
+              const snapshot = checker.projectPublic(state, { title, displayName }), pubId = crypto.randomUUID(), now = clock(), roomCount = checker.countBuildingRooms(snapshot.building);
               store.transaction(() => {
                 db.prepare('INSERT INTO publications(id,account_id,title,display_name,snapshot_json,source_revision,room_count,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET title=excluded.title,display_name=excluded.display_name,snapshot_json=excluded.snapshot_json,source_revision=excluded.source_revision,room_count=excluded.room_count,updated_at=excluded.updated_at').run(pubId, session.account_id, title, displayName, JSON.stringify(snapshot), saved.revision, roomCount, now);
               });
@@ -423,7 +423,12 @@ function createCloudApi({ dataDir, basePath = '/', origin, secureCookies = false
         if (route === '/save/versions') return send(200, { versions: db.prepare('SELECT revision, content_hash, updated_at FROM versions WHERE account_id=? ORDER BY revision DESC').all(session.account_id).map(row => summary(epoch, row)) });
         const row = route === '/save' ? db.prepare('SELECT * FROM saves WHERE account_id=?').get(session.account_id) : db.prepare('SELECT * FROM versions WHERE account_id=? AND revision=?').get(session.account_id, Number(route.split('/').pop()));
         if (!row) fault(404, 'NO_SAVE', '云端还没有这份小屋进度。', { serverEpoch: epoch });
-        return send(200, { save: JSON.parse(row.json), ...summary(epoch, row) }, { ETag: etagFor(epoch, row) });
+        // 先核对原始记录，不能让读取时的迁移掩盖数据库原文损坏。
+        if (hash(row.json) !== row.content_hash) fault(503, 'SAVE_INTEGRITY_FAILED', '云端存档原文与摘要不一致，已停止恢复；原文和本机进度仍保留，请先保留备份。');
+        const checked = checker.validate(JSON.parse(row.json));
+        // 客户端收到的save和contentHash属于同一份归一化文档；CAS仍绑定磁盘原行。
+        // GET不覆盖旧JSON或旧历史，直到玩家正常保存才产生下一修订。
+        return send(200, { save: checked.save, ...summary(epoch, row), contentHash: checked.contentHash }, { ETag: etagFor(epoch, row) });
       }
       if (['/session', '/register', '/login', '/logout', '/save', '/save/versions', '/neighbors', '/neighbors/online', '/my-publication'].includes(route) || route.startsWith('/public-houses/')) return send(405, { code: 'METHOD_NOT_ALLOWED', message: '这个操作方式不可用。' }, { Allow: route === '/save' ? 'GET, PUT' : route === '/my-publication' ? 'GET, POST, DELETE' : ['/register', '/login', '/logout'].includes(route) ? 'POST' : 'GET' });
       return send(404, { code: 'NOT_FOUND', message: '没有这个小屋接口。' });

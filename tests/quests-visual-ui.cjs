@@ -1,8 +1,9 @@
 'use strict';
 // MC-060：真实sys/data + 内存DOM/合成存档。无服务、浏览器、账号或私人存档操作。
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
-const { setup } = require('./fixtures/resident-life.cjs');
-const { qaState } = require('./fixtures/quest-village.cjs');
+const { setup } = require('./fixtures/content-dom.cjs');
+const spaces = require('./fixtures/free-spaces.cjs');
+const { qaState } = require('./fixtures/content-progress.cjs');
 const root = path.resolve(__dirname, '..'), plain = value => JSON.parse(JSON.stringify(value));
 const tests = [], test = (name, fn) => tests.push([name, fn]);
 function harness(saved) {
@@ -90,7 +91,7 @@ test('复合任务依已满足条件计数，逐项真实进度；只满足一�
   const q = e.G.sys.quests.list().find(q => q.id === 'garden_morning'); assert.equal(q.progress, 0); assert.equal(q.target, 2);
   assert.match(row(e, q.id).textContent, /已满足条件 0 \/ 2/); assert.match(row(e, q.id).textContent, /收获作物 2\/3/);
   e.G.store.update(s => { s.quests.stats.harvests = 3; }); e.render(); assert.match(row(e, q.id).textContent, /已满足条件 1 \/ 2/); assert.equal(e.key('claim-' + q.id).disabled, true);
-  e.G.store.update(s => { s.level = 6; s.house.floors.push({ slots: [null, null, null] }); }); e.render(); assert.match(row(e, q.id).textContent, /已满足条件 2 \/ 2/); assert.equal(e.key('claim-' + q.id).disabled, false);
+  e.G.store.update(s => { s.level = 6; }); spaces.addFloor(e.G, 1); e.render(); assert.match(row(e, q.id).textContent, /已满足条件 2 \/ 2/); assert.equal(e.key('claim-' + q.id).disabled, false);
 });
 test('章节折叠状态在切签与领奖后保留，章节切换焦点稳定', () => {
   const e = harness(); e.render(); const details = e.panel.querySelector('.quest-chapter-list'); details.open = true; details.dispatch('toggle');

@@ -9,7 +9,7 @@
   function open() { ui.open('observatory'); }
   function entry() {
     const state = G.sys.observatory.status(), epoch = archive;
-    return button('🔭 阁楼天文台' + (!state.unlocked ? ' · Lv' + C.unlockLv + '开放' : !state.built ? ' · ' + C.price + '糖果' : ''), () => { if (epoch === archive) open(); }, 'ui-button ui-button-soft');
+    return button('🔭 阁楼天文台' + (!state.unlocked ? ' · Lv' + C.unlockLv + '开放' : state.needsRebuild ? ' · 免费重建' : state.inconsistent ? ' · 待核对' : !state.built ? ' · ' + number(state.price) + '糖果' : ''), () => { if (epoch === archive) open(); }, 'ui-button ui-button-soft');
   }
   function panel() {
     const previous = active, host = document.getElementById('panel-body');
@@ -25,10 +25,11 @@
     message.id = 'observatory-current-status'; message.dataset.uiFocus = 'observatory-status'; message.setAttribute('role', 'status'); message.setAttribute('aria-live', 'polite');
     const response = el('p', 'observatory-feedback'); response.tabIndex = -1; response.dataset.uiFocus = 'observatory-feedback'; response.setAttribute('aria-atomic', 'true');
     const action = localButton(session, '观星', 'action', () => act(session), 'ui-button ui-button-primary'); action.setAttribute('aria-describedby', message.id);
-    const decor = localButton(session, '布置阁楼 · 家具、墙纸与地板', 'decor', () => {
-      const roomId = G.store.atticRoomId;
-      if (!G.store.decorRoom(G.state, roomId)) return;
-      dispose(session); feedback = null; ui.open('decor', { roomId });
+    const decor = localButton(session, '布置天文台', 'decor', () => {
+      const state = G.sys.observatory.status();
+      if (!state.built || !state.floorId) { ui.toast(state.reason); return; }
+      if (!G.buildingEditor || typeof G.buildingEditor.focusFloor !== 'function' || !G.buildingEditor.focusFloor(state.floorId)) { ui.toast('观星楼层暂时不能打开，请重新读取小屋。'); return; }
+      dispose(session); feedback = null; ui.open('decor');
     }, 'ui-button ui-button-soft observatory-decor');
     const settings = localButton(session, '去设置夜晚', 'settings', () => { dispose(session); feedback = null; ui.open('settings'); }, 'ui-button ui-button-soft');
     const retry = localButton(session, '重新读取状态', 'retry', () => { session.focusKey = 'observatory-retry'; update(session); }, 'ui-button ui-button-soft');
@@ -73,6 +74,8 @@
   function stateView(state) {
     const full = state.observations >= C.maxObservations || state.fragments + C.dailyFragments > C.maxFragments;
     if (!state.unlocked) return ['locked', '把小屋的屋顶，留给星星', 'Lv.' + C.unlockLv + ' 开放天文台'];
+    if (state.inconsistent) return ['invalid', '观星楼层与购买记录需要核对', '请先检查存档'];
+    if (state.needsRebuild) return ['rebuild', '星空回忆还在，重新搭起观星楼层', '免费重建天文台'];
     if (!state.built) return [state.canBuild ? 'build' : 'poor', '在阁楼，安放一台望远镜', state.canBuild ? '建造天文台 · ' + number(state.price) + '糖果' : '糖果不足 · 需' + number(state.price) + '颗'];
     if (state.clockBehind) return ['clock', '设备日期需要赶上记录', '日期暂不可用'];
     if (state.alreadyObserved) return ['claimed', '今天的星光，已经收好', '今天已观星'];
@@ -93,10 +96,10 @@
       session.snapshot = { state, def };
       session.body.dataset.state = code; session.heading.textContent = title;
       session.date.textContent = '本地日期 ' + state.date + ' · ' + (state.night ? '夜晚' : '白天或黄昏');
-      session.note.textContent = state.built ? '阁楼可以布置家具、墙纸和地板，固定望远镜照常观星。每个本地日期，在夜晚抬头一次，把一小片星光留在小屋。' : '圆圆的穹顶、一台望远镜。独立阁楼不占普通房间格，也不增加普通建房计数。';
+      session.note.textContent = state.built ? '天文台是小屋中的真实楼层，可以继续摆放家具和布置画作。每个本地日期，在夜晚抬头一次，把一小片星光留在小屋。' : state.needsRebuild ? '购买记录与星空回忆都保留。免费重建会增加真实观星楼层和围墙，原有建筑不会被替换。' : '搭建后会在小屋上方增加观星楼层和围墙，原有房间和家具保持。';
       session.message.textContent = code === 'clock' ? '当前日期' + state.date + '早于已保存的' + latest?.date + '。须等本地日期严格晚于记录日期，才能再次观星。' : code === 'claimed' ? '今天已收下' + C.dailyFragments + '枚碎片。须到更晚的本地日期，并在夜晚再次观星。' : code === 'full' ? '累计星星碎片已达上限，最近一条记录仍可回看。' : state.reason;
       session.action.textContent = label; session.action.disabled = session.busy || !(state.built ? state.canObserve : state.canBuild);
-      const canDecorate = state.built && !!G.store.decorRoom(G.state, G.store.atticRoomId);
+      const canDecorate = state.built && !!state.floorId;
       session.decor.hidden = !canDecorate; session.decor.disabled = session.busy || !canDecorate;
       session.settings.hidden = !(state.built && state.unlocked && !state.night && !state.alreadyObserved); session.settings.disabled = session.busy;
       session.retry.disabled = session.busy;

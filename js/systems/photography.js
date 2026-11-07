@@ -36,7 +36,7 @@
     const scope = options.scope || 'house';
     if (!['house', 'room', 'view'].includes(scope)) throw new Error('请先选择整屋或一个已建好的房间。');
     const value = { scope };
-    if (scope === 'room') { if (typeof options.roomId !== 'string' || !G.store.decorRoom(G.state, options.roomId)) throw new Error('这间房还没有建好，先选一间温暖的小屋吧。'); value.roomId = options.roomId; }
+    if (scope === 'room') { if (typeof options.roomId !== 'string' || !G.contentSpaces.get(options.roomId, G.state)) throw new Error('这间房还没有建好，先选一间温暖的小屋吧。'); value.roomId = options.roomId; }
     return value;
   }
   function prepare(options) {

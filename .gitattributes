@@ -1,0 +1,2 @@
+# 自动构建的引擎包包含上游原样GLSL；审查以src为准，保留着色器行尾。
+js/building/*.js linguist-generated=true whitespace=-blank-at-eol

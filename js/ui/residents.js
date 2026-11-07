@@ -118,6 +118,17 @@
     }, true, true);
     invite.disabled = !eligible.ok || !eligible.roomIds.length; block.append(invite); return block;
   }
+  function rehousing(id, scope) {
+    const status = G.sys.residents.relocation(id); if (!status.needed) return null;
+    const block = el('section', 'rb-admission');
+    block.append(el('h4', '', '给朋友重新安置'), el('p', 'rb-copy', '小屋改建后，原来的房间位置有了变化。好感、礼物和已经收好的心意都还在。'), el('p', 'rb-meta', status.message));
+    if (status.roomIds.length) {
+      const picker = ui.controls.select(status.roomIds.map(roomId => ({ id: roomId, name: scope.api.roomName(roomId) })), status.roomIds[0]);
+      picker.dataset.uiFocus = 'resident-v2-rehouse-room-' + id;
+      block.append(ui.controls.label(picker, '现有的合格卧室'), action(scope, 'rehouse-' + id, '重新安置' + definition(id).name, () => G.sys.residents.relocate(id, picker.value), true, true));
+    } else block.append(action(scope, 'rehouse-build-' + id, '先准备一间卧室', () => ui.open('build'), true));
+    return block;
+  }
   function wishBlock(id, scope) {
     const wish = G.sys.residents.wish(id), block = el('section', 'rb-wish'), type = wish.definition?.type;
     block.setAttribute('aria-label', definition(id).name + '的每日心愿');
@@ -264,6 +275,7 @@
     const detail = el('section', 'rb-detail'); detail.id = 'resident-v2-detail'; detail.setAttribute('role', 'tabpanel'); detail.setAttribute('aria-labelledby', 'resident-v2-tab-' + view.tab); detail.tabIndex = 0; detail.dataset.uiFocus = 'resident-v2-detail';
     if (view.friend) {
       const id = view.friend; detail.append(identity(id, api));
+      if (atHome(id)) { const recovery = rehousing(id, scope); if (recovery) detail.append(recovery); }
       if (!atHome(id)) detail.append(admission(id, scope));
       else if (view.tab === 'today') detail.append(wishBlock(id, scope), companionship(id, scope));
       else if (view.tab === 'friendship') detail.append(friendshipRows(id, scope, false));

@@ -85,16 +85,16 @@ test('全部真实游戏资源可读，类型正确且按 release 永久缓存',
     assert.equal(response.headers['x-content-type-options'], 'nosniff');
     assert.equal(response.headers['content-length'], String(response.body.length));
   }
-  firstStyle = await request(handler, assetUrl(first, 'css/style.css'));
+  firstStyle = await request(handler, assetUrl(first, 'css/building.css'));
 });
 test('HEAD与GET表示一致，ETag重验证含弱标签和列表', async () => {
-  for (const url of [prefix + '/', prefix + '/index.html', assetUrl(first, 'css/style.css'), prefix + '/healthz', prefix + '/version.json', prefix + '/missing']) {
+  for (const url of [prefix + '/', prefix + '/index.html', assetUrl(first, 'css/building.css'), prefix + '/healthz', prefix + '/version.json', prefix + '/missing']) {
     const get = await request(handler, url), head = await request(handler, url, { method: 'HEAD' });
     assert.equal(head.status, get.status); assert.deepEqual(head.headers, get.headers); assert.equal(head.body.length, 0);
   }
   const unchanged = await request(handler, prefix + '/', { headers: { 'if-none-match': '"other", W/' + firstHome.headers.etag } });
   assert.equal(unchanged.status, 304); assert.equal(unchanged.body.length, 0); assert.equal(unchanged.headers['cache-control'], 'no-cache');
-  const cached = await request(handler, assetUrl(first, 'css/style.css'), { method: 'HEAD', headers: { 'if-none-match': firstStyle.headers.etag } });
+  const cached = await request(handler, assetUrl(first, 'css/building.css'), { method: 'HEAD', headers: { 'if-none-match': firstStyle.headers.etag } });
   assert.equal(cached.status, 304); assert.equal(cached.body.length, 0);
   assert.equal((await request(handler, prefix + '/', { headers: { 'if-none-match': '"stale"' } })).status, 200);
 });
@@ -107,17 +107,17 @@ test('拒绝穿越、双重编码和绝对URL，私有数据及源码无回退�
   assert.equal((await request(handler, '/' + 'x'.repeat(4100))).status, 414);
 });
 test('新内容生成新身份，旧release可访问并可显式回滚', async () => {
-  const stylePath = path.join(source, 'css/style.css'), changed = Buffer.concat([fs.readFileSync(stylePath), Buffer.from('\n/* release regression */\n')]);
+  const stylePath = path.join(source, 'css/building.css'), changed = Buffer.concat([fs.readFileSync(stylePath), Buffer.from('\n/* release regression */\n')]);
   write(stylePath, changed);
-  write(path.join(source, 'index.html'), originalHtml.replace(/css\/style\.css\?v=[a-f0-9]{10}/, 'css/style.css?v=' + hash(changed).slice(0, 10)));
+  write(path.join(source, 'index.html'), originalHtml.replace(/css\/building\.css\?v=[a-f0-9]{10}/, 'css/building.css?v=' + hash(changed).slice(0, 10)));
   second = prepareRelease({ sourceRoot: source, dataDir, basePath: prefix });
   assert.notEqual(second.id, first.id);
   assert.equal(readActiveId(dataDir), first.id, '新准备版本不改变活动入口');
   activateRelease({ dataDir, releaseId: second.id });
   const current = await request(handler, prefix + '/');
   assert.notEqual(current.headers.etag, firstHome.headers.etag); assert.ok(current.body.toString().includes(second.id));
-  assert.deepEqual((await request(handler, assetUrl(first, 'css/style.css'))).body, firstStyle.body);
-  assert.deepEqual((await request(handler, assetUrl(second, 'css/style.css'))).body, changed);
+  assert.deepEqual((await request(handler, assetUrl(first, 'css/building.css'))).body, firstStyle.body);
+  assert.deepEqual((await request(handler, assetUrl(second, 'css/building.css'))).body, changed);
   activateRelease({ dataDir, releaseId: first.id });
   assert.deepEqual((await request(handler, prefix + '/')).body, firstHome.body);
   assert.equal(listReleases(dataDir).length, 2); assert.equal(listReleases(dataDir).find(value => value.id === first.id).active, true);
@@ -136,30 +136,30 @@ test('根路径发布也可用，release身份绑定挂载位置', async () => {
   const rootHandler = createHandler({ dataDir: rootData });
   assert.equal((await request(rootHandler, '/')).status, 200);
   assert.ok((await request(rootHandler, '/')).body.toString().includes('/releases/' + rootRelease.id + '/'));
-  assert.equal((await request(rootHandler, '/releases/' + second.id + '/css/style.css')).status, 404);
+  assert.equal((await request(rootHandler, '/releases/' + second.id + '/css/building.css')).status, 404);
 });
 test('源指纹、外链、缺失文件及越界引用失败时不改变活动版本', () => {
   const bad = path.join(temporary, 'bad-source'); copySource(bad);
-  write(path.join(bad, 'css/style.css'), 'incorrect-content');
+  write(path.join(bad, 'css/building.css'), 'incorrect-content');
   assert.throws(() => prepareRelease({ sourceRoot: bad, dataDir, basePath: prefix }), /指纹/);
-  copySource(bad); write(path.join(bad, 'index.html'), originalHtml.replace('css/style.css?v=', 'https://example.com/css/style.css?v='));
+  copySource(bad); write(path.join(bad, 'index.html'), originalHtml.replace('css/building.css?v=', 'https://example.com/css/building.css?v='));
   assert.throws(() => prepareRelease({ sourceRoot: bad, dataDir, basePath: prefix }), /本地资源/);
-  copySource(bad); fs.rmSync(path.join(bad, 'js/main.js'));
+  copySource(bad); fs.rmSync(path.join(bad, 'js/building/app.js'));
   assert.throws(() => prepareRelease({ sourceRoot: bad, dataDir, basePath: prefix }), /ENOENT/);
-  copySource(bad); write(path.join(bad, 'index.html'), originalHtml.replace('css/style.css?v=', '../private.css?v='));
+  copySource(bad); write(path.join(bad, 'index.html'), originalHtml.replace('css/building.css?v=', '../private.css?v='));
   assert.throws(() => prepareRelease({ sourceRoot: bad, dataDir, basePath: prefix }), /本地资源/);
   assert.equal(readActiveId(dataDir), first.id);
   assert.throws(() => prepareRelease({ sourceRoot: source, dataDir: source, basePath: prefix }), /源码根目录/);
 });
 test('源文件和release符号链接不能逃逸，损坏版本不能激活或被覆写', async () => {
   const linked = path.join(temporary, 'linked-source'); copySource(linked);
-  const css = path.join(linked, 'css/style.css'); fs.rmSync(css); fs.symlinkSync(path.join(project, 'css/style.css'), css);
+  const css = path.join(linked, 'css/building.css'); fs.rmSync(css); fs.symlinkSync(path.join(project, 'css/building.css'), css);
   assert.throws(() => prepareRelease({ sourceRoot: linked, dataDir, basePath: prefix }), /符号链接/);
   const badData = path.join(temporary, 'linked-data'); fs.mkdirSync(badData); fs.symlinkSync(path.join(dataDir, 'releases'), path.join(badData, 'releases'));
   assert.throws(() => prepareRelease({ sourceRoot: source, dataDir: badData, basePath: prefix }), /符号链接/);
-  const target = path.join(dataDir, 'releases', second.id, 'css/style.css');
+  const target = path.join(dataDir, 'releases', second.id, 'css/building.css');
   const saved = fs.readFileSync(target); fs.rmSync(target); fs.symlinkSync(path.join(source, 'child-save.json'), target);
-  const refused = await request(handler, assetUrl(second, 'css/style.css')); assert.equal(refused.status, 503); assert.equal(refused.body.toString().includes('PRIVATE'), false);
+  const refused = await request(handler, assetUrl(second, 'css/building.css')); assert.equal(refused.status, 503); assert.equal(refused.body.toString().includes('PRIVATE'), false);
   assert.throws(() => activateRelease({ dataDir, releaseId: second.id }), /符号链接/); assert.equal(readActiveId(dataDir), first.id);
   fs.rmSync(target); write(target, 'tampered');
   assert.throws(() => prepareRelease({ sourceRoot: source, dataDir, basePath: prefix }), /指纹/);

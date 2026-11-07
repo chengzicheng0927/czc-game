@@ -5,7 +5,7 @@
   let initialized = false;
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const hash = id => Array.from(id).reduce((value, ch) => (value * 31 + ch.charCodeAt(0)) >>> 0, 173);
-  const room = id => G.state.house.rooms[id];
+  const room = id => G.contentSpaces.get(id, G.state);
   const definition = id => G.data.residentById?.[id] || G.data.residents.find(value => value.id === id);
   const moved = () => Object.entries(G.state.residents).filter(([, value]) => value.movedIn && room(value.roomId));
   function random(actor) { actor.seed = (Math.imul(actor.seed, 1664525) + 1013904223) >>> 0; return actor.seed / 4294967296; }
@@ -53,7 +53,7 @@
     }
     if (runtime.clock >= actor.nextVisitAt && !['depart', 'arrive'].includes(actor.pose)) {
       actor.nextVisitAt = runtime.clock + between(actor, 30000, 90000);
-      const others = Object.keys(G.state.house.rooms).filter(id => id !== actor.roomId);
+      const others = G.contentSpaces.list(G.state).map(value => value.id).filter(id => id !== actor.roomId);
       if (others.length && random(actor) < .5) {
         actor.destination = actor.roomId !== actor.homeRoomId && random(actor) < .6 ? actor.homeRoomId : others[Math.floor(random(actor) * others.length)];
         actor.favoriteUid = null; start(actor, 'depart', 900); return;

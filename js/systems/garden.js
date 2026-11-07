@@ -16,7 +16,7 @@
     Game.store.update(function (state) { while (state.garden.plots.length < capacity()) state.garden.plots.push(null); });
   }
   function night(now) { var hour = new Date(nowValue(now)).getHours(); return hour >= 20 || hour < 6; }
-  function greenhouse() { return Object.keys(Game.state.house.rooms).some(function (id) { return ['greenhouse', 'conservatory'].indexOf(Game.state.house.rooms[id].type) >= 0; }); }
+  function greenhouse() { return Game.contentSpaces.list(Game.state).some(function (room) { return Game.contentSpaces.isType(room, 'greenhouse') || Game.contentSpaces.isType(room, 'conservatory'); }); }
   // 浇水只缩短该阶段当下剩余的 30%，之后阶段仍按自己的起点计算。
   function timeline(plot) {
     var duration = plot.durationMs / 3, start = plot.plantedAt, stages = [];

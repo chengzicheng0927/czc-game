@@ -1,7 +1,7 @@
 'use strict';
 // 纯Node契约：生日舞台不另启页面、服务或音频设备。
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
-const { setup } = require('./fixtures/quest-village.cjs');
+const { setup } = require('./fixtures/content-state.cjs');
 const root = path.resolve(__dirname, '..');
 function stage(options = {}) {
   let clock = new Date(2026, 9, 28, 12).getTime(), nextRaf = 0, activeModal = null, stoppedSounds = 0;

@@ -92,14 +92,32 @@
     },
     exportMemory: function () {
       var s = Game.state, lines = ['# ' + md(s.house.name) + ' · 云上的回忆', '', '> 这是方便阅读的回忆录。恢复游戏请使用 JSON 存档。', '', '记录时间：' + Game.utils.dateKey(), '', '- 小设计师：' + md(s.profile.name), '- 小屋等级：Lv.' + s.level, '- 糖果币：' + s.wallet.coin + ' · 爱心：' + s.wallet.heart, '- 彩虹碎片：' + (s.rainbowPieces.map(md).join('、') || '正等着我们去找'), '', '## 我们的小屋', ''];
-      // 回忆录读取当下的真实外观；风格只由当前部件和配色匹配，不保存上次选择标签。
+      // 建筑只读取真实文档和墙体推导空间，不把保留的迁移来源当作现在的布局。
+      var building = window.CottageBuilding.validateDocument(s.building, Game.data.furnitureById), spaces = Game.contentSpaces.list(s);
+      var metres = function (value) { return String(Math.round(value * 100) / 100); };
+      var artName = function (id) { var art = s.customArts.find(function (value) { return value.id === id; }); return art ? art.name : '我的画作'; };
+      lines.push('- 已建楼层：' + building.floors.length + ' 层 · 围合空间：' + spaces.length + ' 处', '- 实际墙面：' + building.walls.length + ' 面 · 门窗：' + building.openings.length + ' 处 · 家具：' + building.furniture.length + ' 件', '');
+      building.floors.forEach(function (floor) {
+        var floorRooms = spaces.filter(function (space) { return space.floorId === floor.id; }), walls = building.walls.filter(function (wall) { return wall.floorId === floor.id; });
+        var furniture = building.furniture.filter(function (item) { return item.floorId === floor.id; });
+        lines.push('### ' + md(floor.name) + ' · 离地 ' + metres(floor.elevation) + ' 米', '');
+        if (!floorRooms.length) lines.push('- 还没有围成封闭空间，开放的墙和家具也都好好保存着。');
+        floorRooms.forEach(function (space, index) { var def = Game.data.rooms.find(function (entry) { return entry.id === space.type; }), holes = space.holes || []; lines.push('- 空间 ' + (index + 1) + '：' + md(def ? def.name : '自由空间') + ' · ' + metres(space.area) + ' 平方米' + (holes.length ? ' · 留有 ' + holes.length + ' 处内部空区' : '')); });
+        walls.forEach(function (wall, index) {
+          lines.push('- 第 ' + (index + 1) + ' 面墙：从（' + metres(wall.start.x) + ', ' + metres(wall.start.z) + '）到（' + metres(wall.end.x) + ', ' + metres(wall.end.z) + '）米 · 高 ' + metres(wall.height) + ' 米 · 厚 ' + metres(wall.thickness) + ' 米 · ' + md(wall.color) + (wall.artId ? ' · 墙纸「' + md(artName(wall.artId)) + '」' : ''));
+          building.openings.filter(function (opening) { return opening.wallId === wall.id; }).forEach(function (opening) { lines.push('  - ' + (opening.kind === 'door' ? '门' : '窗') + '：距墙起点 ' + metres(opening.offset) + ' 米 · 宽 ' + metres(opening.width) + ' 米 × 高 ' + metres(opening.height) + ' 米 · 底部离地 ' + metres(opening.sill) + ' 米'); });
+        });
+        furniture.forEach(function (item) {
+          var definition = Game.data.furnitureById[item.defId];
+          lines.push('- ' + md(item.artId ? artName(item.artId) : definition.name) + '：位置（' + metres(item.position.x) + ', ' + metres(item.position.y) + ', ' + metres(item.position.z) + '）米 · 朝向 ' + metres(item.rotation * 180 / Math.PI) + '° · 宽 ' + metres(item.dimensions.width) + ' 米 × 深 ' + metres(item.dimensions.depth) + ' 米 × 高 ' + metres(item.dimensions.height) + ' 米');
+        });
+        if (!walls.length && !furniture.length) lines.push('- 这一层还留着空白，等待下一份创意。');
+        lines.push('');
+      });
       var exterior = s.house.exterior, exteriorNames = { roof: '屋顶', wall: '外墙', window: '窗户', door: '小门', chimney: '烟囱' }, exteriorById = Game.data.exteriorById || {};
-      var styleId = Game.sys.houseStyles && typeof Game.sys.houseStyles.current === 'function' ? Game.sys.houseStyles.current() : null;
-      var style = styleId && (Game.data.houseStyles || []).find(function (entry) { return entry.id === styleId; });
-      lines.push('- 当前风格：' + md(style ? style.name : '自由搭配'));
+      lines.push('### 收好的外观与配色', '');
       Object.keys(exteriorNames).forEach(function (category) { var part = Object.prototype.hasOwnProperty.call(exteriorById, exterior[category]) ? exteriorById[exterior[category]] : null; lines.push('- ' + exteriorNames[category] + '：' + md(part ? part.name : exterior[category])); });
       lines.push('- 屋顶配色：' + md(exterior.roofColor), '- 外墙配色：' + md(exterior.wallColor), '');
-      s.house.floors.forEach(function (floor, f) { floor.slots.forEach(function (id, slot) { if (!id) return; var room = s.house.rooms[id], def = Game.data.rooms.find(function (d) { return d.id === room.type; }); lines.push('### ' + (f + 1) + ' 楼 · 第 ' + (slot + 1) + ' 间 ' + def.name, ''); lines.push('墙纸：' + md(room.wallpaper.pattern) + ' ' + room.wallpaper.color + ' · 地板：' + md(room.floor.pattern), ''); room.items.forEach(function (i) { lines.push('- ' + md(i.artId ? (s.customArts.find(function (art) { return art.id === i.artId; }) || {}).name || '我的画作' : Game.data.furnitureById[i.defId].name) + '（位置 ' + Math.round(i.x) + ', ' + Math.round(i.y) + (typeof i.depth === 'number' ? ' · 前后 ' + Math.round(i.depth * 100) + '%' : '') + '）'); }); lines.push(''); }); });
       lines.push('## 音乐室的小合奏', '', (s.quests.stats.concerts ? '- 已完整举办海风与森林的小合奏，重演不重复发奖。' : '- 还在等待第一场完整谢幕。'), '');
       lines.push('## 彩虹故事与成长徽章', '', '- 主线：第 ' + s.quests.main.chapter + ' 章，已完成 ' + s.quests.main.claimed.length + ' / ' + Game.data.mainQuests.length + ' 个任务', '- 已读章节：' + (s.quests.main.storySeen.join('、') || '新的故事正在等你'), '- 彩虹派对：' + (s.quests.main.endingSeen ? '已经和朋友一起庆祝' : '还在准备小小的惊喜'));
       if (Game.data.achievements) Game.data.achievements.filter(function (def) { return s.quests.achievements[def.id]; }).forEach(function (def) { lines.push('- 已点亮成就：' + md(def.title)); });
@@ -110,8 +128,8 @@
       lines.push('## 我的小画册', '', '- 已保存：' + s.customArts.length + ' / 20 幅');
       if (s.customArts.length) lines.push('- 像素编码：. 为透明，0–9、a–n 依次对应24色；恢复请用JSON。', '- 色板：' + (Game.data.creativeConfig ? Game.data.creativeConfig.symbols.split('').map(function (code, index) { return code + '=' + Game.data.creativeConfig.palette[index]; }).join(' ') : ''), '');
       s.customArts.forEach(function (art) {
-        var hanging = 0, wallpaper = 0; Game.store.decorRooms(s).forEach(function (entry) { var room = entry[1]; hanging += room.items.filter(function (item) { return item.artId === art.id; }).length; if (room.wallpaper.artId === art.id) wallpaper++; });
-        lines.push('### ' + md(art.name), '', '- 挂画 ' + hanging + ' 处 · 墙纸 ' + wallpaper + ' 间', '', '```text'); for (var row = 0; row < 16; row++) lines.push(art.pixels.slice(row * 16, row * 16 + 16)); lines.push('```', '');
+        var hanging = building.furniture.filter(function (item) { return item.artId === art.id; }).length, wallpaper = building.walls.filter(function (wall) { return wall.artId === art.id; }).length;
+        lines.push('### ' + md(art.name), '', '- 挂画 ' + hanging + ' 处 · 墙纸 ' + wallpaper + ' 面', '', '```text'); for (var row = 0; row < 16; row++) lines.push(art.pixels.slice(row * 16, row * 16 + 16)); lines.push('```', '');
       });
       lines.push('## 花园加工与甜品工坊', '', '- 累计制作：' + Object.values(s.crafting.counts).reduce(function (sum, count) { return sum + count; }, 0) + ' 份');
       (Game.data.craftingRecipes || []).forEach(function (recipe) { if (s.crafting.counts[recipe.id]) lines.push('- ' + md(recipe.name) + '：' + s.crafting.counts[recipe.id] + ' 份（' + recipe.cropCount + ' 份' + md(Game.data.cropById[recipe.cropId].name) + ' / 件）'); });
@@ -119,18 +137,10 @@
       lines.push('');
       lines.push('## 糯米的惊喜礼盒', '', '- 已拆礼盒：' + s.giftBox.opened + ' 份', '- 最近免费记录：' + s.giftBox.date + ' · ' + (s.giftBox.freeUsed ? '已经拆过' : '尚未使用'));
       if (s.giftBox.lastReward) { var gift = s.giftBox.lastReward; lines.push('- 最近心意：' + (gift.kind === 'furniture' ? md(Game.data.furnitureById[gift.itemId].name) : gift.coin + ' 颗糖果') + (gift.paid ? '（200游戏糖果礼盒）' : '（每日免费礼盒）')); } lines.push('');
-      lines.push('## 阁楼天文台', '', '- 阁楼：' + (s.house.attic ? '已建天文台' : '还未建造（Lv17开放）'), '- 星星碎片：' + s.observatory.fragments + ' 枚 · 观星 ' + s.observatory.observations + ' 次');
+      var observatoryFloor = building.floors.find(function (floor) { return floor.id === 'observatory_floor' || floor.id === 'legacy_attic'; });
+      lines.push('## 阁楼天文台', '', '- 天文台：' + (s.observatory.built ? observatoryFloor ? '已经购买并建好观星楼层' : '已经购买，观星楼层等待重新搭建' : '还未建造（Lv17开放）'), '- 星星碎片：' + s.observatory.fragments + ' 枚 · 观星 ' + s.observatory.observations + ' 次');
       if (s.observatory.lastDiscovery) { var sky = s.observatory.lastDiscovery, constellation = (Game.data.constellationById || {})[sky.id]; lines.push('- 最近观测：' + sky.date + ' · ' + md(constellation ? constellation.name : sky.id)); }
-      if (s.house.attic) {
-        var atticRoom = Game.store.decorRoom(s, Game.store.atticRoomId), wall = atticRoom.wallpaper;
-        var wallArt = wall.artId && s.customArts.find(function (art) { return art.id === wall.artId; });
-        lines.push('', '### 阁楼自由布置', '', '墙纸：' + md(wall.pattern) + ' ' + md(wall.color) + ' / ' + md(wall.color2) + (wallArt ? ' · 画作「' + md(wallArt.name) + '」' : ''), '地板：' + md(atticRoom.floor.pattern) + ' ' + md(atticRoom.floor.color) + ' · 灯光：' + md(atticRoom.light), '', '- 固定望远镜保留在观测点，不计入家具库存。');
-        atticRoom.items.forEach(function (item) {
-          var art = item.artId && s.customArts.find(function (value) { return value.id === item.artId; });
-          lines.push('- ' + md(art ? art.name : Game.data.furnitureById[item.defId].name) + '（UID ' + md(item.uid) + ' · 位置 ' + Math.round(item.x) + ', ' + Math.round(item.y) + (typeof item.depth === 'number' ? ' · 前后 ' + Math.round(item.depth * 100) + '%' : '') + (item.parent ? ' · 承托 ' + md(item.parent) : '') + '）');
-        });
-        if (!atticRoom.items.length) lines.push('- 还没有摆放家具。');
-      }
+      if (s.observatory.built && observatoryFloor) lines.push('- 观星楼层：' + md(observatoryFloor.name) + ' · 离地 ' + metres(observatoryFloor.elevation) + ' 米', '- 当前布置：' + building.walls.filter(function (wall) { return wall.floorId === observatoryFloor.id; }).length + ' 面墙 · ' + building.furniture.filter(function (item) { return item.floorId === observatoryFloor.id; }).length + ' 件家具；具体位置见上方的真实建筑记录。');
       lines.push('', '## 七日登录心意', '', '- 累计收好：' + s.loginRewards.claimed + ' 份 · 下一份第 ' + (s.loginRewards.claimed % 7 + 1) + ' 天', '- 最近领取：' + (s.loginRewards.lastClaimDate || '尚未领取'));
       if (s.loginRewards.lastReward && Game.sys.login) lines.push('- 最近礼物：' + md(Game.sys.login.description(s.loginRewards.lastReward)));
       if (Game.sys.deals) { lines.push('', '## 今日特惠', '', '- ' + Game.utils.dateKey() + ' · 以下六件八折（等级要求照常）'); Game.sys.deals.list().forEach(function (deal) { lines.push('- ' + md(deal.definition.name) + '：' + deal.price + ' 糖果（原价 ' + deal.originalPrice + '）'); }); }

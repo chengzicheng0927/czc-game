@@ -9,7 +9,7 @@
   const definition = id => D.residents.find(resident => resident.id === id);
   const currentResident = id => G.state.residents[id] && G.state.residents[id].movedIn ? G.state.residents[id] : null;
   const defFor = (id, wishId) => ((definition(id) || {}).wishes || []).find(wish => wish.id === wishId);
-  const rooms = () => Object.values(G.state.house.rooms);
+  const rooms = () => G.contentSpaces.list(G.state);
   const worn = avatar => ['top', 'bottom', 'dress', 'shoes'].map(key => avatar[key]).concat(avatar.acc || []).filter(Boolean);
   const count = (object, id) => object && object[id] || 0;
   const target = wish => wish.target || 1;
@@ -22,10 +22,9 @@
     state.exp += amount; const levels = [];
     while (state.level < B.maxLevel && state.exp >= B.expBase + B.expStep * state.level) { state.exp -= B.expBase + B.expStep * state.level; state.level++; levels.push(state.level); }
     if (state.level === B.maxLevel) state.exp = Math.min(state.exp, B.expBase + B.expStep * B.maxLevel);
-    let capacity = B.floorUnlocks[0]; B.floorUnlocks.forEach(value => { if (state.level >= value.level) capacity = value; }); while (state.house.floors.length < capacity.floors) state.house.floors.push({ slots: [null, null, null] });
     levels.forEach(level => memory(state, '小屋升到 Lv.' + level + '，朋友的小心愿也添了一点光。')); return levels;
   }
-  function roomHas(type) { return rooms().some(room => room.type === type); }
+  function roomHas(type) { return rooms().some(room => G.contentSpaces.isType(room, type)); }
   function reachable(wish) {
     const missing = [], need = wish.unlockLv || 1;
     if (G.state.level < need) missing.push({ type: 'level', text: '小屋达到 Lv.' + need, panel: 'quests', target: need, progress: G.state.level });
@@ -62,7 +61,7 @@
     if (updates.length) G.store.update(state => updates.forEach(update => { state.residents[update.id].wish = update.wish; }));
   }
   function measure(id, wish, saved) {
-    const resident = currentResident(id), room = resident && G.state.house.rooms[resident.roomId];
+    const resident = currentResident(id), room = resident && G.contentSpaces.get(resident.roomId, G.state);
     if (wish.type === 'furniture') return room ? room.items.filter(item => item.defId === wish.itemId).length : 0;
     if (wish.type === 'theme') return room ? room.items.filter(item => D.furnitureById[item.defId].theme === wish.theme).length : 0;
     if (wish.type === 'food' || wish.type === 'flower') return wish.cropId ? count(G.state.garden.harvest, wish.cropId) : count(G.state.inventory, wish.itemId);

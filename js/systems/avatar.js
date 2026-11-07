@@ -41,20 +41,6 @@
       const before = worn(current());
       update(avatar => wear(avatar, item, id)); publishWear(before); return ok('穿上「' + item.name + '」，今天也很可爱。', { id });
     },
-    // 一次事务里换发型/发色/表情并穿好整套衣服：只写一次存档、只通知一次（预设胶囊一键换装用，逐件调用会重复整档校验和重绘）。
-    applyBundle(spec) {
-      const input = spec || {}, ids = (Array.isArray(input.wear) ? input.wear : []).filter(id => definition(id));
-      const hair = input.hair === undefined || D.avatarHairStyles.some(item => item.id === input.hair) ? input.hair : undefined;
-      const color = typeof input.hairColor === 'string' ? input.hairColor.toUpperCase() : input.hairColor;
-      const hairColor = color === undefined || D.avatarHairColors.some(item => item.id === color) ? color : undefined;
-      const face = input.face === undefined || D.avatarFaces.some(item => item.id === input.face) ? input.face : undefined;
-      const before = worn(current());
-      update(avatar => {
-        if (hair !== undefined) avatar.hair = hair; if (hairColor !== undefined) avatar.hairColor = hairColor; if (face !== undefined) avatar.face = face;
-        ids.forEach(id => { avatar.owned[id] = true; wear(avatar, definition(id), id); });
-      });
-      publishWear(before); return ok('换好整套形象啦。');
-    },
     removeAccessory(id) {
       if (!current().acc.includes(id)) return fail('这件配饰已经收好啦。');
       const before = worn(current());

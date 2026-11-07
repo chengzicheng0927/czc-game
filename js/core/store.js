@@ -30,6 +30,11 @@
   var validId = function (v) { return typeof v === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(v); };
   function invalid(reason) { throw new Error(reason || Game.data.messages.invalid); }
   function check(condition, reason) { if (!condition) invalid(reason); }
+  function buildingSchema() {
+    var api = window.CottageBuilding;
+    check(api && typeof api.createEmptyDocument === 'function' && typeof api.validateDocument === 'function' && typeof api.migrateLegacyHouse === 'function', '建筑数据模块未完整加载，请保留存档并重新打开游戏。');
+    return api;
+  }
   // 仅阁楼新结构使用精确字段；普通房间仍沿用原有兼容校验。
   function shape(value, keys, optional) {
     check(record(value)); optional = optional || [];
@@ -54,12 +59,6 @@
     var attic = decorRoom(state, atticRoomId); if (attic) result.push([atticRoomId, attic]);
     return result;
   }
-  function replaceDecorRoom(state, id, room) {
-    if (!record(room) || !decorRoom(state, id)) return false;
-    if (id === atticRoomId) state.house.attic.room = room;
-    else state.house.rooms[id] = room;
-    return true;
-  }
   function deepSafety(value, depth, counter) {
     check(depth <= 25 && ++counter.count <= 60000);
     if (value === null || typeof value === 'boolean') return;
@@ -67,9 +66,13 @@
     if (typeof value === 'string') return check(value.length <= 300000);
     check(record(value) || Array.isArray(value));
     check(Object.keys(value).length <= 2000);
-    Object.keys(value).forEach(function (key) { check(key !== '__proto__' && key !== 'constructor' && key !== 'prototype', '存档含有不安全字段，已拒绝导入。'); deepSafety(value[key], depth + 1, counter); });
+    Object.keys(value).forEach(function (key) {
+      check(key !== '__proto__' && key !== 'constructor' && key !== 'prototype', '存档含有不安全字段，已拒绝导入。');
+      // 自由建筑有独立的深度、实体和节点预算，不再受旧版房间数组的2000项上限误伤。
+      if (depth !== 0 || key !== 'building') deepSafety(value[key], depth + 1, counter);
+    });
   }
-  function defaultState() {
+  function legacyDefaultState() {
     var date = Game.utils.dateKey(), now = Date.now(), minigames = {};
     minigameIds.forEach(function (id) { minigames[id] = { best: 0, playsToday: 0, date: date }; });
     return {
@@ -82,7 +85,7 @@
       quests: { main: { schema: 2, chapter: 1, index: 0, claimed: [], storySeen: [], endingSeen: false }, daily: { date: date, list: Game.data.dailyQuestsForDate(date).map(function (q) { return { id: q.id, progress: 0, done: false, claimed: false }; }), chestClaimed: false }, achievements: {}, milestoneClaims: [], stats: { itemsPlaced: 0, minigamePlays: 0, bakeryPlays: 0, bakeryOrders: 0, harvests: 0, wishesDone: 0, photos: 0, bought: 0, wallpaperChanges: 0, floorChanges: 0, chats: 0, pats: 0, gifts: 0, roomsBuilt: 0, concerts: 0 } },
       garden: { plots: Array(gardenConfig.basePlots).fill(null), seeds: Game.utils.clone(gardenConfig.starterSeeds), harvest: {} },
       crafting: { counts: {}, last: null },
-      observatory: { fragments: 0, observations: 0, lastDate: '', lastDiscovery: null }, loginRewards: { claimed: 0, lastClaimDate: '', lastReward: null },
+      observatory: { built: false, fragments: 0, observations: 0, lastDate: '', lastDiscovery: null }, loginRewards: { claimed: 0, lastClaimDate: '', lastReward: null },
       calendar: { claimed: {} }, giftBox: { date: date, freeUsed: false, opened: 0, lastReward: null },
       avatar: Game.data.defaultAvatar ? Game.data.defaultAvatar() : { skin: 0, hair: 'twin_tails', hairColor: '#8B5A3C', face: 'smile', top: null, bottom: null, dress: 'dress_pink', shoes: 'shoes_mary', acc: ['bow_red'], outfits: [], owned: {} },
       pet: null, rainbowPieces: [], minigames: minigames, album: [], albumTrash: [], collectionBook: { crops: [], themeClaims: [] }, customArts: [],
@@ -91,6 +94,12 @@
       tutorial: { step: 0, done: false, seenTips: {} },
       memories: [{ at: now, text: '糯米送来一床甜梦。云上的小屋，从今天开始。' }]
     };
+  }
+  function defaultState() {
+    var state = legacyDefaultState();
+    // 新玩家直接获得空自由地块；旧house只保留历史玩法资料，不再决定编辑空间。
+    state.building = buildingSchema().createEmptyDocument();
+    return state;
   }
   // 仅补齐同版本缺少的字段，不用默认值掩盖类型错误。
   function mergeDefaults(target, defaults) {
@@ -110,7 +119,10 @@
     check(record(raw.house.rooms) && Array.isArray(raw.house.floors));
     var oldAudio = !record(raw.settings) || !own(raw.settings, 'audioVersion') || raw.settings.audioVersion === 1;
     var oldQuestBook = !record(raw.quests) || !record(raw.quests.main) || !own(raw.quests.main, 'schema');
-    var s = mergeDefaults(Game.utils.clone(raw), defaultState());
+    // building不能走缺省合并：已有文档必须完整校验，缺失文档只能在旧档全部通过后迁移一次。
+    var hasBuilding = own(raw, 'building');
+    var validatedBuilding = hasBuilding ? buildingSchema().validateDocument(raw.building, Game.data.furnitureById) : null;
+    var s = mergeDefaults(Game.utils.clone(raw), legacyDefaultState());
     if (!own(raw, 'giftBox') && record(raw.daily)) s.giftBox = { date: s.daily.lastLoginDate === '' ? Game.utils.dateKey() : s.daily.lastLoginDate, freeUsed: s.daily.freeBoxUsed, opened: 0, lastReward: null };
     // 新玩法仅迁移整个缺失字段，拒绝把残缺记录补成看似完整的奖励凭据。
     ['observatory', 'loginRewards', 'crafting'].forEach(function (key) { if (own(raw, key)) s[key] = Game.utils.clone(raw[key]); });
@@ -158,12 +170,19 @@
       shape(attic.room, ['wallpaper', 'floor', 'light', 'items']);
     }
     var sky = s.observatory;
-    check(record(sky) && Object.keys(sky).length === 4 && ['fragments', 'observations', 'lastDate', 'lastDiscovery'].every(function (key) { return own(sky, key); }));
+    check(record(sky));
+    if (!own(raw, 'observatory') || !own(raw.observatory, 'built')) {
+      if (own(raw, 'observatory')) shape(sky, ['fragments', 'observations', 'lastDate', 'lastDiscovery']);
+      // 只有缺字段的历史记录从旧阁楼凭据迁移；已有所有权不再跟随归档house反复覆盖。
+      sky.built = s.house.attic !== null;
+    }
+    shape(sky, ['built', 'fragments', 'observations', 'lastDate', 'lastDiscovery']);
+    check(typeof sky.built === 'boolean' && (!sky.built || s.level >= 17));
     check(integer(sky.observations, 0, 333333333) && integer(sky.fragments, 0, 1000000000) && sky.fragments === sky.observations * 3);
     if (sky.observations === 0) check(sky.lastDate === '' && sky.lastDiscovery === null);
     else {
       var discovery = sky.lastDiscovery;
-      check(s.house.attic !== null && date(sky.lastDate) && record(discovery) && Object.keys(discovery).length === 4 && ['id', 'at', 'date', 'fragments'].every(function (key) { return own(discovery, key); }));
+      check(sky.built && date(sky.lastDate) && record(discovery) && Object.keys(discovery).length === 4 && ['id', 'at', 'date', 'fragments'].every(function (key) { return own(discovery, key); }));
       check((Game.data.constellationById ? own(Game.data.constellationById, discovery.id) : ['marshmallow_rabbit', 'sugar_swan', 'sleeping_cat', 'little_whale', 'honey_bear', 'rainbow_deer'].indexOf(discovery.id) >= 0) && integer(discovery.at, 0, 8640000000000000) && discovery.date === sky.lastDate && discovery.fragments === 3);
     }
     function validateRoomContents(r, strict) {
@@ -172,7 +191,7 @@
         shape(r.floor, ['pattern', 'color']);
       }
       check(record(r.wallpaper) && color(r.wallpaper.color) && color(r.wallpaper.color2));
-      check(r.wallpaper.pattern === 'custom' ? validId(r.wallpaper.artId) && !!artIds[r.wallpaper.artId] : B.wallpaperPatterns.indexOf(r.wallpaper.pattern) >= 0 && !own(r.wallpaper, 'artId'));
+      check(r.wallpaper.pattern === 'custom' ? validId(r.wallpaper.artId) && (hasBuilding || !!artIds[r.wallpaper.artId]) : B.wallpaperPatterns.indexOf(r.wallpaper.pattern) >= 0 && !own(r.wallpaper, 'artId'));
       check(record(r.floor) && B.floorPatterns.indexOf(r.floor.pattern) >= 0 && color(r.floor.color));
       check(['warm', 'cool', 'colorful', 'star'].indexOf(r.light) >= 0 && Array.isArray(r.items) && r.items.length <= B.maxItems);
       var localIds = Object.create(null);
@@ -187,7 +206,7 @@
           if (d.place === 'floor') keys.push('depth');
           shape(i, keys, d.place === 'floor' ? ['depth'] : []);
         }
-        if (d.customArt) { check(validId(i.artId) && !!artIds[i.artId] && !placedArtIds[i.artId] && i.parent === null && number(i.y, B.ceilingLine, B.wallBottom - d.h)); placedArtIds[i.artId] = true; } else check(!own(i, 'artId'));
+        if (d.customArt) { check(validId(i.artId) && (hasBuilding || !!artIds[i.artId]) && !placedArtIds[i.artId] && i.parent === null && number(i.y, B.ceilingLine, B.wallBottom - d.h)); placedArtIds[i.artId] = true; } else check(!own(i, 'artId'));
         if (d.place === 'floor') { if (!own(i, 'depth')) i.depth = 0.75; check(number(i.depth, 0, 1)); }
         else check(!own(i, 'depth'));
         check(number(i.x, 0, B.roomWidth - d.w) && number(i.y, -B.roomHeight, B.roomHeight) && number(i.z, -10000, 10000));
@@ -221,7 +240,13 @@
     check(record(s.residents) && Object.keys(s.residents).length <= Game.data.residents.length);
     Object.keys(s.residents).forEach(function (id) {
       var r = s.residents[id]; check(Game.data.residents.some(function (d) { return d.id === id; }) && record(r));
-      check(typeof r.movedIn === 'boolean' && (!r.movedIn || (own(s.house.rooms, r.roomId) && s.house.rooms[r.roomId].type === 'bedroom')));
+      check(typeof r.movedIn === 'boolean');
+      if (!hasBuilding) check(!r.movedIn || (own(s.house.rooms, r.roomId) && s.house.rooms[r.roomId].type === 'bedroom'));
+      else {
+        // 拆墙或重新划分空间不删除朋友历史；新邀请由生活规则核对真实闭合卧室。
+        var stableRoomId = typeof r.roomId === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(r.roomId) && ['__proto__', 'constructor', 'prototype'].indexOf(r.roomId) < 0;
+        check(stableRoomId || !r.movedIn && (!own(r, 'roomId') || r.roomId === null), '朋友的空间编号格式有误，请使用完整存档恢复。');
+      }
       check(number(r.affection, 0, 1000000) && number(r.happiness, 0, 100) && integer(r.heartBubbles, 0, B.maxBubbles) && number(r.lastBubbleAt, 0, 9007199254740991) && integer(r.patsToday, 0, B.patsPerDay));
       if (!own(r, 'interactDate')) r.interactDate = Game.utils.dateKey();
       check(string(r.interactDate, 10));
@@ -248,7 +273,8 @@
         check(wish.claimed ? r.wishLastClaimedDate === wish.date : r.wishLastClaimedDate < wish.date);
       }
     });
-    Object.keys(s.house.rooms).forEach(function (id) { check(Object.keys(s.residents).filter(function (rid) { var r = s.residents[rid]; return r.movedIn && r.roomId === id; }).length <= B.maxResidentsPerRoom); });
+    var occupancy = Object.create(null);
+    Object.keys(s.residents).forEach(function (id) { var resident = s.residents[id]; if (resident.movedIn) { occupancy[resident.roomId] = (occupancy[resident.roomId] || 0) + 1; check(occupancy[resident.roomId] <= B.maxResidentsPerRoom); } });
     check(record(s.quests) && record(s.quests.main) && Array.isArray(s.quests.main.claimed));
     check(integer(s.quests.main.chapter, 1, 5) && integer(s.quests.main.index, 0, Game.data.mainQuests.length));
     check(s.quests.main.claimed.length <= Game.data.mainQuests.length && new Set(s.quests.main.claimed).size === s.quests.main.claimed.length);
@@ -392,6 +418,10 @@
     check(Array.isArray(s.memories) && s.memories.length <= B.maxMemories);
     s.memories.forEach(function (m) { check(record(m) && number(m.at, 0, 9007199254740991) && string(m.text, 300)); });
     if (Game.data.applyOutfitRewardEntitlements) Game.data.applyOutfitRewardEntitlements(s);
+    var schema = buildingSchema();
+    s.building = hasBuilding ? validatedBuilding : schema.validateDocument(schema.migrateLegacyHouse(s, Game.data.furnitureById), Game.data.furnitureById);
+    s.building.walls.forEach(function (wall) { if (own(wall, 'artId')) check(validId(wall.artId) && !!artIds[wall.artId], '建筑墙面引用的画作不存在，请使用完整存档恢复。'); });
+    s.building.furniture.forEach(function (item) { if (own(item, 'artId')) check(validId(item.artId) && !!artIds[item.artId], '建筑引用的画作不存在，请使用完整存档恢复。'); });
     var serialized = JSON.stringify(s);
     // 同时约束字节和UTF-16占用，为本机保存键留出空间；超限事务不提交。
     check(serialized.length <= B.maxSaveChars && Game.utils.utf8Bytes(serialized) <= B.maxSaveBytes, '相册与回忆接近本机保存容量。先下载JSON备份，再整理回收夹中的相片。');
@@ -399,7 +429,7 @@
   }
   Game.store = {
     defaultState: defaultState, validate: validate,
-    atticRoomId: atticRoomId, decorRoom: decorRoom, decorRooms: decorRooms, replaceDecorRoom: replaceDecorRoom, newAtticRoom: newAtticRoom,
+    newAtticRoom: newAtticRoom,
     setWriteGuard: function (fn) { writeGuard = typeof fn === 'function' ? fn : null; },
     canWrite: function (source) { return permission(source, 'check').ok; },
     writeReason: function (source) { return permission(source, 'check').message || ''; },

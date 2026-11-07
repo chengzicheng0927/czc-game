@@ -32,7 +32,7 @@
   }
   function catalog() {
     return G.data.minigames.map(game => {
-      const kitchen = game.id === 'bakery' && !Object.values(G.state.house.rooms).some(room => room.type === 'kitchen');
+      const kitchen = game.id === 'bakery' && !G.contentSpaces.list(G.state).some(room => G.contentSpaces.isType(room, 'kitchen'));
       return Object.assign({}, game, { locked: kitchen || G.state.level < game.unlockLv, unlockText: kitchen ? '先建一间厨房吧' : G.state.level < game.unlockLv ? 'Lv.' + game.unlockLv + ' 开放' : '' });
     });
   }

@@ -4,29 +4,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
-function drawingContext() {
-  const calls = []; let depth = 0;
-  const target = { calls, get depth() { return depth; } };
-  for (const method of ['beginPath', 'moveTo', 'lineTo', 'arcTo', 'closePath', 'fill', 'stroke', 'ellipse', 'bezierCurveTo', 'quadraticCurveTo', 'translate', 'rotate', 'scale', 'transform', 'fillText', 'rect', 'clip', 'fillRect', 'setTransform', 'clearRect']) target[method] = (...args) => {
-    args.forEach(value => { if (typeof value === 'number') assert.ok(Number.isFinite(value), method + '不能包含非有限坐标'); });
-    if (method === 'ellipse') { assert.ok(args[2] >= 0); assert.ok(args[3] >= 0); }
-    calls.push([method, ...args]);
-  };
-  target.createLinearGradient = () => ({ addColorStop() {} });
-  target.save = () => { depth++; calls.push(['save']); };
-  target.restore = () => { depth--; assert.ok(depth >= 0); calls.push(['restore']); };
-  return new Proxy(target, { set(object, key, value) { object[key] = value; calls.push(['property', key, value]); return true; } });
-}
 function sandbox(saved = []) {
-  const storage = new Map(saved), downloads = [];
+  const storage = new Map(saved), downloads = []; let denied = false, writes = 0;
   const environment = vm.createContext({ console, Blob, URL, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 2, clearInterval() {}, addEventListener() {}, document: { addEventListener() {} } });
   environment.window = environment;
-  environment.localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) };
-  for (const file of ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/minigames.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/exterior.js', 'js/core/utils.js', 'js/core/bus.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/exterior.js', 'js/render/exterior.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), environment, { filename: file });
+  environment.localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => { if (denied) throw new Error('QuotaExceededError'); writes++; storage.set(key, value); } };
+  for (const file of ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js', 'js/data/minigames.js', 'js/data/garden.js', 'js/data/calendar.js', 'js/data/exterior.js', 'js/core/utils.js', 'js/core/bus.js', 'js/building/schema.js', 'js/core/store.js', 'js/core/save.js', 'js/systems/exterior.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), environment, { filename: file });
   const G = environment.Game; G.utils.download = (name, value) => downloads.push({ name, value });
   // 使用真实store，默认/旧档迁移由入口模块负责，不能在测试里绕过校验补字段。
   G.store.init(G.save.load());
-  return { G, environment, storage, downloads, parse: text => vm.runInContext('JSON.parse(' + JSON.stringify(text) + ')', environment) };
+  return { G, environment, storage, downloads, writeFails: value => { denied = value; }, writes: () => writes, parse: text => vm.runInContext('JSON.parse(' + JSON.stringify(text) + ')', environment) };
 }
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('✓ ' + name); }
@@ -73,30 +60,23 @@ test('外观导入拒绝错误类型、未知款、未拥有装备和非法拥�
     const before = JSON.stringify(G.state); assert.throws(() => G.store.replace(raw)); assert.equal(JSON.stringify(G.state), before);
   }
 });
-test('每款屋顶/墙/窗/门/烟囱有不同绘图命令，有限坐标且正确恢复Canvas状态', () => {
-  const { G } = sandbox(), draw = G.draw.exterior, base = G.data.defaultExterior();
-  for (const category of ['roof', 'wall', 'window', 'door', 'chimney']) {
-    const signatures = new Set();
-    G.data.exteriorCatalog[category].forEach(def => {
-      const c = drawingContext(), exterior = Object.assign({}, base, { [category]: def.id });
-      if (category === 'roof') draw.roof(c, { top: -220, exterior, name: '云上的家' });
-      else if (category === 'wall') draw.wall(c, { x: -496, y: -220, w: 992, h: 240, exterior });
-      else if (category === 'window') draw.window(c, 124, 42, 72, 82, exterior, { nightness: 1 });
-      else if (category === 'door') draw.door(c, 30, 20, 80, 110, exterior);
-      else draw.chimney(c, { top: -220, exterior, time: 12, reducedMotion: true });
-      assert.equal(c.depth, 0, def.id + 'Canvas状态不能泄漏'); signatures.add(JSON.stringify(c.calls));
-    });
-    assert.equal(signatures.size, G.data.exteriorCatalog[category].length, category + '每款应有独立形状/纹理');
-  }
+test('购买并换上只写一次，拒写不扣币/不解锁/不发完成事件', () => {
+  const e = sandbox(), { G } = e, before = JSON.stringify(G.state), disk = e.storage.get(G.data.balance.saveKey); let events = 0;
+  G.bus.on('exterior:bought', () => events++); G.bus.on('exterior:changed', () => events++);
+  e.writeFails(true); assert.equal(G.sys.exterior.buyAndEquip('roof_round').ok, false);
+  assert.equal(JSON.stringify(G.state), before); assert.equal(e.storage.get(G.data.balance.saveKey), disk); assert.equal(events, 0);
+  e.writeFails(false); const writes = e.writes(); assert.ok(G.sys.exterior.buyAndEquip('roof_round').ok);
+  assert.equal(e.writes(), writes + 1); assert.equal(G.state.wallet.coin, 240); assert.equal(G.state.house.exterior.owned.roof_round, true); assert.equal(G.state.house.exterior.roof, 'roof_round'); assert.equal(events, 2);
+  const saved = JSON.parse(e.storage.get(G.data.balance.saveKey)); assert.equal(saved.house.exterior.roof, 'roof_round'); assert.equal(saved.wallet.coin, 240);
 });
-test('外墙只画外围框，不盖住房间；减少动态偏好固定烟雾；预览使用同套绘制', () => {
-  const { G } = sandbox(), draw = G.draw.exterior, exterior = G.data.defaultExterior(), c = drawingContext();
-  draw.wall(c, { x: -496, y: -220, w: 992, h: 240, exterior }); assert.ok(c.calls.some(call => call[0] === 'clip' && call[1] === 'evenodd')); assert.ok(c.calls.some(call => JSON.stringify(call) === JSON.stringify(['rect', -478, -204, 956, 208])));
-  const a = drawingContext(), b = drawingContext(); draw.chimney(a, { top: 0, exterior, time: 1, reducedMotion: true }); draw.chimney(b, { top: 0, exterior, time: 21, reducedMotion: true }); assert.deepEqual(a.calls, b.calls);
-  const p = drawingContext(), canvas = { getContext: () => p }, result = draw.preview(canvas, exterior, '云上的家'); assert.equal(result.ok, true); assert.equal(result.mode, 'canvas-isometric'); assert.equal(p.depth, 0); assert.ok(p.calls.some(call => call[0] === 'fillText' && call[1] === '云上的家')); assert.equal(canvas.width, 500);
-  const built = G.utils.clone(G.state.house), before = JSON.stringify(G.state), occupied = drawingContext(); built.floors[0].slots[1] = 'preview_room'; built.rooms.preview_room = { type: 'living', items: [], wallpaper: {}, floor: {} };
-  const occupiedResult = draw.preview({ getContext: () => occupied }, exterior, '云上的家', { house: built });
-  assert.equal(occupiedResult.ok, true); assert.equal(occupiedResult.mode, 'canvas-isometric'); assert.equal(occupied.depth, 0); assert.ok(occupied.calls.some(call => call[0] === 'transform'), '已有房间必须真实进入立面绘制'); assert.ok(occupied.calls.some(call => call[0] === 'fillText' && call[1] === '云上的家')); assert.equal(JSON.stringify(G.state), before);
+test('单件购买/装备/换色/招牌拒写全部保留状态与原文，恢复后可重试', () => {
+  const e = sandbox(), { G } = e; assert.ok(G.sys.exterior.buy('roof_round').ok); assert.ok(G.save.flush());
+  const before = JSON.stringify(G.state), disk = e.storage.get(G.data.balance.saveKey); let events = 0;
+  G.bus.on('exterior:bought', () => events++); G.bus.on('exterior:changed', () => events++); e.writeFails(true);
+  for (const operation of [() => G.sys.exterior.buy('wall_brick'), () => G.sys.exterior.equip('roof', 'roof_round'), () => G.sys.exterior.color('roof', '#ABCDEF'), () => G.sys.exterior.rename('新的招牌')]) {
+    assert.equal(operation().ok, false); assert.equal(JSON.stringify(G.state), before); assert.equal(e.storage.get(G.data.balance.saveKey), disk); assert.equal(events, 0);
+  }
+  e.writeFails(false); assert.ok(G.sys.exterior.equip('roof', 'roof_round').ok); assert.equal(G.state.house.exterior.roof, 'roof_round');
 });
 test('未拥有款只在预览试穿，购买后装备；所有选择与换色沿用自定义控件', () => {
   const { G, environment } = sandbox(); const controls = [], toasts = [], previews = [];
@@ -122,7 +102,7 @@ test('未拥有款只在预览试穿，购买后装备；所有选择与换色�
     color(value) { const node = new Node('button'); node.value = value; controls.push({ type: 'color', node }); return node; },
     label(control, text) { const node = new Node('div'); node.append(control); return node; }
   };
-  G.draw.exterior.preview = (canvas, exterior) => { assert.equal(canvas.isConnected, true); previews.push({ ...exterior }); return { ok: true, mode: 'webgl' }; }; G.ui.toast = text => toasts.push(text); G.audio = { play() {} };
+  G.render = { previewExterior: async (canvas, exterior) => { assert.equal(canvas.isConnected, true); previews.push({ ...exterior }); return { ok: true }; } }; G.ui.toast = text => toasts.push(text); G.audio = { play() {} };
   G.ui.open = kind => { assert.equal(kind, 'exterior'); const view = G.ui.exterior.panel(); host.dataset.kind = kind; host.className = ''; host.replaceChildren(view.content); G.bus.emit('panel:change', { open: true, kind }); return view; };
   vm.runInContext(fs.readFileSync(path.join(root, 'js/ui/exterior.js'), 'utf8'), environment, { filename: 'js/ui/exterior.js' });
   G.ui.open('exterior'); assert.equal(controls.filter(control => control.type === 'color').length, 2); assert.equal(controls.filter(control => control.type === 'select').length, 2);
@@ -133,4 +113,4 @@ test('未拥有款只在预览试穿，购买后装备；所有选择与换色�
   descendants(host.children[0]).find(node => node.textContent === '购买并换上 · 60 糖果').click(); assert.equal(G.state.house.exterior.roof, 'roof_round'); assert.equal(G.state.wallet.coin, 240);
   G.ui.open('exterior'); advanceFrame(); const latestStyle = controls.filter(control => control.type === 'select').at(-1); latestStyle.node.choose('roof_triangle'); assert.equal(G.state.house.exterior.roof, 'roof_triangle'); assert.equal(G.state.wallet.coin, 240); advanceFrame();
 });
-console.log('\n' + passed + ' 组小屋外观规则与绘图验证通过。');
+console.log('\n' + passed + ' 组小屋外观规则与Promise预览接线检查通过；真实31款造型由浏览器核对。');

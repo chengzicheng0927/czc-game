@@ -1,0 +1,27 @@
+{
+  "name": "marshmallow-cottage",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chengzicheng0927/czc-game.git"
+  },
+  "dependencies": {
+    "@babylonjs/core": "9.35.0",
+    "earcut": "3.2.4"
+  },
+  "devDependencies": {
+    "@types/earcut": "3.0.0",
+    "@types/node": "26.6.6",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "private": true,
+  "description": "棉花糖小屋：离线优先的自由3D建造与生活游戏",
+  "scripts": {
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test.cjs",
+    "preview": "node server/cli.cjs serve --host 127.0.0.1 --port 4173 --data-dir .server-data --base-path /"
+  }
+}

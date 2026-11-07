@@ -1,5 +1,5 @@
 'use strict';
-// 数据与独立绘图回归，交由主线程串行执行；不需要浏览器或服务。
+// 旧内容目录与真实建筑米制映射回归；交由主线程串行执行，不启动浏览器或服务。
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -9,7 +9,12 @@ const context = vm.createContext({ console }); context.window = context;
 const run = file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
 ['js/core/namespace.js', 'js/data/balance.js', 'js/data/content.js'].forEach(run);
 const G = context.Game, legacy = JSON.parse(JSON.stringify(G.data.furniture));
-run('js/data/furniture-expansion.js'); run('js/render/furniture-extra.js');
+run('js/data/furniture-expansion.js');
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'scripts/legacy-assets.json'), 'utf8'));
+assert.ok(manifest.includes('js/building/schema.js'), '实际清单必须包含建筑schema');
+run('js/building/schema.js');
+const dimensions = definition => context.CottageBuilding.furnitureDimensions(definition);
+const plain = value => JSON.parse(JSON.stringify(value));
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('✓ ' + name); }
 test('原43件旧ID、尺寸、价格、等级与台面完全保留', () => {
@@ -37,7 +42,7 @@ test('台面宽高边界有效，梳妆台/洗手台/钢琴台面匹配实际绘
   assert.equal(D.furnitureById.vanity_basic.surface.y, 43); assert.equal(D.furnitureById.sink_basic.surface.y, 25); assert.equal(D.furnitureById.piano_basic.surface.y, 37);
   for (const template of ['nightstand', 'coffee_table', 'bookshelf', 'dining_table', 'stove', 'counter', 'vanity', 'sink', 'piano', 'toy_box', 'wall_shelf']) assert.ok(D.furnitureById[template + '_princess'].surface);
 });
-test('新房间按既有等级价格可建且不新增阁楼前提', () => {
+test('原13种房型的等级价格与家具要求数据保留，不混入阁楼种类', () => {
   const D = G.data;
   for (const [id, level, price] of [['study', 10, 400], ['music', 13, 500], ['game', 18, 600], ['pet', 19, 600], ['workshop', 21, 800]]) { const room = D.rooms.find(value => value.id === id); assert.ok(room); assert.equal(room.unlockLv, level); assert.equal(room.price, price); assert.ok(room.required.every(tag => D.furnitureTemplates.some(template => template.id === tag))); }
   assert.equal(D.rooms.length, 13); assert.equal(D.rooms.some(room => room.id === 'observatory' || room.id === 'attic'), false);
@@ -48,47 +53,41 @@ test('专属ID与奖励来源固定，商店不能按普通货币直接购买', 
   for (const def of D.residentFurniture.concat(D.achievementFurniture)) { assert.equal(def.currency, 'none'); assert.equal(def.price, 0); assert.equal(def.rewardOnly, true); assert.equal(def.rarity, 'limited'); }
   for (const id of ['builder', 'collector', 'friend', 'baker', 'gardener', 'gamer', 'fashion', 'photographer', 'rainbow', 'home_master']) assert.equal(D.achievementGiftById[id], 'achievement_' + id);
 });
-class Context {
-  constructor() { this.calls = []; this.depth = 0; this.stack = []; this.globalAlpha = 1; }
-  save() { this.depth++; this.stack.push({ fillStyle: this.fillStyle, strokeStyle: this.strokeStyle, globalAlpha: this.globalAlpha, lineWidth: this.lineWidth }); }
-  restore() { this.depth--; assert.ok(this.depth >= 0); Object.assign(this, this.stack.pop()); }
-  measureText(text) { return { width: String(text).length * 8 }; }
-  gradient(...args) { args.forEach(value => assert.ok(Number.isFinite(value))); return { addColorStop(offset, color) { assert.ok(Number.isFinite(offset) && offset >= 0 && offset <= 1); assert.equal(typeof color, 'string'); } }; }
-  createLinearGradient(...args) { return this.gradient(...args); }
-  createRadialGradient(...args) { return this.gradient(...args); }
-}
-for (const name of ['beginPath', 'ellipse', 'roundRect', 'fill', 'stroke', 'closePath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'bezierCurveTo', 'arc', 'arcTo', 'rect', 'clip', 'translate', 'rotate', 'scale', 'setTransform', 'clearRect', 'fillRect', 'fillText', 'strokeText', 'drawImage', 'setLineDash']) Context.prototype[name] = function (...args) { args.forEach(value => { if (typeof value === 'number') assert.ok(Number.isFinite(value)); }); this.calls.push([name, args, this.fillStyle, this.strokeStyle]); };
-test('22件奖励家具各有实际轮廓，镜像绘制无非法坐标且状态平衡', () => {
-  const D = G.data, signatures = new Set();
-  for (const def of D.residentFurniture.concat(D.achievementFurniture)) { const c = new Context(); assert.equal(G.draw.furnitureExtra(c, def, 10, 20, { flip: true }), true); assert.equal(c.depth, 0); assert.ok(c.calls.some(call => call[0] === 'scale' && call[1][0] === -1)); signatures.add(JSON.stringify(c.calls)); }
-  assert.equal(signatures.size, 22);
-});
-test('新主题窗户有配色和主题装饰，常规模板继续交给scene绘制', () => {
-  const D = G.data, signatures = new Set();
-  for (const theme of ['forest', 'garden', 'ocean', 'cloud', 'oriental', 'starry', 'princess']) { const c = new Context(); assert.equal(G.draw.furnitureExtra(c, D.furnitureById['window_' + theme], 0, 0, {}), true); assert.equal(c.depth, 0); signatures.add(JSON.stringify(c.calls)); }
-  assert.equal(signatures.size, 7); const c = new Context(); assert.equal(G.draw.furnitureExtra(c, D.furnitureById.bed_basic, 0, 0, {}), false); assert.equal(c.calls.length, 0);
-});
-test('真实scene.drawThumbnail入口绘制全部402件，38常规模板逐分支调用且画布状态平衡', () => {
-  // 使用实际脚本和公开入口，不替换drawFurniture，也不启动scene的事件/动画循环。
-  ['js/data/calendar.js', 'js/data/yard.js', 'js/render/room-space.js', 'js/render/room-shell.js', 'js/render/festival.js', 'js/render/yard.js', 'js/render/scene.js'].forEach(run);
-  const D = G.data, sceneSource = fs.readFileSync(path.join(root, 'js/render/scene.js'), 'utf8'), templateCounts = new Map(), basicSignatures = new Set();
-  assert.equal(D.furniture.length, 402); assert.equal(typeof G.render.drawThumbnail, 'function');
-  for (const def of D.furniture) {
-    const c = new Context(), canvas = { width: 144, height: 116, getBoundingClientRect: () => ({ width: 144, height: 116 }), getContext(type) { assert.equal(type, '2d'); return c; } };
-    assert.doesNotThrow(() => G.render.drawThumbnail(canvas, def.id), '公开缩略图绘制失败：' + def.id);
-    assert.equal(c.depth, 0, 'save/restore失衡：' + def.id); assert.equal(c.stack.length, 0); assert.equal(c.globalAlpha, 1, '透明度未恢复：' + def.id);
-    assert.ok(c.calls.some(call => call[0] === 'setTransform'), '未设置缩略图变换：' + def.id);
-    assert.ok(c.calls.some(call => call[0] === 'fill' || call[0] === 'stroke' || call[0] === 'fillText'), '只有清屏、没有实际内容：' + def.id);
-    assert.ok(c.calls.filter(call => ['moveTo', 'arc', 'arcTo', 'ellipse', 'roundRect', 'bezierCurveTo', 'quadraticCurveTo'].includes(call[0])).length >= 2, '缺少轮廓绘制：' + def.id);
-    if (D.furnitureTemplateById[def.template] && !def.rewardOnly) {
-      templateCounts.set(def.template, (templateCounts.get(def.template) || 0) + 1);
-      if (def.theme === 'basic') basicSignatures.add(JSON.stringify(c.calls));
+// 原脚本后三组依赖退役scene与Canvas模拟，不能作为当前3D场景或视觉还原验收。
+// 原商店缩略图由catalog-art公开入口绘制，另需实际浏览器逐类核对；本脚本只验证内容与米制规则。
+test('38模板九主题使用同一真实米制映射，尺寸不随旧缩略图像素变化', () => {
+  for (const template of G.data.furnitureTemplates) {
+    const expected = dimensions(G.data.furnitureById[template.id + '_basic']);
+    for (const theme of Object.keys(G.data.themes)) {
+      const definition = G.data.furnitureById[template.id + '_' + theme];
+      assert.deepEqual(plain(dimensions(definition)), plain(expected), definition.id);
+      const resized = Object.assign({}, definition, { w: 1, h: 10000 });
+      assert.deepEqual(plain(dimensions(resized)), plain(expected), '米制尺寸不得反推旧缩略图像素：' + definition.id);
     }
   }
-  assert.equal(templateCounts.size, 38); assert.equal(basicSignatures.size, 38);
-  for (const template of D.furnitureTemplates) {
-    assert.equal(templateCounts.get(template.id), 9, '没有覆盖九主题：' + template.id);
-    assert.match(sceneSource, new RegExp("case\\s+['\"]" + template.id + "['\"]\\s*:"), '必须有真实模板分支，不能依赖默认箱体：' + template.id);
-  }
+  assert.deepEqual(plain(dimensions(G.data.furnitureById.bed_basic)), { width: 1.45, height: .72, depth: 2.05 });
+  assert.deepEqual(plain(dimensions(G.data.furnitureById.dining_table_basic)), { width: 1.4, height: .76, depth: .85 });
+  assert.deepEqual(plain(dimensions(G.data.furnitureById.desk_lamp_basic)), { width: .25, height: .42, depth: .25 });
 });
-console.log('\n' + passed + ' 组家具扩充数据/绘图检查通过（Canvas模拟，不替代浏览器验收）。');
+test('所有原内容和22件奖励均有有限正数米制尺寸，查询不改内容目录', () => {
+  const before = JSON.stringify(G.data.furniture);
+  for (const definition of G.data.furniture) {
+    const result = dimensions(definition);
+    for (const key of ['width', 'height', 'depth']) assert.ok(Number.isFinite(result[key]) && result[key] >= .01 && result[key] <= 30, definition.id + '.' + key);
+  }
+  assert.equal(JSON.stringify(G.data.furniture), before);
+  for (const definition of G.data.residentFurniture) assert.deepEqual(plain(dimensions(definition)), { width: .55, height: .6, depth: .5 });
+  for (const definition of G.data.achievementFurniture) assert.deepEqual(plain(dimensions(definition)), { width: .6, height: .8, depth: .5 });
+});
+test('自定义画框、庭院物件与显式尺寸各自保留真实尺度且返回独立副本', () => {
+  assert.deepEqual(plain(dimensions({ id: 'custom_art_frame', template: 'custom_art' })), { width: .8, height: .8, depth: .045 });
+  assert.deepEqual(plain(dimensions({ id: 'yard_bench', template: 'yard', motif: 'bench' })), { width: 1.4, height: .9, depth: .55 });
+  assert.deepEqual(plain(dimensions({ id: 'yard_tree', template: 'yard', motif: 'tree' })), { width: 1.1, height: 2.4, depth: 1.1 });
+  const definition = { id: 'custom', template: 'bed', dimensions: { width: 2, height: 1, depth: 3 } }, before = JSON.stringify(definition);
+  const result = dimensions(definition); result.width = 30;
+  assert.deepEqual(plain(dimensions(definition)), { width: 2, height: 1, depth: 3 });
+  assert.equal(JSON.stringify(definition), before);
+  const known = dimensions(G.data.furnitureById.bed_basic); known.width = 30;
+  assert.equal(dimensions(G.data.furnitureById.bed_basic).width, 1.45);
+});
+console.log('\n' + passed + ' 组家具扩充数据/米制映射检查通过（不涵盖浏览器缩略图、3D外观或像素还原）。');
