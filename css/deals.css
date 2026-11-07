@@ -1,0 +1,56 @@
+/* 奶油纸上的木质货架；仅作用于现有今日特惠宿主。 */
+.daily-deals { --deal-ink:#694557; --deal-muted:#805f6e; --deal-wood:#c6a67b; display:flex; flex-direction:column; gap:10px; min-width:0; padding:0 0 12px; background:transparent; color:var(--deal-ink); font-size:13px; line-height:1.75; overflow-wrap:anywhere; }
+.daily-deals ::selection { color:#69394f; background:#e7d4a6; }
+.deal-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.deal-heading h3 { margin:0; font-size:18px; line-height:1.5; text-wrap:balance; }
+.deal-stamp { flex:0 0 auto; padding:4px 8px; border:1px dashed #b29b6b; border-radius:7px; background:#f1e4bf; color:#70582f; font-size:12px; font-weight:700; transform:rotate(-4deg); }
+.deal-intro { margin:0; color:var(--deal-muted); font-size:12px; }
+.deal-budget { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; padding:9px 0; border-block:1px solid #dedbc1; font-size:12px; font-variant-numeric:tabular-nums; }
+.deal-budget strong { color:#a34366; font-size:16px; }
+.deal-message { margin:0; padding:2px 0; min-height:24px; color:var(--deal-muted); font-size:12px; line-height:1.8; }
+.deal-message.is-error { padding:9px 11px; border:1px solid #d9c49b; border-radius:8px; color:#75532f; background:#f7ebd5; }
+.deal-message.is-success { color:#a34366; }
+.deal-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:19px 12px; padding:1px 0 7px; }
+.daily-deals .deal-card { position:relative; display:flex; flex-direction:column; min-width:0; padding:0 7px 11px; border:0; border-bottom:8px solid var(--deal-wood); border-radius:8px 8px 4px 4px; background:transparent; box-shadow:0 6px 8px #80674722; }
+.deal-art { position:relative; display:flex; align-items:center; justify-content:center; min-width:0; min-height:86px; border-bottom:2px solid #dcc59d; background:radial-gradient(ellipse at 50% 100%,#eee3c8,transparent 72%); }
+.daily-deals .deal-picture { display:block; width:100%; max-width:260px; height:86px; object-fit:contain; background:transparent; }
+.daily-deals .furniture-rarity-preview { border-width:1px; border-radius:8px; }
+.daily-deals .furniture-rarity-badge { top:4px; left:5px; font-size:10px; min-height:21px; padding:2px 5px; }
+.deal-lock { position:absolute; right:2px; bottom:3px; max-width:100%; padding:1px 5px; border:1px solid #dfc7cd; border-radius:5px; background:#f7e9e4; color:#795164; font-size:10px; }
+.deal-lock[hidden],.deal-picture[hidden] { display:none; }
+.deal-card.is-locked .deal-picture { filter:saturate(.55); }
+.deal-art-unavailable { padding:18px 5px; color:var(--deal-muted); font-size:11px; text-align:center; }
+.deal-name { margin:8px 0 3px; font-size:12px; line-height:1.65; }
+.deal-theme { margin:0 0 4px; color:var(--deal-muted); font-size:11px; line-height:1.7; }
+.deal-price { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 8px; margin:2px 0 4px; font-variant-numeric:tabular-nums; }
+.deal-price strong { color:#785a2d; font-size:18px; line-height:1.5; }
+.deal-price del { color:#6b6b50; font-size:11px; text-decoration-thickness:1px; }
+.deal-stock,.deal-item-status { margin:0 0 4px; color:var(--deal-muted); font-size:11px; line-height:1.8; }
+.deal-item-status { min-height:20px; margin-bottom:10px; }
+.daily-deals .deal-buy { width:100%; min-height:44px; margin-top:auto; padding:8px 5px; border:1px solid #a94a6d; border-radius:12px; background:linear-gradient(#bd5e7e,#ac456b); color:#fffef4; box-shadow:inset 0 2px 3px #ffffff26,0 3px 0 -1px #853952,0 6px 8px #79505c1a; font-size:11px; font-weight:700; line-height:1.6; white-space:normal; }
+.daily-deals .deal-buy:hover:enabled { background:#963955; }
+.daily-deals .deal-buy:active:enabled { transform:translateY(1px); }
+.daily-deals .deal-buy:disabled { border-color:#dac8cc; background:#efe5e2; color:#8b7180; box-shadow:none; cursor:not-allowed; opacity:1; }
+.deal-footer { display:flex; flex-wrap:wrap; align-items:center; gap:9px 14px; padding-top:8px; border-top:1px solid #dedbc1; }
+.deal-footnote { flex:1 1 210px; margin:0; color:var(--deal-muted); font-size:11px; line-height:1.9; }
+.daily-deals .deal-retry { min-height:44px; border:1px solid #ddc5ce; border-radius:9px; background:#f2efdc; color:#694557; font-size:12px; white-space:normal; }
+.daily-deals .deal-retry:hover:enabled { background:#f4dce3; }
+.daily-deals .deal-retry:disabled { color:#805f6e; cursor:not-allowed; }
+.daily-deals button:focus-visible,.deal-message:focus { outline:3px solid #a34366; outline-offset:3px; }
+@media (max-width:620px) {
+  .daily-deals { gap:10px; padding:0 0 12px; }
+  .deal-heading h3 { font-size:18px; }
+  .deal-stamp { font-size:11px; padding:4px 6px; }
+  .deal-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px 11px; }
+  .daily-deals .deal-card { padding-inline:5px; }
+  .deal-art,.daily-deals .deal-picture { min-height:86px; height:86px; }
+  .deal-name { min-height:40px; font-size:12px; }
+  .deal-price strong { font-size:18px; }
+  .deal-theme,.deal-stock,.deal-item-status { font-size:11px; }
+  .deal-item-status { min-height:39px; }
+  .daily-deals .deal-buy { font-size:12px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .daily-deals .furniture-rarity-badge::after { animation:none; }
+  .daily-deals .deal-buy:active:enabled { transform:none; }
+}

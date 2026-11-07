@@ -1,0 +1,55 @@
+/* 参观页独立于主人HUD和编辑面板；绘图使用同一套本地Canvas。 */
+body.is-visiting { overflow: auto; background: var(--paper); }
+.is-visiting #app, .is-visiting .skip-link, .is-visiting #toast-root, .is-visiting #modal-root { display: none !important; }
+.visit-shell { min-height: 100dvh; display: flex; flex-direction: column; padding: 24px clamp(14px, 3vw, 48px) 16px; gap: 16px; max-width: 1600px; margin-inline: auto; }
+.visit-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.visit-heading-copy { min-width: 0; }
+.visit-heading h1 { font-size: clamp(20px, 2.4vw, 30px); margin: 0; overflow-wrap: anywhere; line-height: 1.4; }
+.visit-identity { margin: 5px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+.visit-heading > a { text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.visit-shell .ui-button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
+.visit-toolbar { display: flex; align-items: flex-start; gap: 16px; }
+.visit-rooms { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.visit-rooms .ui-button { min-width: 88px; }
+.visit-rooms .is-current { background: var(--mint); color: var(--mint-deep); }
+.visit-zoom { display: flex; gap: 6px; flex-shrink: 0; }
+.visit-zoom .ui-button { min-width: 48px; padding-inline: 12px; }
+.visit-content { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.visit-scene-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.visit-live-room { min-width: 0; }
+.visit-movement { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.visit-movement-hint { margin: 0; max-width: 65ch; font-size: 13px; }
+.visit-movement .ui-button { flex-shrink: 0; }
+.visit-stage { width: 100%; min-height: 300px; height: clamp(340px, 66dvh, 800px); overflow: hidden; border-radius: 24px; border: 1px solid var(--line); background: #e5f3f4; position: relative; display: flex; align-items: center; justify-content: center; touch-action: pan-y; }
+.visit-stage:focus-visible { outline: 3px solid var(--mint-deep); outline-offset: 4px; }
+.visit-picture { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; transform-origin: center; user-select: none; flex-shrink: 0; }
+.visit-stage.is-3d { background: linear-gradient(180deg, #F8E1EC 0%, #FCEEF2 52%, #FFF7EF 100%); }
+.visit-picture-3d { width: 100%; height: 100%; max-width: none; max-height: none; }
+.visit-stage.is-walking { cursor: crosshair; }
+.visit-stage.is-zoomed { cursor: grab; touch-action: none; }
+.visit-stage.is-dragging { cursor: grabbing; }
+.visit-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; margin: 0; text-align: center; background: var(--surface); color: var(--ink); }
+.visit-status > span { max-width: 42ch; }
+.visit-note { margin: 0; color: var(--muted); font-size: 13px; max-width: 75ch; }
+@media (min-width: 980px) {
+  .has-live-room .visit-content { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+  .has-live-room .visit-scene-column { position: sticky; top: 16px; align-self: start; }
+}
+@media (max-width: 620px) {
+  .visit-shell { padding: 18px 12px 16px; gap: 14px; }
+  .visit-heading { align-items: flex-start; gap: 12px; }
+  .visit-heading h1 { font-size: 21px; }
+  .visit-heading > a { font-size: 13px; padding-inline: 12px; }
+  .visit-identity { font-size: 12px; }
+  .visit-toolbar { flex-direction: column; gap: 10px; }
+  .visit-zoom { align-self: flex-end; }
+  .visit-rooms { gap: 6px; }
+  .visit-rooms .ui-button { font-size: 12px; padding-inline: 11px; }
+  .visit-stage { min-height: 320px; height: 58dvh; border-radius: 20px; }
+  .has-live-room .visit-stage { min-height: 280px; height: 45dvh; }
+  .visit-content { gap: 20px; }
+  .visit-movement { align-items: stretch; flex-direction: column; gap: 8px; }
+}
+
+.visit-presence { margin-top: 2px; color: #5d7a69; }
+.visit-presence:empty { display: none; }

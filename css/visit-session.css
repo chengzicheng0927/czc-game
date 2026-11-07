@@ -1,0 +1,13 @@
+/* 主场景串门：顶部横幅（正在谁家 + 回自己的小屋）。同屋面板沿用 live-room.css 的 .host-room。 */
+.visit-banner { position: fixed; z-index: 34; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: min(560px, calc(100vw - 24px)); padding: 8px 10px 8px 16px; border: 2px solid #f1cfa6; border-bottom-width: 4px; border-radius: 999px; background: #fffdf4; box-shadow: 0 8px 22px #8a6a4a26; color: #7a6455; }
+.visit-banner[hidden], .visit-banner [hidden] { display: none !important; }
+.visit-banner-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.visit-banner-text { font-size: 14px; overflow-wrap: anywhere; }
+.visit-banner-note { font-size: 12px; color: var(--muted, #866674); }
+.visit-banner-note:empty { display: none; }
+.visit-banner .ui-button { min-height: 40px; padding-inline: 14px; white-space: nowrap; }
+.visit-room { bottom: 112px; }
+@media (max-width: 620px) {
+  .visit-banner { top: 124px; border-radius: 20px; flex-wrap: wrap; justify-content: flex-end; padding: 8px 12px; }
+  .visit-banner-copy { flex: 1 1 100%; }
+}

@@ -1,0 +1,28 @@
+# 网站发布副本和活动版本指针；不提交运行时数据。
+.server-data/
+
+# 本机测试账号、私有存档、工具设置与开发副本。
+.test-data/
+.impeccable/
+.claude/
+.DS_Store
+/tests/quests-visual-ui-detector.json
+
+# 本地依赖、运行日志、环境配置与密钥。
+node_modules/
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 数据库及其运行时附属文件。
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*

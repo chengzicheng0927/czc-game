@@ -1,0 +1,312 @@
+/* MC-077 · prototype构图移植。此文件是唯一公共外壳几何来源。 */
+:root {
+  --hud-height: 84px;
+  --account-row-height: 0px;
+  --dock-height: 100px;
+  --shell-paper: #fff9eb;
+  --shell-paper-edge: #fffef8;
+  --shell-berry: #9b3456;
+  --shell-ink: #633f51;
+  --shell-muted: #805967;
+}
+html, body { width: 100%; height: 100%; }
+body { color: var(--shell-ink); background: #e8eef2; }
+#app, #app.has-account-bar {
+  --paper-width: min(960px, calc(100vw - 56px));
+  --shell-top-height: 84px;
+  position: relative; display: block; width: 100%; height: 100dvh; min-height: 560px;
+  overflow: hidden; background: #e5eff0;
+}
+#app.has-open-panel, #app.home-paper-open { --paper-width: min(960px, calc(100vw - 56px)); }
+#app #world { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #e5eff0; }
+#app #scene { position: absolute; inset: 0; width: 100%; height: 100%; filter: none; }
+.shell-icon { display: block; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.hud, .has-account-bar .hud {
+  position: absolute; z-index: 21; top: 22px; left: 30px; right: 30px;
+  min-height: 50px; padding: 0 290px 0 0; gap: 24px;
+  display: flex; align-items: center; flex-wrap: nowrap; background: transparent; border: 0; box-shadow: none;
+}
+.brand { gap: 12px; min-width: 210px; width: auto; }
+.brand-copy { display: flex; flex-direction: column; }
+.brand-copy strong { font-size: 22px; letter-spacing: 1px; color: #8a3657; text-shadow: 0 2px 1px #fff9; white-space: nowrap; }
+.brand-copy > span { display: block; margin-top: 2px; font-size: 10px; letter-spacing: 2px; color: #805568; }
+.brand-cloud { display: block; width: 44px; height: 30px; border-color: #d9a7b7; background: #fff9f2; box-shadow: 0 4px 9px #92596c20; }
+.brand-cloud:before, .brand-cloud:after { background: #fff9f2; border-color: #d9a7b7; }
+.house-progress { margin: 0; width: 170px; min-width: 130px; padding: 4px 12px 8px; flex-shrink: 0; background: var(--shell-paper); border: 2px solid #fffef8; border-radius: 22px; box-shadow: 0 5px 12px #9c61721a; }
+.house-heading { gap: 6px; margin: 0; }
+#house-name { font-size: 11px; max-width: 94px; min-height: 26px; text-overflow: ellipsis; }
+#level-label { font-size: 9px; padding: 2px 5px; color: #913a59; background: #f6dce4; }
+.xp-track { height: 4px; margin: 0 32px 0 0; background: #eddbdf; }
+#xp-fill { background: #be5e7c; }
+.xp-label { display: block; top: auto; right: 11px; bottom: 5px; font-size: 8px; color: #805967; }
+.wallet { margin: 0; gap: 9px; order: 0; }
+.currency, .currency.heart { min-width: 0; height: 44px; border-radius: 22px; padding: 7px 12px; gap: 7px; }
+.currency > div { flex-direction: row; align-items: center; gap: 4px; }
+.currency-name { display: none; }
+.currency strong { font-size: 16px; }
+.currency-icon, .heart .currency-icon { font-size: 22px; }
+.currency-icon .shell-icon { width: 22px; height: 22px; color: #ab7840; }
+.heart .currency-icon .shell-icon { color: #b54e74; fill: #efb1c4; }
+.header-actions, .has-account-bar .header-actions { position: absolute; right: 0; top: 3px; display: flex; gap: 8px; }
+.header-actions .icon-button { width: 42px; height: 42px; border: 2px solid #fffef8; border-radius: 50%; background: var(--shell-paper); box-shadow: 0 4px 10px #9c617218; }
+.header-actions .shell-icon { width: 20px; height: 20px; }
+.ui-button[data-speech-key] > .shell-icon { width: 20px; height: 20px; }
+#save-status { position: absolute; top: 48px; right: 2px; width: max-content; max-width: 190px; margin: 0; font-size: 9px; color: #725161; }
+.account-bar { position: absolute; top: 26px; right: 132px; max-width: 290px; padding: 0; background: transparent; border: 0; z-index: 22; }
+.account-bar .account-launch { max-width: 170px; }
+.account-bar .account-launch-detail { display: none; }
+.account-bar > .neighbors-launch:not(.neighbors-reception) { display: none; }
+.account-bar .ui-button { border-radius: 22px; }
+.shell-location { position: absolute; top: 109px; left: 35px; z-index: 3; max-width: 285px; pointer-events: none; }
+.shell-location h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.35; letter-spacing: 1px; font-weight: 800; color: #823a59; text-shadow: 0 2px 1px #fff9; text-wrap: balance; }
+.shell-location > p { margin: 0; font-size: 12px; line-height: 1.8; max-width: 24em; color: #745363; }
+.shell-location .island-note { position: static; display: flex; align-items: center; width: max-content; gap: 7px; margin-top: 13px; padding: 5px 11px; border-radius: 18px; background: #fff9ebe6; }
+.island-note strong { display: none; }
+.island-note span:last-child { margin: 0; font-size: 10px; color: #805967; }
+.sun-icon { font-size: 19px; }
+.quick-nav { position: absolute; top: 295px; left: 28px; z-index: 8; display: flex; flex-direction: column; gap: 11px; }
+.quick-button { position: relative; display: grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 2px solid #fffdf4; border-radius: 17px; background: linear-gradient(#fffdf5, #f2e5df); color: #a65373; box-shadow: 0 4px 2px #b3899460, 0 8px 15px #8d5a6e19; }
+.quick-button > span { position: absolute; left: 53px; padding: 3px 9px; border-radius: 9px; white-space: nowrap; font-size: 11px; font-weight: 600; color: #744b5d; background: var(--shell-paper); opacity: 0; pointer-events: none; transform: translateX(-4px); transition: opacity .15s, transform .15s; }
+.quick-button:hover > span, .quick-button:focus-visible > span { opacity: 1; transform: none; }
+.quick-button.is-active { color: #943451; background: #f1cfdb; box-shadow: 0 3px 2px #ad768963, 0 6px 12px #8d5a6e18; }
+#quest-button[data-pending]:not([data-pending=""])::after { content: attr(data-pending); position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #c9456d; color: #fffaf6; font-size: 10px; font-weight: 700; line-height: 18px; text-align: center; }
+#app .guide-button { display: flex; left: 94px; bottom: 190px; min-height: 52px; padding: 0; gap: 7px; z-index: 4; }
+.guide-cloud { width: 47px; height: 32px; animation: none; border-color: #d7b8c3; }
+.guide-cloud:before { width: 23px; height: 24px; top: -10px; left: 7px; border-color: #d7b8c3; }
+.guide-cloud:after { width: 17px; height: 18px; top: -5px; right: 5px; border-color: #d7b8c3; }
+.guide-cloud i { top: 10px; width: 3px; height: 4px; }
+.guide-cloud i:first-child { left: 15px; }.guide-cloud i:nth-child(2) { right: 14px; }.guide-cloud b { top: 11px; left: 19px; font-size: 12px; }
+.guide-copy { padding: 7px 11px; background: var(--shell-paper); border-color: #e5cdd3; }
+.guide-copy strong { color: #754358; }.guide-copy > span { color: #805967; font-size: 9px; }
+#app #scene-hint { top: auto; bottom: 106px; left: 43%; max-width: 48%; padding: 4px 12px; font-size: 10px; background: #fff9ebeb; color: #765565; z-index: 4; }
+#app .camera-controls {
+  position: absolute; display: flex; flex-direction: column; bottom: 143px; right: 28px; gap: 7px;
+  border: 0; background: transparent; padding: 0; box-shadow: none; visibility: visible; z-index: 8;
+}
+#app.has-open-panel .camera-controls, body:has(#panel:not(.hidden)) .camera-controls { right: calc(var(--paper-width) + 56px); }
+.camera-controls button { width: 38px; height: 38px; display: grid; place-items: center; border: 2px solid #fffef8; background: #fff9ebed; border-radius: 50%; box-shadow: 0 4px 9px #78566a19; color: #8a4c63; }
+.camera-controls .shell-icon { width: 18px; height: 18px; }
+.camera-controls .camera-mode-toggle { position: absolute; right: 0; bottom: calc(100% + 8px); width: 92px; min-height: 44px; height: auto; padding: 7px 9px; border-radius: 16px; font-size: 12px; line-height: 1.5; font-weight: 700; white-space: nowrap; }
+.camera-controls .camera-mode-toggle[aria-pressed=true] { color: #fffaf6; background: #9b3456; border-color: #fff4ee; }
+#app .dock-wrap { position: absolute; z-index: 24; left: 50%; bottom: 24px; width: max-content; max-width: calc(100% - 30px); transform: translateX(-50%); padding: 10px 15px; gap: 0; border: 3px solid #fffdf4; border-radius: 28px; background: linear-gradient(#fffaf0, #f0e1da); box-shadow: 0 5px 2px #ab869763, 0 13px 23px #85536926; }
+#app #dock { display: flex; width: auto; gap: 6px; overflow: visible; }
+#dock button { display: flex; flex-direction: column; justify-content: center; min-width: 68px; min-height: 54px; gap: 4px; padding: 4px 8px; border: 0; border-radius: 16px; font-size: 10px; background: transparent; box-shadow: none; color: #7c5b68; }
+#dock button:hover { background: #fae6e7; transform: none; }
+#dock button:active, #dock button.is-active, #dock button[aria-pressed=true] { color: #923653; background: #edc6d3; border: 0; transform: none; box-shadow: inset 0 2px 3px #a9647c18; }
+#dock button.is-active:after { bottom: -7px; width: 16px; height: 3px; background: #a5506d; }
+#dock button:focus-visible { outline-offset: -1px; }
+.nav-icon { font-size: 0; line-height: 1; }.nav-icon .shell-icon { width: 27px; height: 27px; }
+#dock button:nth-child(3) .shell-icon { color: #5c8b9b; }#dock button:nth-child(4) .shell-icon { color: #b58455; }#dock button:nth-child(5) .shell-icon { color: #b56b78; }#dock button:nth-child(6) .shell-icon { color: #719675; }#dock button:nth-child(7) .shell-icon { color: #b18c53; }#dock button:nth-child(8) .shell-icon { color: #9380a5; }
+.dock-caption { display: none; }
+#app #panel, .home-paper {
+  position: absolute; z-index: 16; top: 120px; right: 28px; bottom: auto; left: auto; transform: none;
+  width: var(--paper-width); height: auto; max-height: calc(100dvh - 236px); margin: 0; padding: 19px;
+  display: flex; flex-direction: column; border: 3px solid var(--shell-paper-edge); border-radius: 25px;
+  background: var(--shell-paper); box-shadow: 0 7px 3px #b58b9c50, 0 16px 32px #85536922; animation: shell-paper-in .24s var(--ease);
+}
+#app #panel { height: calc(100dvh - 236px); }
+/* 默认全景无遮挡：home-paper 默认隐藏，仅在显式展开 home-paper-open 时显示，且保持轻盈紧凑不抢视野 */
+.home-paper {
+  display: none !important;
+  width: var(--paper-width) !important;
+  max-width: calc(100vw - 36px) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: rgba(255, 249, 235, 0.94) !important;
+  box-shadow: 0 8px 30px rgba(133, 83, 105, 0.18) !important;
+  border-radius: 22px !important;
+}
+#app.home-paper-open .home-paper { display: flex !important; }
+.home-paper-close-btn {
+  position: absolute; top: 14px; right: 14px; z-index: 10;
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid #ebd0cb;
+  background: #fbf0ec; color: #8d4f66; font-size: 15px; font-weight: 700;
+  display: grid; place-items: center; cursor: pointer; transition: background .15s, transform .15s;
+}
+.home-paper-close-btn:hover { background: #f3dfd9; transform: scale(1.08); }
+.home-paper-toggle-pill {
+  display: flex; position: absolute; z-index: 25; top: 88px; right: 28px;
+  align-items: center; gap: 6px; padding: 8px 16px; border-radius: 20px;
+  background: #fffdfa; border: 2px solid #ecd8d3; color: #8a4e67;
+  font-size: 13px; font-weight: 700; box-shadow: 0 4px 14px #8a536722; cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+.home-paper-toggle-pill:hover { transform: translateY(-2px); box-shadow: 0 6px 18px #8a536733; }
+#app.home-paper-open .home-paper-toggle-pill,
+#app:not(#_):has(#panel:not(.hidden)) .home-paper-toggle-pill { display: none !important; }
+#app #panel .panel-handle { display: none; }
+#app #panel > .panel-heading { min-height: 47px; gap: 10px; margin: 0 0 13px; padding-bottom: 12px; border-bottom: 1px solid #e9d8ce; }
+#app #panel > .panel-heading h2 { font-size: 18px; line-height: 1.5; letter-spacing: 0; }
+#app #panel > .panel-heading p { font-size: 11px; line-height: 1.7; }
+#app #panel .panel-heading .icon-button { width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background: #f3e3df; }
+#panel-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 5px 5px 0; scrollbar-width: thin; scrollbar-color: #c996a6 transparent; }
+.home-paper { overflow: auto; }
+.home-paper-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.home-paper-heading h2 { font-size: 18px; margin: 0; }.home-paper-heading .shell-icon { color: #b38b61; width: 20px; height: 20px; }
+.home-paper-intro { margin: 8px 0 4px; font-size: 11px; color: #805967; }
+.home-wish { display: flex; align-items: center; gap: 11px; width: 100%; padding: 13px 0; text-align: left; background: transparent; border-bottom: 1px solid #ebded0; }
+.home-wish > .shell-icon { color: #aa6f83; width: 29px; height: 29px; padding: 4px; background: #f3dedf; border-radius: 9px; flex-shrink: 0; }
+.home-wish > span { min-width: 0; }.home-wish strong { display: block; font-size: 12px; line-height: 1.6; }.home-wish small { display: block; margin-top: 4px; font-size: 10px; line-height: 1.7; color: #805967; }
+.home-residents { margin: 15px 0; }.home-resident-link { display: flex; width: 100%; align-items: center; gap: 10px; padding: 0; background: transparent; text-align: left; }
+.home-resident-link p { margin: 0; font-size: 11px; line-height: 1.7; }.home-portraits { display: flex; flex-shrink: 0; }.home-portraits canvas { width: 33px; height: 35px; margin-right: -8px; }.home-portraits:empty { display: none; }
+.home-paper > .ui-button { width: 100%; min-height: 43px; font-size: 12px; }
+.home-paper-links { display: flex; justify-content: space-between; gap: 6px; padding-top: 14px; }.home-paper-links button { padding: 4px 0; min-height: 30px; background: none; color: #87566a; font-size: 10px; text-decoration: underline; text-underline-offset: 4px; }
+#app #selection-tools, body:has(#panel:not(.hidden)) #selection-tools { bottom: 133px; left: calc((100% - var(--paper-width) - 28px) / 2); z-index: 18; max-width: calc(100% - var(--paper-width) - 80px); }
+#house-view-controls { flex: 0 0 auto; min-width: 0; }
+#app .house-nav-world { position: static; display: grid; width: 100%; max-width: none; min-width: 0; transform: none; margin: 0 0 18px; padding: 0 0 15px; gap: 8px; background: transparent; border: 0; border-bottom: 1px solid #e9d8ce; border-radius: 0; box-shadow: none; backdrop-filter: none; }
+.house-nav-title { margin: 0; font-size: 16px; line-height: 1.5; }
+#app .house-nav-world .house-summary { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+#app .house-nav-world .house-summary strong { font-size: 10px; color: #754358; }
+#app .house-nav-world .house-summary span { padding: 2px 5px; font-size: 9px; background: #f6e6d1; color: #805967; }
+#app .house-nav-world .house-floor-tabs { display: flex; flex-wrap: nowrap; min-width: 0; overflow-x: auto; margin: 0; padding: 2px 2px 7px; gap: 5px; scrollbar-width: thin; scrollbar-color: #bf8096 transparent; overscroll-behavior-x: contain; }
+#app .house-nav-world .ui-button { min-width: 44px; min-height: 44px; padding: 7px 10px; font-size: 12px; }
+#app .house-nav-world .house-floor-tabs .ui-button { flex: 0 0 auto; }
+#app .house-nav-world .house-view-tabs { display: flex; gap: 7px; }
+#app .house-nav-world .house-view-tabs .ui-button { flex: 1; }
+#app .house-nav-world .house-expansion { display: flex; width: 100%; white-space: normal; font-size: 11px; }
+#app .house-nav-world .ui-button.is-active { color: #fffaf6; background: #9b3456; border-color: #943451; }
+#toast-root { top: 85px; z-index: 100; }.toast { background: #79445c; color: #fffaf6; border-color: #875369; }
+.modal-backdrop { z-index: 60; padding: 24px; background: #543d5266; }
+.modal-card { background: var(--shell-paper); border: 3px solid #fffef8; box-shadow: 0 8px 3px #9c738450, 0 22px 65px #4e30483b; }
+.modal-head h2 { color: #713d54; }.modal-head > .ui-button-icon { border-radius: 50%; }
+.cute-popover { z-index: 95; }
+#panel[data-kind=build] .ui-grid { grid-template-columns: 1fr; }
+#panel[data-kind=build] .ui-card { padding: 14px 0; border: 0; border-bottom: 1px solid #e9d8ce; border-radius: 0; background: transparent; }
+#panel[data-kind=build] .house-floor-slots { gap: 4px; }
+#panel[data-kind=decor] .decor-controls { align-items: stretch; }
+#panel[data-kind=decor] .decor-controls .ui-field { width: 100%; }
+#panel[data-kind=decor] .decor-controls .ui-tabs { width: 100%; }
+#panel[data-kind=decor] .decor-controls .ui-button { margin-left: 0; }
+#panel[data-kind=decor] .item-grid, #panel[data-kind=shop] .item-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+#panel[data-kind=shop] .item-card { padding: 10px; border-radius: 14px; background: #fff4e4; border-color: #e9d5c6; }
+#panel[data-kind=shop] .item-thumb { height: 96px; background: #f7e8d4; }
+#panel[data-kind=shop] .item-info { font-size: 13px; line-height: 1.6; margin: 0; }
+#panel[data-kind=shop] .item-info strong { font-size: 14px; }
+#panel[data-kind=shop] .item-card .ui-button { min-height: 42px; padding: 7px 10px; font-size: 13px; font-weight: 700; white-space: normal; }
+#panel[data-kind=shop] .ui-row { align-items: stretch; }
+#panel[data-kind=shop] .ui-row > .ui-input { width: 100%; min-width: 0; font-size: 13px; }
+#panel[data-kind=shop] .ui-tabs { flex-wrap: wrap; gap: 6px; overflow: visible; }
+#panel[data-kind=shop] .ui-tab { font-size: 13px; padding: 8px 14px; min-height: 40px; }
+#panel[data-kind=shop] .item-count, #panel[data-kind=shop] .ui-badge { font-size: 12px; }
+#panel[data-kind=play] .play-catalog { display: flex; flex-direction: column; gap: 0; }
+#panel[data-kind=play] .play-card { position: relative; display: grid; grid-template-columns: 65px minmax(0, 1fr) auto; align-items: center; column-gap: 13px; padding: 17px 0; border: 0; border-bottom: 1px solid #e6d6ca; border-radius: 0; background: transparent; }
+.play-card-art { grid-column: 1; grid-row: 1 / span 3; display: grid; place-items: center; height: 68px; background: #f4dacb; border: 3px solid #fffcf1; border-radius: 20px; box-shadow: inset 0 -5px 9px #bb827325, 0 5px 9px #8c5d6415; color: #ac6276; }
+.play-card-art .shell-icon { width: 40px; height: 40px; stroke-width: 1.3; }
+.play-card-art[data-game=memory] { background: #dfd9eb; color: #8d76a4; }.play-card-art[data-game=catch_stars] { background: #fae1a7; color: #a17c39; }.play-card-art[data-game=match3] { background: #dce7c8; color: #738550; }
+.play-card > :not(.play-card-art) { grid-column: 2; }.play-card h3 { font-size: 16px; line-height: 1.5; }.play-card p { margin: 4px 0; font-size: 11px; line-height: 1.8; }.play-card > .ui-button { margin-top: 8px; min-height: 42px; justify-self: start; }
+/* 开始按钮固定在每行最右侧、相对整行上下居中：卡片内文字行数不固定（难度选择、解锁提示），所以让按钮跨足够多的隐式行再居中。 */
+#panel[data-kind=play] .play-card > .ui-button { grid-column: 3; grid-row: 1 / span 6; align-self: center; justify-self: end; margin: 0 0 0 13px; white-space: nowrap; }
+#panel[data-kind=settings] .ui-grid { grid-template-columns: 1fr; }.paper-section-title { margin: 20px 0 3px; font-size: 15px; }.paper-section-title:first-child { margin-top: 0; }
+.settings-paper > .ui-card { padding: 15px 0; border: 0; border-block: 1px solid #e6d6ca; background: transparent; border-radius: 0; }
+.settings-paper .ui-card h3 { font-size: 14px; }.settings-paper .ui-card p { font-size: 11px; line-height: 1.9; }.settings-paper .ui-field { width: 100%; }.settings-paper .ui-input { width: 100%; }
+.settings-paper > .ui-button { align-self: flex-start; }.settings-paper .ui-actions { gap: 8px; }.settings-paper .ui-button { white-space: normal; }
+.calendar-modal { width: min(580px, 100%); }.calendar-letter .calendar-event { border-color: #e2c4ce; }.calendar-letter .calendar-greeting { color: #754358; font-size: 17px; line-height: 1.95; }.calendar-letter .calendar-gift { background: #f7e8d0; border-radius: 12px; }.calendar-preview { background: #f6e8da; border-radius: 18px; }
+.minigame-modal .minigame-stats { background: #f0dfda; }.minigame-modal .minigame-status { background: #fff0d6; }.minigame-modal .minigame-stage { border-radius: 20px; }
+body:is(.is-photographing, .is-creating) #app :is(#hud, #account-bar, .dock-wrap, #shell-location, #quick-nav, #home-paper, .camera-controls, .house-nav-world, #quest-button, #guide-button, #selection-tools, #scene-hint),
+body:has(.minigame-modal, .bakery-modal) #app :is(#hud, #account-bar, .dock-wrap, #shell-location, #quick-nav, #home-paper, .camera-controls, .house-nav-world, #quest-button, #guide-button, #selection-tools, #scene-hint) { visibility: hidden; }
+@keyframes shell-paper-in { from { opacity: .7; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 1100px) and (min-width: 601px) {
+  #app.has-open-panel { --paper-width: min(960px, calc(100vw - 56px)); }
+  .hud, .has-account-bar .hud { left: 22px; right: 22px; gap: 12px; padding-right: 210px; }
+  .brand { min-width: 175px; gap: 9px; }.brand-copy strong { font-size: 19px; }.brand-copy > span { font-size: 8px; letter-spacing: 1px; }
+  .house-progress { width: 142px; min-width: 142px; padding-inline: 8px; }.wallet { gap: 5px; }.currency, .currency.heart { padding: 6px 8px; }.currency strong { font-size: 14px; }
+  .account-bar { right: 124px; }.account-bar .account-launch { max-width: 130px; }.account-bar .neighbors-reception { position: absolute; top: 48px; right: 0; }
+  .shell-location { left: 24px; max-width: 240px; }.shell-location h1 { font-size: 26px; }.quick-nav { left: 20px; }
+  #app #panel, .home-paper { right: 20px; padding: 16px; }
+  #dock button { min-width: 60px; padding-inline: 6px; font-size: 9px; }#app #dock { gap: 2px; }
+}
+@media (min-width: 601px) and (max-width: 850px) {
+  .house-progress { display: none; }.hud { padding-right: 220px; }.brand { min-width: 175px; }.currency.heart { display: none; }
+  #app, #app.has-account-bar, #app.has-open-panel, #app.home-paper-open { --paper-width: min(960px, calc(100vw - 56px)); }
+  .shell-location { max-width: 210px; }.shell-location h1 { font-size: 24px; }.shell-location > p { font-size: 11px; }
+  #app .guide-button { left: 75px; }.guide-copy > span { display: none; }
+}
+@media (max-width: 600px) {
+  html, body { height: auto; min-height: 100%; overflow: visible; overscroll-behavior: auto; }
+  body { font-size: 13px; overflow-x: hidden; }
+  #app, #app.has-account-bar { --paper-width: calc(100% - 32px); min-height: 100dvh; height: auto; padding: 0 0 calc(110px + env(safe-area-inset-bottom, 0px)); overflow: clip; display: flow-root; }
+  #app #world { position: relative; inset: auto; width: 100%; height: 500px; overflow: hidden; }
+  #app #scene { inset: auto; top: 170px; left: 25px; width: calc(100% - 25px); height: 330px; }
+  .hud, .has-account-bar .hud { top: 10px; left: 14px; right: 14px; height: 95px; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: 44px 44px; gap: 5px 6px; padding: 0; align-content: start; }
+  .brand, .has-account-bar .brand { grid-column: 1; grid-row: 1; min-width: 0; width: auto; gap: 7px; }.brand-copy strong { font-size: 15px; letter-spacing: 0; }.brand-copy > span { display: none; }.brand-cloud { width: 28px; height: 21px; border-width: 1.5px; flex-shrink: 0; }.brand-cloud:before { width: 16px; height: 17px; left: 4px; top: -8px; border-width: 1.5px; }.brand-cloud:after { width: 12px; height: 13px; right: 3px; top: -4px; border-width: 1.5px; }.brand-cloud i { top: 9px; width: 2px; height: 3px; }.brand-cloud i:first-child { left: 9px; }.brand-cloud i:last-child { right: 8px; }
+  .wallet, .has-account-bar .wallet { grid-column: 2; grid-row: 1; display: flex; width: auto; margin: 0; gap: 4px; }
+  .currency, .currency.heart, .has-account-bar .currency, .has-account-bar .currency.heart { display: flex; min-width: 0; height: 34px; padding: 4px 6px; gap: 3px; border-radius: 18px; }.currency strong { font-size: 11px; }.currency-icon .shell-icon { width: 16px; height: 16px; }.currency-name { display: none; }
+  .header-actions, .has-account-bar .header-actions { position: static; grid-column: 3; grid-row: 1; display: flex; gap: 4px; align-items: center; }.header-actions .icon-button { width: 38px; height: 38px; }#save-status { display: none; }
+  .house-progress, .has-account-bar .house-progress { display: block; grid-column: 1 / span 2; grid-row: 2; width: 158px; min-width: 0; margin: 0; padding: 3px 9px 8px; }#house-name { max-width: 88px; min-height: 25px; font-size: 10px; }#level-label { font-size: 8px; }.xp-label { display: none; }.xp-track { margin: 0; }
+  .account-bar { top: 62px; right: 14px; max-width: calc(100% - 190px); gap: 4px; }.account-bar .account-launch { max-width: 165px; min-height: 39px; height: 39px; padding: 5px 9px; }.account-bar.has-visitors .account-launch { max-width: 82px; }.account-bar .neighbors-reception { min-width: 0; height: 39px; min-height: 39px; font-size: 9px; padding-inline: 6px; }
+  .shell-location { top: 122px; left: 19px; max-width: calc(100% - 38px); }.shell-location h1 { font-size: 22px; line-height: 1.35; margin-bottom: 5px; }.shell-location > p { font-size: 10px; line-height: 1.7; max-width: 30em; }.shell-location .island-note { margin-top: 7px; padding: 3px 8px; }.island-note span:last-child { font-size: 9px; }.sun-icon { font-size: 14px; }
+  .quick-nav { top: 211px; left: 10px; gap: 4px; }.quick-button { width: 44px; height: 44px; border-radius: 14px; border-width: 1.5px; }.quick-button .shell-icon { width: 21px; height: 21px; }.quick-button > span { display: none; }
+  #app #scene-hint { left: 52%; top: auto; bottom: 5px; width: max-content; max-width: calc(100% - 70px); padding: 2px 7px; font-size: 8px; white-space: normal; }
+  #app .guide-button { display: none; }
+  #app .camera-controls, #app.has-open-panel .camera-controls, #app.home-paper-open .camera-controls, body:has(#panel:not(.hidden)) .camera-controls { top: 326px; bottom: auto; right: 10px; gap: 4px; flex-direction: column; }.camera-controls button { width: 39px; height: 39px; }.camera-controls .shell-icon { width: 17px; height: 17px; }
+  .home-paper-toggle-pill { top: 72px; right: 14px; padding: 6px 12px; font-size: 11px; }
+  #app #panel, #app .home-paper { position: relative; top: auto; right: auto; bottom: auto; left: auto; width: calc(100% - 32px); height: auto; max-height: none; margin: 8px 16px 0; padding: 18px; transform: none; border-radius: 22px; overflow: visible; }
+  #app #panel > .panel-heading { min-height: 44px; }.panel-heading h2 { font-size: 18px; }#app #panel .panel-heading .icon-button { width: 44px; height: 44px; }
+  #panel-body { overflow: visible; max-height: none; padding-right: 0; overscroll-behavior: auto; }
+  .home-paper-links button { min-height: 44px; font-size: 11px; }.home-wish strong { font-size: 13px; }.home-wish small { font-size: 11px; }.home-paper-intro { font-size: 12px; }
+  #app .dock-wrap { position: fixed; left: 10px; right: 10px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: auto; max-width: none; transform: none; padding: 8px 5px; border-width: 2px; border-radius: 22px; }
+  #app #dock { width: 100%; display: flex; gap: 0; justify-content: space-between; overflow-x: auto; overflow-y: hidden; padding-bottom: 3px; scrollbar-width: thin; scrollbar-color: #c890a4 transparent; }
+  #dock button { min-width: 42px; min-height: 51px; flex: 1 0 42px; gap: 5px; padding: 3px 1px; font-size: 8px; border-radius: 12px; }.nav-icon .shell-icon { width: 23px; height: 23px; }#dock button.is-active:after { bottom: -2px; width: 12px; }
+  #app #selection-tools, body:has(#panel:not(.hidden)) #selection-tools { left: 52%; bottom: auto; top: 375px; max-width: calc(100% - 70px); width: max-content; transform: translateX(-50%); }.selection-toolbar { max-height: 82px; overflow: auto; }.selection-toolbar button { min-width: 40px; min-height: 40px; }
+  #toast-root { top: 110px; max-width: calc(100% - 30px); }
+  .modal-backdrop { padding: 12px; }.modal-card { max-height: calc(100dvh - 24px); }.modal-head h2 { font-size: 19px; }
+  .settings-paper .ui-input[type=text] { font-size: 16px; }
+  #panel[data-kind=decor] .item-grid, #panel[data-kind=shop] .item-grid { gap: 7px; }
+  .calendar-modal .calendar-preview { width: 76px; height: 78px; flex-basis: 76px; }.calendar-letter .calendar-greeting { font-size: 15px; }
+}
+@media (max-width: 359px) {
+  .brand-copy strong { font-size: 13px; }.brand-cloud { display: none; }.currency.heart, .has-account-bar .currency.heart { display: none; }
+  .account-bar { max-width: calc(100% - 174px); }.account-bar.has-visitors { flex-wrap: wrap; justify-content: flex-end; }.house-progress, .has-account-bar .house-progress { width: 145px; }
+}
+@media (max-height: 650px) and (min-width: 601px) {
+  #app, #app.has-account-bar { min-height: 480px; }.hud, .has-account-bar .hud { top: 12px; }.shell-location { top: 86px; }.shell-location h1 { font-size: 25px; }
+  #app #panel, .home-paper { top: 93px; max-height: calc(100dvh - 200px); }#app #panel { height: calc(100dvh - 200px); }.quick-nav { top: 228px; gap: 5px; }.quick-button { width: 39px; height: 39px; }
+  #app .guide-button { display: none; }#app .dock-wrap { bottom: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { #app #panel, .home-paper { animation: none; } }
+
+/* 所有右侧工具栏面板统一按图鉴标准展开，将岛屿推到左侧安全区 */
+@media (min-width: 601px) {
+  #app.has-open-panel { --paper-width: min(960px, calc(100vw - 56px)); }
+}
+/* 内容型弹窗统一使用宽纸面，避免各功能沿用窄框；画布工作台与小游戏保留专用尺寸。 */
+#modal-root .modal-card { width: min(70vw, var(--modal-max-width, 1200px), 100%); max-width: 100%; min-width: 0; }
+#modal-root .modal-head { flex-shrink: 0; }
+#modal-root .modal-body { min-width: 0; }
+.modal-card.minigame-modal { --modal-max-width: 720px; }
+.modal-card.bakery-modal { --modal-max-width: 800px; }
+@media (max-width: 600px) {
+  #app #panel { width: calc(100% - 16px); margin-inline: 8px; padding-inline: 14px; }
+  #modal-root .modal-card { width: 100%; }
+}
+
+/* 摆放时触屏也有明确退出；状态与取消/换件始终同处一条工具栏。 */
+.placement-toolbar .placement-status { flex: 1 1 100%; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.placement-toolbar .ui-button { min-height: 44px; }
+.placement-toolbar .ui-button-soft { color: var(--shell-ink); background: #f6eaf0; }
+.placement-toolbar .ui-button-primary { color: #fffaf6; background: var(--shell-berry); }
+@media (max-width: 600px) {
+  #app #selection-tools.placement-toolbar { position: fixed; top: auto; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); left: 60px; right: 56px; width: auto; max-width: none; max-height: none; transform: none; overflow: visible; }
+  .placement-toolbar .placement-status { font-size: 13px; }
+  .placement-toolbar .ui-button { flex: 1; padding-inline: 6px; font-size: 14px; }
+}
+
+/* 指定房间的装扮：房名置顶，选房/其他建造折叠，家具筛选先于附加入口。 */
+#panel[data-kind=decor] .decor-attic-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding-bottom:10px; border-bottom:1px solid #e9d8ce; }
+#panel[data-kind=decor] .decor-attic-actions p { flex:1 1 220px; min-width:0; margin:0; font-size:13px; line-height:1.8; overflow-wrap:anywhere; }
+#panel[data-kind=decor] .decor-attic-actions .ui-button { flex:0 1 auto; min-width:0; min-height:44px; max-width:100%; color:var(--shell-ink); background:#f6eaf0; font-size:14px; white-space:normal; }
+#panel[data-kind=decor] .decor-room-context { display: grid; grid-template-columns: minmax(0, 1fr) 86px; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #e9d8ce; }
+#panel[data-kind=decor] .decor-room-name { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+#panel[data-kind=decor] .decor-room-switch[open] { grid-column: 1 / -1; }
+#panel[data-kind=decor] :is(.decor-room-switch, .decor-more-tools) > summary { min-height: 44px; padding: 8px 0; cursor: pointer; font-size: 12px; line-height: 1.8; color: #943451; }
+#panel[data-kind=decor] .decor-room-switch .ui-field { margin-bottom: 8px; }
+#panel[data-kind=decor] .decor-controls { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 7px; }
+#panel[data-kind=decor] .decor-controls .ui-tabs { min-width: 0; padding-bottom: 0; }
+#panel[data-kind=decor] .decor-controls .ui-button { min-height: 44px; padding: 6px; white-space: normal; font-size: 11px; }
+#panel[data-kind=decor] .decor-controls .ui-tab { min-height: 44px; padding: 7px; font-size: 11px; }
+#panel[data-kind=decor] .decor-filter-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 8px; }
+#panel[data-kind=decor] .decor-filter-row :is(.ui-input, .cute-select) { width: 100%; min-width: 0; font-size: 12px; padding-inline: 8px; }
+#panel[data-kind=decor] .decor-more-tools { border-top: 1px solid #e9d8ce; padding-top: 5px; }
+.decor-shop-return { display: flex; flex-direction: column; gap: 7px; padding-bottom: 13px; border-bottom: 1px solid #e9d8ce; }
+.decor-shop-return p { margin: 0; }
+.decor-shop-return .ui-button { white-space: normal; }

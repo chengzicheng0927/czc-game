@@ -1,0 +1,123 @@
+/* MC-080：独立园区旁的莓红纸页。场景尺寸仍由公共外壳与sceneViewport管理。 */
+.garden-v2, .garden-v2-seed-dialog, .garden-v2-gift {
+  --garden-paper:#fffaf0; --garden-line:#e5cbd1; --garden-muted:#805d69;
+  color:#694657; min-width:0; font-size:14px; line-height:1.7;
+}
+.garden-v2 { container: garden-page / inline-size; width:100%; max-width:none; margin-inline:auto; gap:14px; }
+.garden-v2 :is(p,h3), .garden-v2-seed-dialog p, .garden-v2-gift p { margin:0; overflow-wrap:anywhere; }
+.garden-v2 :is(.ui-muted,.ui-small), .garden-v2-seed-dialog .ui-small, .garden-v2-gift .ui-small { color:var(--garden-muted); font-size:13px; line-height:1.8; }
+.garden-v2 .ui-button, .garden-v2-seed-dialog .ui-button, .garden-v2-gift .ui-button {
+  min-height:44px; min-width:44px; padding:10px 12px; border:1px solid #dfc4c9; border-radius:12px;
+  color:#754b5e; background:#f8eddf; font-size:14px; line-height:1.6; white-space:normal;
+  box-shadow:inset 0 1px 0 #fffdf7,0 3px 6px #9e667b16;
+}
+.garden-v2 .ui-button-primary, .garden-v2-seed-dialog .ui-button-primary, .garden-v2-gift .ui-button-primary {
+  background:#b84466; color:#fff9f3; border-color:#a83e5d;
+  box-shadow:inset 0 1px 0 #dc849b,0 3px 7px #8e3e5525;
+}
+.garden-v2 .ui-button:hover:not(:disabled), .garden-v2-seed-dialog .ui-button:hover:not(:disabled), .garden-v2-gift .ui-button:hover:not(:disabled) { filter:brightness(1.035); }
+.garden-v2 button:disabled, .garden-v2-seed-dialog button:disabled, .garden-v2-gift button:disabled {
+  opacity:1; background:#eee7df; color:#806b71; border-color:#d8c9c6; box-shadow:none;
+}
+.garden-v2 :is(button,input):focus-visible, .garden-v2-seed-dialog :is(button,input):focus-visible, .garden-v2-gift button:focus-visible { outline:3px solid #a83357; outline-offset:3px; }
+.garden-v2 .garden-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; padding:2px 1px 4px; }
+.garden-v2 .ui-tab { min-width:0; min-height:44px; padding:8px 4px; font-size:13px; line-height:1.55; border:1px solid #e9d8cb; border-radius:11px; color:#80576a; background:#f4ebdc; box-shadow:inset 0 1px #fff9ef; white-space:normal; }
+.garden-v2 .ui-tab.is-active { color:#fff9f2; background:#b84466; border-color:#a83e5d; box-shadow:inset 0 1px #dc849b,0 3px 6px #8e3e551a; }
+.garden-v2 .garden-page-stock { padding-bottom:12px; border-bottom:1px solid #ead8ca; color:#7a5563; font-variant-numeric:tabular-nums; }
+.garden-v2 .garden-v2-counts { display:flex; flex-wrap:wrap; justify-content:space-between; gap:7px 12px; }
+.garden-v2-counts > span { display:flex; flex-wrap:wrap; align-items:baseline; gap:5px; }
+.garden-v2-counts strong { font-size:17px; line-height:1.3; font-weight:750; font-variant-numeric:tabular-nums; color:#9b3e5e; }
+.garden-v2-counts small { font-size:12px; line-height:1.6; color:#805d69; }
+.garden-v2 .garden-page-intro { color:#805d69; font-size:13px; line-height:1.8; }
+.garden-v2 .garden-v2-layout { display:flex; flex-direction:column; align-items:stretch; gap:18px; min-width:0; }
+.garden-v2 .garden-plots { display:grid; align-self:start; width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.garden-v2 .garden-plot { min-width:0; padding:5px; border:1px solid #e1c9bd; border-radius:13px; background:#f5ebdc; box-shadow:inset 0 1px #fffaf2,0 3px 6px #966b6910; }
+.garden-v2 .garden-plot.is-empty { background:#fbf3e6; border-style:dashed; }
+.garden-v2 .garden-plot.is-selected { border:2px solid #b54a68; padding:4px; background:#f9e4e2; box-shadow:inset 0 1px #fff9f0,0 3px 7px #aa647723; }
+.garden-v2 .garden-plot.is-mature:not(.is-selected) { background:#fff0d5; border-color:#cda864; }
+.garden-v2 .garden-v2-select { display:flex; flex-direction:column; align-items:center; width:100%; min-height:132px; padding:0 0 7px; position:relative; border-radius:9px; color:#694657; background:transparent; box-shadow:none; }
+.garden-v2 .garden-v2-select:hover { background:#ffffff40; filter:none; }
+.garden-v2 .garden-v2-plot-number { position:absolute; left:3px; top:0; font-size:12px; line-height:1.6; font-weight:700; color:#825a68; }
+.garden-v2 .garden-plot-visual { display:block; width:100%; height:65px; object-fit:contain; }
+.garden-v2 .garden-plot-heading { max-width:100%; font-size:13px; line-height:1.65; font-weight:700; overflow-wrap:anywhere; }
+.garden-v2 .garden-plot-status { font-size:12px; line-height:1.7; color:#805d69; }
+.garden-v2 .garden-plot-water { margin-top:3px; max-width:100%; font-size:12px; line-height:1.65; color:#805d69; overflow-wrap:anywhere; }
+.garden-v2 .needs-water .garden-plot-water { color:#386b7e; }
+.garden-v2 .is-mature .garden-plot-water { color:#856024; font-weight:700; }
+.garden-v2 .garden-progress { height:4px; margin:0 5px 3px; background:#e8d6c2; border-radius:3px; }
+.garden-v2 .garden-progress i { background:#b75c7a; border-radius:3px; }
+/* 逐格快捷操作保留公开DOM合约；页面动作集中在选中详情，触屏目标均至少44px。 */
+.garden-v2 .garden-plot-action { display:none; }
+.garden-v2 .garden-v2-detail { min-width:0; gap:12px; padding:16px; border:1px solid #e2c8ba; border-radius:16px; background:#f8efdf; box-shadow:inset 0 1px #fffaf0; }
+.garden-v2 .garden-v2-detail h3 { font-size:16px; line-height:1.6; }
+.garden-v2 .garden-v2-timing { font-size:14px; line-height:1.8; font-weight:700; font-variant-numeric:tabular-nums; }
+.garden-v2 .garden-v2-arrival, .garden-v2 .garden-v2-planted, .garden-v2 .garden-v2-seed-info { color:#805d69; font-size:13px; line-height:1.85; font-variant-numeric:tabular-nums; }
+.garden-v2 .garden-v2-stages { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:0; padding:0; list-style:none; }
+.garden-v2 .garden-v2-stages li { padding:7px 2px; border-bottom:2px solid #e5ceca; text-align:center; font-size:12px; line-height:1.7; color:#805d69; }
+.garden-v2 .garden-v2-stages .is-current { color:#9e3556; border-color:#b84466; font-weight:700; background:#f7dfe1; border-radius:7px 7px 0 0; }
+.garden-v2 .garden-v2-stages .is-done { color:#875164; border-color:#cf97a5; }
+.garden-v2 .garden-v2-water-note { padding:10px 12px; background:#fff8ec; color:#7b5561; border-radius:9px; font-size:13px; line-height:1.85; }
+.garden-v2 .garden-v2-detail > .ui-button { width:100%; }
+.garden-v2 .garden-v2-greenhouse { padding:12px 14px; border-color:#e2c9b4; border-radius:12px; background:#f7edda; color:#765d43; font-size:13px; line-height:1.85; }
+.garden-v2 .garden-seed-preview { display:block; width:160px; max-width:100%; height:96px; margin:-4px auto; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-selector { min-width:0; container: garden-seeds / inline-size; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-label { margin:0 0 10px; font-size:14px; line-height:1.7; font-weight:700; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; padding:3px; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card {
+  display:flex; position:relative; flex-direction:column; align-items:center; gap:3px; min-width:0; min-height:148px;
+  padding:9px 6px; border:1px solid #dfc7b8; border-radius:13px; color:#694657; background:#fff8eb;
+  text-align:center; white-space:normal; box-shadow:inset 0 1px #fffdf6,0 3px 7px #966b6910;
+}
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card:hover { background:#f9ecde; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card.is-selected { padding:8px 5px; border:2px solid #b84466; background:#f8e1e6; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card.is-selected::after { content:''; position:absolute; top:8px; right:10px; width:6px; height:11px; border-right:2px solid #a33759; border-bottom:2px solid #a33759; transform:rotate(42deg); }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card-art { display:block; width:74px; max-width:100%; height:58px; object-fit:contain; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card strong { font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card :is(span,small) { font-size:12px; line-height:1.7; color:#805d69; font-variant-numeric:tabular-nums; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card .garden-seed-card-stock { color:#963f5d; font-weight:700; }
+:is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-card .garden-seed-card-night { padding:1px 6px; border-radius:6px; color:#7b582c; background:#f5e8c6; }
+.garden-v2-seed-dialog .garden-seed-preview { display:block; width:160px; max-width:100%; height:96px; margin:0 auto; }
+.garden-v2 .garden-v2-actions, .garden-v2 .garden-v2-supplies { display:flex; flex-wrap:wrap; gap:8px; }
+.garden-v2 .garden-v2-actions > .ui-button, .garden-v2 .garden-v2-supplies > .ui-button { flex:1 1 120px; min-width:0; }
+.garden-v2 .ui-field, .garden-v2-seed-dialog .ui-field { min-width:0; max-width:100%; }
+.garden-v2 .ui-field-label, .garden-v2-seed-dialog .ui-field-label { font-size:13px; }
+.garden-v2 .cute-select, .garden-v2-seed-dialog .cute-select { max-width:100%; width:100%; min-width:0; min-height:44px; background:#fffaf0; border-color:#dcbfc5; color:#754b5e; font-size:14px; }
+.garden-v2 .garden-v2-catalog-intro { color:#805d69; font-size:13px; line-height:1.85; }
+.garden-v2 .garden-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr)); align-items:start; gap:14px; }
+.garden-v2 .garden-crop { min-width:0; padding:14px; border:1px solid #e5d1c3; border-radius:14px; background:#f8efdf; box-shadow:inset 0 1px #fffaf1,0 3px 6px #966b6910; }
+.garden-v2 .garden-crop-top { display:flex; align-items:center; flex-wrap:nowrap; gap:10px; text-align:left; }
+.garden-v2 .garden-crop-art { width:68px; height:68px; flex:0 0 68px; }
+.garden-v2 .garden-crop-copy { min-width:0; }
+.garden-v2 .garden-crop-copy h3 { font-size:16px; line-height:1.6; }
+.garden-v2 .garden-crop-copy p { font-size:13px; line-height:1.85; }
+.garden-v2 .garden-stock { color:#9b3e5e; font-weight:700; font-variant-numeric:tabular-nums; }
+.garden-v2 .garden-buy-row { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
+.garden-v2 .garden-buy-row .ui-field { flex:1 1 100%; min-width:0; margin:0; }
+.garden-v2 .garden-quantity { width:100%; min-width:0; min-height:44px; padding:9px; border:1px solid #dcc1c5; border-radius:9px; color:#694657; background:#fffaf2; caret-color:#a83e5d; font-size:16px; font-variant-numeric:tabular-nums; }
+.garden-v2 .garden-buy-row > .ui-button { flex:1 1 100%; min-width:0; }
+.garden-v2 .garden-v2-validation { margin-top:7px; color:#9c3d4c; font-size:13px; line-height:1.8; }
+.garden-v2 .garden-v2-validation:empty { display:none; }
+.garden-v2 .garden-v2-night { color:#7b582c; margin-top:6px; font-size:13px; line-height:1.85; }
+.garden-v2[data-tab="harvest"] .garden-v2-actions { margin-top:10px; }
+.garden-v2 .garden-v2-utilities { border-top:1px solid #e7d5c8; padding-top:14px; }
+.garden-v2 .garden-v2-utilities > .ui-button { width:100%; }
+.garden-v2 .garden-empty { padding:22px 16px; background:#faf0e1; color:#805d69; border-color:#dfbec6; font-size:14px; line-height:1.85; }
+.garden-v2 ::selection, .garden-v2-seed-dialog ::selection, .garden-v2-gift ::selection { color:#71344d; background:#f3d0da; }
+@container garden-page (min-width:580px) {
+  .garden-v2 .garden-v2-layout { display:grid; grid-template-columns:minmax(270px,1fr) minmax(230px,.9fr); align-items:start; gap:20px; }
+  .garden-v2 .garden-v2-detail { position:sticky; top:0; }
+  .garden-v2 .garden-plot-visual { height:78px; }
+  .garden-v2 .garden-v2-select { min-height:148px; }
+}
+@container garden-page (max-width:300px) {
+  .garden-v2 .garden-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .garden-v2 .garden-plots { gap:6px; }
+  .garden-v2 .garden-plot { padding:3px; }
+  .garden-v2 .garden-plot.is-selected { padding:2px; }
+  .garden-v2 .garden-plot-heading, .garden-v2 .garden-plot-water { font-size:12px; }
+  .garden-v2 .garden-crop-top { flex-direction:column; align-items:start; }
+}
+@container garden-seeds (min-width:330px) { :is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@container garden-seeds (min-width:530px) { :is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@container garden-seeds (min-width:790px) { :is(.garden-v2,.garden-v2-seed-dialog) .garden-seed-grid { grid-template-columns:repeat(6,minmax(0,1fr)); } }
+@media(prefers-reduced-motion:reduce) { .garden-v2 button, .garden-v2-seed-dialog button, .garden-v2-gift button { transition:none; } }

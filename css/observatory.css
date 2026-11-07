@@ -1,0 +1,42 @@
+/* MC-078：日期、今夜行动、累计与最近一夜，按原型纵向阅读。 */
+.observatory-panel { --og-ink:#684557; --og-muted:#805f6e; --og-line:#e7ced3; display:flex; flex-direction:column; gap:16px; width:100%; min-width:0; color:var(--og-ink); font-size:14px; line-height:1.8; }
+.observatory-panel,.observatory-panel * { box-sizing:border-box; }
+.observatory-panel [hidden] { display:none !important; }
+.observatory-panel ::selection { color:#63384d; background:#f2cad6; }
+.observatory-panel p { margin:0; overflow-wrap:anywhere; }
+.observatory-panel h3 { margin:0; font-size:18px; font-weight:800; line-height:1.55; text-wrap:balance; }
+.observatory-panel h4 { margin:0; font-size:15px; line-height:1.6; }
+.observatory-panel .observatory-intro { display:block; padding:0; }
+.observatory-panel .observatory-copy { display:flex; flex-direction:column; align-items:stretch; gap:10px; min-width:0; }
+.observatory-panel .observatory-date { color:var(--og-muted); font-size:13px; line-height:1.7; font-variant-numeric:tabular-nums; }
+.observatory-panel .observatory-note { color:var(--og-muted); font-size:14px; }
+.observatory-panel .observatory-message,.observatory-panel .observatory-empty { color:var(--og-muted); font-size:14px; line-height:1.9; }
+.observatory-panel .observatory-actions { display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin-top:3px; }
+.observatory-panel .ui-button { min-height:44px; min-width:0; padding:10px 14px; border:1px solid #ddbdc8; border-radius:13px; background:#f8e8e6; box-shadow:inset 0 2px #fffaf2,0 3px 0 -1px #cdaab5,0 5px 8px #79505c12; color:#78465d; font-size:14px; font-weight:700; line-height:1.6; white-space:normal; overflow-wrap:anywhere; }
+.observatory-panel .observatory-actions .ui-button-primary { flex:1 0 100%; background:linear-gradient(#bd5e7e,#a44166); border-color:#a34366; color:#fffaf0; box-shadow:inset 0 2px #ffffff30,0 3px 0 -1px #803650,0 6px 9px #7942521a; }
+.observatory-panel .observatory-actions .ui-button-soft { flex:1 1 180px; }
+.observatory-panel .observatory-actions .observatory-decor { flex:1 0 100%; color:#633f51; background:#fff2df; border-color:#d9b9a8; }
+.observatory-panel .ui-button:hover:not(:disabled) { background:#f2d5df; border-color:#b77b93; }
+.observatory-panel .observatory-actions .ui-button-primary:hover:not(:disabled) { background:#9c3a60; }
+.observatory-panel .ui-button:active:not(:disabled) { transform:translateY(1px); }
+.observatory-panel .ui-button:disabled { opacity:1; color:#8b7480; background:#efe6e1; border-color:#dfd0ce; box-shadow:none; cursor:not-allowed; }
+.observatory-panel .ui-button:focus-visible,.observatory-panel [tabindex="-1"]:focus-visible,.observatory-panel summary:focus-visible { outline:3px solid #a63f65; outline-offset:3px; }
+.observatory-panel .observatory-feedback { padding:10px 12px; border:1px solid #dcb6c5; border-radius:10px; color:#854960; background:#fae7eb; font-size:14px; line-height:1.8; }
+.observatory-panel .observatory-feedback.is-error { color:#8d3e4d; border-color:#dbb8a3; background:#fbecdb; }
+.observatory-panel .observatory-totals { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:10px; padding:13px 0; border-block:1px solid var(--og-line); }
+.observatory-panel .observatory-totals p { min-width:0; text-align:center; font-size:14px; font-weight:700; line-height:1.8; font-variant-numeric:tabular-nums; }
+.observatory-panel .observatory-record { min-width:0; }
+.observatory-panel .observatory-record > h3 { margin:0 0 10px; font-size:14px; }
+.observatory-panel .observatory-discovery { display:flex; flex-direction:column; gap:0; background:#f8ebdf; border:1px solid #e4cfd1; border-radius:13px; overflow:hidden; }
+.observatory-panel .observatory-star-map { display:block; width:100%; height:auto; aspect-ratio:7/4; border-radius:12px 12px 0 0; background:#454a72; }
+.observatory-panel .observatory-star-copy { display:flex; flex-direction:column; gap:8px; min-width:0; padding:13px; }
+.observatory-panel .observatory-star-copy p { font-size:14px; line-height:1.9; }
+.observatory-panel .observatory-star-copy .observatory-date,.observatory-panel .observatory-star-copy .observatory-record-note { font-size:13px; color:var(--og-muted); }
+.observatory-panel .observatory-empty { padding:16px 12px; border:1px dashed #dfc6ca; border-radius:12px; background:#fbefdf; }
+.observatory-panel .observatory-rules,.observatory-panel .observatory-attic-preview { border-block:1px solid var(--og-line); }
+.observatory-panel summary { min-height:44px; padding:10px 0; font-size:14px; color:#9b4e6c; cursor:pointer; }
+.observatory-panel .observatory-rules p { margin:6px 0 13px; font-size:14px; line-height:1.95; color:var(--og-muted); }
+.observatory-panel .observatory-scene { margin:3px 0 14px; }
+.observatory-panel .observatory-picture { display:block; width:100%; height:auto; aspect-ratio:320/185; object-fit:contain; }
+.observatory-panel .observatory-scene-caption { margin-top:7px; text-align:center; font-size:13px; color:var(--og-muted); }
+@media (prefers-reduced-motion:reduce) { .observatory-panel .ui-button:active:not(:disabled) { transform:none; } }

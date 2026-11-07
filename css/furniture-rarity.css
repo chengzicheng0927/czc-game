@@ -1,0 +1,13 @@
+/* 白纸、蓝边、淡紫微闪与暖金；同一标识用于所有家具预览。 */
+.furniture-rarity-surface { position:relative; }
+.rarity-common { --furniture-rarity-line:#CFC5BB; --furniture-rarity-paper:#FFFEFA; --furniture-rarity-ink:#66574D; }
+.rarity-fine { --furniture-rarity-line:#8DAFCE; --furniture-rarity-paper:#EAF3FC; --furniture-rarity-ink:#355A7A; }
+.rarity-rare { --furniture-rarity-line:#B49BCA; --furniture-rarity-paper:#F1EAF8; --furniture-rarity-ink:#694680; }
+.rarity-limited { --furniture-rarity-line:#C2A15B; --furniture-rarity-paper:#FFF3CF; --furniture-rarity-ink:#70531E; }
+.furniture-rarity-surface .furniture-rarity-preview { box-sizing:border-box; border:2px solid var(--furniture-rarity-line); border-radius:11px; }
+.furniture-rarity-badge { position:absolute; top:7px; left:7px; z-index:1; display:inline-flex; align-items:center; justify-content:center; min-width:35px; min-height:23px; padding:2px 7px; border:1px solid var(--furniture-rarity-line); border-radius:8px; background:var(--furniture-rarity-paper); color:var(--furniture-rarity-ink); font-size:10px; font-weight:700; line-height:1.4; pointer-events:none; }
+.furniture-rarity-badge.rarity-rare::after { content:''; position:absolute; width:5px; height:5px; right:3px; top:3px; background:#8E6AA9; border-radius:2px; transform:rotate(45deg); opacity:.35; animation:furniture-rarity-glint 1050ms ease-out 1; }
+.collection-detail.furniture-rarity-surface > .furniture-rarity-badge { top:8px; left:8px; }
+.gift-reward.furniture-rarity-surface { width:min(100%,320px); margin-inline:auto; }
+@keyframes furniture-rarity-glint { 0%,100% { opacity:.35; transform:rotate(45deg) scale(.7); } 42% { opacity:.9; transform:rotate(45deg) scale(1.25); } }
+@media (prefers-reduced-motion:reduce) { .furniture-rarity-badge.rarity-rare::after { animation:none; } }

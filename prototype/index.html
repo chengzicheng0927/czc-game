@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#cce8ed">
+  <meta name="description" content="棉花糖小屋：云岛生活 3D 交互设计原型，覆盖现有玩法、邻居串门与多人协作构想。">
+  <title>棉花糖小屋 · 云岛生活设计原型</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- THESIS: A multi-storey miniature cloud village children can turn in their hands, with complete existing-game coverage and a social play loop.
+  OWN-WORLD: Sky-blue atmosphere, jade grass, coral clay roofs, butter-yellow paper and sculpted round controls; native system Chinese lettering follows the existing offline contract.
+  STORY: Explore home, furnish, meet residents, visit neighbors, prepare a team, complete a shared task and celebrate; current systems remain findable in the review index.
+  FIRST VIEWPORT: A three-storey WebGL house with three room slots per floor and an independent roof attic occupies the center, a compact game HUD above, today's wishes on the right, a sculpted dock below; the camera rotates on drag.
+  FORM: Brief-pinned 3D toy diorama, code-led extension isolated from the live game; seed 43863a1d, grounded candidate 3.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md -->
+  <a href="#main" class="skip">跳到游戏场景</a>
+  <header class="review-bar">
+    <div class="review-identity"><span class="review-dot"></span><strong>云岛生活</strong><span>分批开发原型 / V2.1</span></div>
+    <div class="review-pagination"><button data-action="prev" aria-label="上一页" class="flat-icon">‹</button><label for="page-select" class="sr-only">选择审核页面</label><select id="page-select"></select><span id="page-count"></span><button data-action="next" aria-label="下一页" class="flat-icon">›</button></div>
+    <div class="review-actions"><button data-action="delivery">开发交付页</button><button data-action="feedback" class="review-note">审核笔记 <span id="note-count">0</span></button></div>
+  </header>
+  <main id="main" class="game" tabindex="-1">
+    <div class="sky-cloud sky-cloud-one"></div><div class="sky-cloud sky-cloud-two"></div><div class="sky-grain"></div>
+    <canvas id="scene" aria-label="可拖动旋转、滚轮缩放的三维云岛场景"></canvas>
+    <header class="game-hud" id="hud"></header>
+    <div class="location" id="location"></div>
+    <nav class="quick-nav" id="quick-nav" aria-label="快捷玩法"></nav>
+    <div class="scene-content" id="scene-content"></div>
+    <aside class="side-panel" id="side-panel" aria-label="当前玩法操作"></aside>
+    <div class="scene-extra" id="scene-extra"></div>
+    <div class="camera-tools" id="camera-tools"></div>
+    <nav class="game-dock" id="dock" aria-label="游戏主要玩法"></nav>
+    <div class="prototype-caption">概念原型 · 人物与进度均为示例</div>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <script src="characters.js"></script>
+  <script src="scene.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

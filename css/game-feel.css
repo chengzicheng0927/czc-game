@@ -1,0 +1,43 @@
+/* MC-077 · 软陶按钮与纸面材质。外壳几何由 shell.css 统一维护。 */
+.currency {
+  border: 2px solid #fffaf0;
+  box-shadow: inset 0 2px 2px #ffffffc2, 0 4px 10px #9b587320;
+}
+.currency.coin { background: #fff2ce; }
+.currency.heart { background: #fce1e8; }
+
+/* 莓红保留在真正的行动上，白字与底色保持清楚的对比。 */
+.ui-button-primary {
+  color: #fffaf6;
+  background: linear-gradient(180deg, #b94a6c, #9b3456);
+  border: 1px solid #943451;
+  box-shadow: inset 0 2px 1px #ffffff40, 0 3px 1px #7b2d4866, 0 7px 12px #9b345621;
+  text-shadow: none;
+}
+.ui-button-primary:hover:not(:disabled) { background: linear-gradient(180deg, #ae3e62, #912e50); }
+.ui-button-primary:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 2px 3px #6e243832, 0 1px 2px #7b2d4840; }
+.ui-button-soft {
+  color: #75485a;
+  background: #f8e6e8;
+  border: 1px solid #e8cbd2;
+  box-shadow: inset 0 2px 1px #fffaf3, 0 2px 3px #9b587315;
+}
+.ui-button-soft:hover:not(:disabled) { background: #f5dce4; }
+.ui-button:disabled { box-shadow: none; }
+.ui-button:focus-visible { outline: 3px solid #943451; outline-offset: 3px; }
+.camera-controls button:active:not(:disabled) { transform: translateY(2px); }
+.quest-float, .guide-button .guide-copy { box-shadow: inset 0 2px 1px #fffaf3, 0 4px 10px #9b58731c; }
+
+.preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.preset-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px 6px; border-radius: 16px;
+  color: #75485a; font-size: 12px; font-weight: 700;
+  background: linear-gradient(#fffdf6, #f8e9df);
+  border: 2px solid #ead5c4;
+  box-shadow: inset 0 2px 2px #ffffffc2, 0 3px 5px #9b58731c;
+}
+.preset-card.is-selected { border-color: #b94a6c; background: #fbe0e8; transform: translateY(-2px); }
+.preset-art { width: 100%; max-width: 92px; height: auto; }
+@media (max-width: 520px) { .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .ui-button-primary:active, .camera-controls button:active { transform: none; } }

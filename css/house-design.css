@@ -1,0 +1,52 @@
+/* 小屋个性化：内部布局以纸面板可用宽度为准，桌面侧栏与手机共用紧凑单列。 */
+.house-design-panel,.exterior-panel { --house-ink:#6b4b59; --house-muted:#805f6e; --house-berry:#a64261; --house-line:#e4cbd0; min-width:0; color:var(--house-ink); }
+.house-design-panel { display:flex; flex-direction:column; gap:12px; container-type:inline-size; }
+.house-design-panel *,.exterior-panel * { box-sizing:border-box; }
+.house-design-panel .house-design-tabs,.exterior-panel .house-design-tabs { display:flex; gap:5px; margin:0; padding:0 0 10px; background:transparent; border-bottom:1px solid var(--house-line); }
+.house-design-panel .house-design-tabs .ui-tab,.exterior-panel .house-design-tabs .ui-tab { flex:1; min-width:0; min-height:44px; padding:8px 4px; border-radius:10px; font-size:12px; line-height:1.6; white-space:normal; }
+.house-design-panel .house-design-tabs .ui-tab.is-active,.exterior-panel .house-design-tabs .ui-tab.is-active { color:#9b3e60; background:#f9dfe7; border-color:#dca2b7; }
+.house-design-panel .ui-field { width:100%; min-width:0; margin:0; }
+.house-design-panel .cute-select { width:100%; min-width:0; max-width:100%; min-height:44px; padding:10px 12px; font-size:12px; }
+.house-design-panel .house-style-stage { display:flex; flex-direction:column; align-items:stretch; gap:7px; margin:0; min-width:0; }
+.house-design-panel .house-style-canvas { display:block; width:100%; height:auto; min-width:0; aspect-ratio:7/5; border:1px solid #e8d5c5; border-radius:16px; background:#f8eee0; }
+.house-design-panel .house-preview-caption { font-size:10px; line-height:1.8; color:var(--house-muted); text-align:center; }
+.house-design-panel .house-style-info { display:flex; flex-direction:column; align-items:stretch; gap:10px; min-width:0; }
+.house-design-panel .house-style-description,.house-design-panel .house-style-bill,.house-design-panel .house-design-status { margin:0; font-size:12px; line-height:1.85; overflow-wrap:anywhere; }
+.house-design-panel .house-style-bill { font-weight:700; color:#8b5366; }
+.house-design-panel .house-design-status { color:var(--house-muted); }
+.house-design-panel .house-design-actions { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.house-design-panel .house-design-actions .ui-button { flex:none; width:100%; min-width:0; min-height:44px; padding:10px 12px; border-radius:13px; font-size:12px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; }
+.house-design-panel .house-design-actions .ui-button-primary { background:linear-gradient(#bc597b,#a34265); color:#fff9ee; border-color:#9b3c5e; box-shadow:inset 0 2px #ffffff30,0 3px 0 -1px #81364f,0 6px 9px #7942521a; }
+.house-design-panel .house-design-actions .ui-button-soft { color:#8c4c64; background:#f8e6e5; border-color:#dfbdc7; }
+.house-design-panel .house-design-actions .ui-button:disabled { color:#8a7280; background:#eee4df; border-color:#d9c8c9; box-shadow:none; opacity:1; }
+.house-design-panel .house-style-details { border-top:1px solid var(--house-line); padding-top:4px; font-size:11px; }
+.house-design-panel .house-style-details summary { cursor:pointer; min-height:44px; padding:10px 0; align-content:center; color:var(--house-muted); line-height:1.8; }
+.house-design-panel .house-style-parts { padding-left:19px; line-height:1.9; margin:4px 0 10px; overflow-wrap:anywhere; }
+.house-design-panel .house-style-catalogue { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; min-width:0; }
+.house-design-panel .house-style-choice { display:flex; flex-direction:column; align-items:stretch; gap:5px; min-width:0; padding:8px; border:1px solid #dfc3c4; border-radius:13px; background:#fff6e8; color:var(--house-ink); font:inherit; cursor:pointer; text-align:left; }
+.house-design-panel .house-style-choice .house-style-canvas { aspect-ratio:11/8; border:0; border-radius:8px; }
+.house-design-panel .house-style-choice strong { font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+.house-design-panel .house-style-choice > span { font-size:10px; line-height:1.7; color:var(--house-muted); overflow-wrap:anywhere; }
+.house-design-panel .house-style-choice.is-selected { border:2px solid #c8819d; padding:7px; background:#f9e0e7; box-shadow:inset 0 1px #fffaf1; }
+.house-design-panel .house-style-choice:hover { background:#f8e0e5; }
+.house-design-panel .house-template-comparison { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.house-design-panel .house-template-map { margin:0; min-width:0; padding:12px; border:1px solid #dfc4bc; border-radius:14px; background:#f8ecdb; }
+.house-design-panel .house-template-map figcaption { margin-bottom:9px; font-weight:700; font-size:12px; }
+.house-design-panel .house-template-map:last-child { background:#f8e7eb; border-color:#d6a6b8; }
+.house-design-panel .house-template-row { display:grid; grid-template-columns:24px repeat(3,minmax(0,1fr)); gap:5px; align-items:center; margin-top:6px; }
+.house-design-panel .house-template-floor { font-size:10px; }
+.house-design-panel .house-template-cell { min-width:0; min-height:36px; padding:6px 3px; border:1px dashed #cfb3ab; border-radius:7px; text-align:center; align-content:center; font-size:10px; line-height:1.6; color:var(--house-muted); overflow-wrap:anywhere; }
+.house-design-panel .house-template-cell.has-room { background:#fffaef; border-style:solid; color:var(--house-ink); font-weight:700; }
+.house-design-panel :is(button,summary):focus-visible,.exterior-panel .house-design-tabs button:focus-visible { outline:3px solid #a64261; outline-offset:2px; }
+.house-design-panel ::selection,.exterior-panel ::selection { background:#f0c7d4; color:#63384d; }
+@container (min-width:440px) { .house-design-panel .house-style-catalogue { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (prefers-reduced-motion:reduce) { .house-design-panel button { transition:none; } }
+/* 自由搭配沿同一张纸排列，长动作不会再挤成竖条。 */
+.exterior-panel .exterior-preview { width:100%; max-width:none; height:auto; aspect-ratio:7/5; border-radius:16px; }
+.exterior-panel .exterior-preview-caption { margin:0; text-align:center; font-size:10px; line-height:1.8; color:var(--house-muted); }
+.exterior-panel .ui-field { min-width:0; width:100%; }
+.exterior-panel .cute-select { min-width:0; max-width:100%; width:100%; min-height:44px; font-size:12px; }
+.exterior-panel .exterior-options,.exterior-panel .exterior-name { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+.exterior-panel .exterior-options .ui-button,.exterior-panel .exterior-name .ui-button { width:100%; min-width:0; min-height:44px; font-size:12px; line-height:1.6; white-space:normal; }
+.exterior-panel .exterior-colors { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.exterior-panel .exterior-name .ui-input { min-width:0; max-width:100%; width:100%; }

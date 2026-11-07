@@ -1,0 +1,259 @@
+{
+  "routes": [
+    {
+      "route": "village",
+      "overflow": false,
+      "panelText": 162,
+      "renderer": "webgl",
+      "scene": "village",
+      "title": "棉花糖小屋 · 云海邻里 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "visit",
+      "overflow": false,
+      "panelText": 134,
+      "renderer": "webgl",
+      "scene": "visit",
+      "title": "棉花糖小屋 · 到邻居家串门 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "plaza",
+      "overflow": false,
+      "panelText": 123,
+      "renderer": "webgl",
+      "scene": "village",
+      "title": "棉花糖小屋 · 云朵广场 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "team",
+      "overflow": false,
+      "panelText": 196,
+      "renderer": "webgl",
+      "scene": "team",
+      "title": "棉花糖小屋 · 一起出发 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "coop",
+      "overflow": false,
+      "panelText": 132,
+      "renderer": "webgl",
+      "scene": "coop",
+      "title": "棉花糖小屋 · 星糖协作关卡 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "bakery",
+      "overflow": false,
+      "panelText": 108,
+      "renderer": "webgl",
+      "scene": "team",
+      "title": "棉花糖小屋 · 甜品工坊 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "result",
+      "overflow": false,
+      "panelText": 92,
+      "renderer": "webgl",
+      "scene": "team",
+      "title": "棉花糖小屋 · 共同结算 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "play",
+      "overflow": false,
+      "panelText": 166,
+      "renderer": "webgl",
+      "scene": "play",
+      "title": "棉花糖小屋 · 云朵游乐场 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "garden",
+      "overflow": false,
+      "panelText": 106,
+      "renderer": "webgl",
+      "scene": "garden",
+      "title": "棉花糖小屋 · 云上花园 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "shop",
+      "overflow": false,
+      "panelText": 120,
+      "renderer": "webgl",
+      "scene": "shop",
+      "title": "棉花糖小屋 · 软糖杂货铺 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "residents",
+      "overflow": false,
+      "panelText": 149,
+      "renderer": "webgl",
+      "scene": "residents",
+      "title": "棉花糖小屋 · 小动物朋友 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "wardrobe",
+      "overflow": false,
+      "panelText": 104,
+      "renderer": "webgl",
+      "scene": "wardrobe",
+      "title": "棉花糖小屋 · 我的换装间 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "quests",
+      "overflow": false,
+      "panelText": 176,
+      "renderer": "webgl",
+      "scene": "quests",
+      "title": "棉花糖小屋 · 小屋成长册 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "album",
+      "overflow": false,
+      "panelText": 176,
+      "renderer": "webgl",
+      "scene": "album",
+      "title": "棉花糖小屋 · 小屋相册 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "collection",
+      "overflow": false,
+      "panelText": 132,
+      "renderer": "webgl",
+      "scene": "shop",
+      "title": "棉花糖小屋 · 收藏图鉴 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "creative",
+      "overflow": false,
+      "panelText": 102,
+      "renderer": "webgl",
+      "scene": "creative",
+      "title": "棉花糖小屋 · 云朵画室 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "observatory",
+      "overflow": false,
+      "panelText": 109,
+      "renderer": "webgl",
+      "scene": "observatory",
+      "title": "棉花糖小屋 · 阁楼天文台 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "events",
+      "overflow": false,
+      "panelText": 132,
+      "renderer": "webgl",
+      "scene": "events",
+      "title": "棉花糖小屋 · 小岛好日子 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "settings",
+      "overflow": false,
+      "panelText": 143,
+      "renderer": "webgl",
+      "scene": "settings",
+      "title": "棉花糖小屋 · 设置与存档 · 设计原型",
+      "width": 1280
+    },
+    {
+      "route": "welcome",
+      "overflow": false,
+      "panelText": 0,
+      "renderer": "webgl",
+      "scene": "home",
+      "title": "棉花糖小屋 · 开场 · 云岛启程 · 设计原型",
+      "width": 1280
+    }
+  ],
+  "mobile": [
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#decorate"
+    },
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#village"
+    },
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#team"
+    },
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#result"
+    },
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#play"
+    },
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#creative"
+    },
+    {
+      "bodyWidth": 390,
+      "overflow": false,
+      "panelWidth": 353,
+      "route": "#settings"
+    }
+  ],
+  "flows": {
+    "visitAdmitChat": true,
+    "teamPrepare": true,
+    "collectBuildLightResult": true,
+    "rewardOnce": true,
+    "photoCaptionSaved": true,
+    "reviewNotesSaved": true
+  },
+  "errors": [],
+  "finalFixVerification": {
+    "mainScrollAfterReward": 0,
+    "hudTopDesktop": 74,
+    "dockTopDesktop": 605,
+    "resultHeadingColor": "rgb(255, 244, 217)",
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "routes": [
+        "home",
+        "team",
+        "creative"
+      ],
+      "mainTop": 44,
+      "hudTop": 58,
+      "canvasTop": 199,
+      "mainScroll": 0,
+      "horizontalOverflow": false
+    },
+    "independentVerdict": "ship",
+    "reviewScope": "Listed fixes and resulting mobile regression resolved; not a full accessibility or real-device acceptance."
+  }
+}

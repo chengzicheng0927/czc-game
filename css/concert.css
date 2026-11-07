@@ -1,0 +1,91 @@
+/* MC-078：原型先舞台、后乐谱与三段故事；固定动作区保持。 */
+.concert-modal-card { width:min(760px,100%); padding:22px 26px; background:#fffaf0; color:#694657; }
+.concert-modal-card .modal-head { flex-shrink:0; margin-bottom:14px; gap:12px; }
+.concert-modal-card .modal-head h2 { min-width:0; overflow-wrap:anywhere; color:#8f3e5b; }
+.concert-modal-card .modal-head .ui-button { min-width:48px; min-height:48px; flex-shrink:0; }
+.concert-modal-card .modal-body { display:flex; min-height:0; overflow:hidden; }
+.concert-v2 { display:flex; flex-direction:column; min-height:0; min-width:0; width:100%; font-size:13px; line-height:1.7; }
+.concert-v2 h3,.concert-v2 p,.concert-v2 figure { margin:0; }
+.concert-scroll { display:flex; flex-direction:column; gap:13px; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#c795a4 #f4ecd9; padding:3px 5px 6px; scroll-padding-block:12px; }
+.concert-v2 ::selection { background:#f3d0da; color:#71344d; }
+.concert-v2 button,.concert-v2 p,.concert-v2 small,.concert-v2 h3,.concert-name { overflow-wrap:anywhere; }
+.concert-progress { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); list-style:none; gap:10px; padding:0; margin:4px 0 0; }
+.concert-progress li { display:flex; align-items:center; gap:7px; min-width:0; color:#716a55; }
+.concert-progress li>span { display:grid; place-items:center; flex-shrink:0; width:25px; min-height:25px; border:1px solid #d5c9aa; border-radius:9px; background:#f1ead8; font-size:12px; font-weight:700; }
+.concert-progress small { font-size:10px; line-height:1.6; }
+.concert-progress .is-current { color:#9b3e5e; font-weight:800; }
+.concert-progress .is-current>span { background:#f3df9f; border-color:#b9a365; color:#655325; }
+.concert-progress .is-done>span { background:#f5e0df; border-color:#d5a8b0; color:#8d4f63; }
+.concert-story h3 { font-size:22px; line-height:1.5; color:#8f3e5b; margin-bottom:12px; }
+.concert-copy { font-size:16px; line-height:2; max-width:49ch; color:#694657; }
+.concert-notes { color:#756044; font-size:12px; line-height:1.7; margin-top:10px!important; font-variant-numeric:tabular-nums; }
+.concert-theatre { min-width:0; }
+.concert-stage-wrap { position:relative; isolation:isolate; min-height:185px; background:#f6edcf; border-radius:17px 17px 9px 9px; overflow:hidden; }
+.concert-stage { display:block; position:absolute; inset:0; width:100%; height:100%; z-index:-1; }
+.concert-guests { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); align-items:end; gap:10px; padding:66px 16% 22px; margin:0; list-style:none; }
+.concert-guests:has(>li:nth-child(7)) { grid-template-columns:repeat(6,minmax(0,1fr)); gap:9px 5px; }
+.concert-guest { display:flex; flex-direction:column; align-items:center; min-width:0; }
+.concert-portrait { display:block; width:66px!important; height:78px!important; max-width:100%; object-fit:contain; filter:drop-shadow(0 6px 4px #72634124); }
+.concert-name { display:block; max-width:100%; padding:2px 6px; border:1px solid #cfb98b; border-radius:5px; background:#fff5d9; color:#805166; font-size:11px; line-height:1.5; text-align:center; }
+.concert-guests:has(>li:nth-child(7)) .concert-portrait { width:48px!important; height:57px!important; }
+.concert-guests:has(>li:nth-child(7)) .concert-name { padding-inline:3px; font-size:10px; }
+.concert-empty { padding:86px 18% 45px; text-align:center; color:#805d69; }
+.concert-caption { padding:8px 3px 0; font-size:11px; line-height:1.7; color:#805d69; overflow-wrap:anywhere; }
+.concert-art-note { font-size:12px; color:#765b41; }
+.concert-art-note:empty,.concert-status:empty { display:none; }
+.concert-instruction { font-size:11px; color:#805d69; }
+.concert-status { padding:10px 12px; background:#f8e8e2; border-radius:10px; color:#805166; line-height:1.8; }
+.concert-actions .concert-status { max-height:min(18dvh,110px); overflow-y:auto; margin-bottom:8px; font-size:13px; scrollbar-width:thin; }
+.concert-status.is-error { background:#f5e4cf; color:#78532e; }
+.concert-record,.concert-footnote { color:#75654d; font-size:12px; line-height:1.8; }
+.concert-tools { display:flex; gap:8px; flex-wrap:wrap; }
+.concert-v2 .ui-button { min-height:48px; min-width:0; white-space:normal; line-height:1.5; }
+.concert-tools .ui-button { font-size:13px; padding:9px 13px; }
+.concert-actions { flex-shrink:0; padding:13px 3px 0; margin-top:12px; border-top:1px solid #ded4b8; background:#fffaf0; }
+.concert-next { width:100%; background:#b84466; border-color:#a83e5d; color:#fff9f3; font-size:14px; font-weight:800; box-shadow:inset 0 1px #dc849b,0 3px 7px #8e3e5525; }
+.concert-next:hover:not(:disabled) { background:#a53759; color:#fff9f3; }
+.concert-listening { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:8px; }
+.concert-listening .ui-button { background:#f5ecd5; border-color:#d3bf96; color:#6e5737; font-size:12px; box-shadow:inset 0 1px #fff9ed,0 3px 6px #9e667b16; }
+.concert-v2 .ui-button:disabled { opacity:.6; cursor:not-allowed; }
+.concert-v2 .ui-button:active:not(:disabled) { transform:translateY(1px); }
+.concert-v2 button:focus-visible,.concert-status:focus-visible { outline:3px solid #a83357; outline-offset:-3px; }
+.concert-silent-note { margin-top:7px!important; font-size:12px; color:#70674e; text-align:center; }
+.concert-v2 [hidden] { display:none!important; }
+@media (max-width:620px) {
+  .concert-modal-card { padding:16px; max-height:calc(100dvh - 30px); }
+  .concert-modal-card .modal-head { margin-bottom:9px; }
+  .concert-modal-card .modal-head h2 { font-size:19px; }
+  .concert-scroll { gap:12px; padding-inline:2px; }
+  .concert-progress { gap:6px; }
+  .concert-progress li { align-items:flex-start; gap:4px; }
+  .concert-progress li>span { width:25px; min-height:27px; font-size:11px; }
+  .concert-progress small { font-size:11px; }
+  .concert-story h3 { font-size:20px; margin-bottom:9px; }
+  .concert-copy { font-size:14px; line-height:1.95; }
+  .concert-stage-wrap { min-height:158px; }
+  .concert-guests { gap:6px; padding:54px 16% 18px; }
+  .concert-portrait { width:48px!important; height:57px!important; }
+  .concert-name { font-size:10px; padding:2px 3px; }
+  .concert-guests:has(>li:nth-child(7)) { grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px 6px; }
+  .concert-guests:has(>li:nth-child(7)) .concert-portrait { width:35px!important; height:42px!important; }
+  .concert-guests:has(>li:nth-child(7)) .concert-name { font-size:10px; }
+  .concert-actions { padding-top:10px; margin-top:9px; }
+  .concert-listening { gap:7px; }
+}
+@media (max-height:540px) {
+  .concert-modal-card { padding-block:10px; }
+  .concert-modal-card .modal-head { margin-bottom:5px; }
+  .concert-actions { margin-top:6px; padding-top:6px; }
+  .concert-silent-note { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .concert-modal-card,.concert-modal-card * { animation:none!important; transition:none!important; }
+  .concert-v2 .ui-button:active:not(:disabled) { transform:none; }
+}
+
+.concert-v2 .concert-notes { position:relative; display:flex; gap:7px; flex-wrap:wrap; }
+.concert-v2 .concert-notes-source { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); }
+.concert-v2 .concert-note-chip { display:inline-block; padding:4px 9px; border:1px solid #dfc99f; border-radius:5px; background:#f8ebcf; color:#886049; font-size:10px; line-height:1.5; font-variant-numeric:tabular-nums; box-shadow:inset 0 1px #fff9e9; }
+.concert-v2 .concert-guests[data-count="1"] { grid-template-columns:minmax(0,1fr); }
+.concert-v2 .concert-guests[data-count="2"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.concert-v2 .concert-guests[data-count="3"] { grid-template-columns:repeat(3,minmax(0,1fr)); }

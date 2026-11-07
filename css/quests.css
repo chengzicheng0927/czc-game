@@ -1,0 +1,229 @@
+/* 成长小册：沿用小屋的纸张、糖霜描边和大按钮；只展开正在看的章节。 */
+.quest-book { gap:10px; max-width:100%; }
+.quest-book p,.quest-book h3,.quest-book h4 { margin:0; }
+.quest-book-tabs { padding-bottom:3px; gap:6px; }
+.quest-book-tabs .ui-tab { flex:1; min-width:0; padding-inline:10px; }
+.quest-rainbow { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 14px; padding:1px 0; }
+.quest-rainbow-label { font-size:12px; color:#77556A; }
+.quest-rainbow-pieces { display:flex; gap:6px; list-style:none; margin:0; padding:0; }
+.quest-rainbow-piece { display:grid; place-items:center; width:29px; height:29px; border-radius:10px 10px 13px 13px; border:1px dashed #CDBDCA; background:#F5EFF2; color:#806A78; font-size:10px; }
+.quest-rainbow-piece.is-found { background:var(--piece-color); border-style:solid; border-color:#C5A7B5; color:#674458; font-weight:800; }
+.quest-book-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.quest-book-controls > .cute-select { flex:1; min-width:160px; max-width:430px; }
+.quest-book-controls > .ui-button { flex-shrink:0; padding-inline:14px; }
+.quest-chapter-copy { display:flex; align-items:baseline; justify-content:space-between; gap:9px 20px; }
+.quest-chapter-copy > p:first-child { max-width:55ch; }
+.quest-chapter-progress { font-size:11px; color:#745466; flex-shrink:0; }
+.quest-book-task { display:flex; gap:14px; align-items:center; min-width:0; padding:12px 0; border-bottom:1px solid #E8D8DE; }
+.quest-book-task.is-current { padding:14px; border:1px solid #DDBECB; background:#FFF1EC; border-radius:18px; }
+.quest-book-task.is-claimed { background:#F6F9EE; }
+.quest-task-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.quest-task-copy h3 { font-size:16px; line-height:1.5; color:#704B5D; }
+.quest-task-copy h4 { font-size:13px; line-height:1.5; }
+.quest-task-copy .ui-progress { width:100%; margin-top:3px; }
+.quest-task-count { font-size:11px; color:#745466; font-variant-numeric:tabular-nums; }
+.quest-task-actions { display:flex; flex-direction:column; gap:7px; min-width:152px; align-items:stretch; }
+.quest-task-reward { color:#845A45; font-size:11px; line-height:1.6; }
+.quest-task-actions .ui-button { font-size:12px; padding:8px 12px; }
+.quest-conditions { padding-left:18px; margin:2px 0 0; font-size:11px; color:#805E70; }
+.quest-book-list { list-style:none; margin:0; padding:0; }
+.quest-book-list > .quest-book-task:last-child { border-bottom:0; }
+.quest-chapter-list { border-top:1px solid #E9D8DE; padding-top:3px; }
+.quest-chapter-list > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; min-height:48px; font-size:12px; font-weight:700; cursor:pointer; border-radius:10px; padding:7px 3px; }
+.quest-chapter-list > summary::-webkit-details-marker { display:none; }
+.quest-chapter-list > summary::after { content:'＋'; font-size:20px; font-weight:400; color:#91667B; }
+.quest-chapter-list[open] > summary::after { content:'−'; }
+.quest-chapter-list > summary:focus-visible { outline:3px solid #397A63; outline-offset:3px; }
+.quest-chapter-finished { padding:18px; background:#F1F7E9; border:1px solid #CFDABF; border-radius:16px; color:#556B47; font-size:13px; }
+.quest-party-entry { align-self:flex-start; }
+.quest-daily-chest { padding:16px; border:1px dashed #D8C493; background:#FFF7DE; border-radius:18px; display:flex; flex-direction:column; align-items:flex-start; gap:9px; }
+.quest-daily-chest h3 { color:#795A38; font-size:16px; }
+.quest-daily-chest > .ui-progress { width:100%; }
+.achievement-steps { list-style:none; padding:0; margin:0; }
+.achievement-step { display:grid; grid-template-columns:36px minmax(0,1fr) 170px; gap:12px; align-items:start; padding:17px 0; border-bottom:1px solid #E7D8D4; }
+.achievement-step:first-child { padding-top:5px; }
+.achievement-step:last-child { border-bottom:0; }
+.achievement-medal { display:grid; place-items:center; width:36px; height:40px; border:1px solid #D6BCB0; border-radius:15px 15px 18px 18px; background:#F5E4D5; color:#906C55; font-size:17px; font-weight:800; }
+.achievement-step.is-claimed .achievement-medal { background:#F5DF9C; border-color:#C3A66B; color:#71552C; }
+.achievement-step.is-ready .achievement-medal { background:#FFE6ED; border-color:#DCA7B9; color:#A44D6E; }
+.achievement-copy { min-width:0; display:flex; flex-direction:column; gap:6px; }
+.achievement-copy h3 { font-size:14px; line-height:1.5; }
+.achievement-copy .ui-progress { margin-top:2px; }
+.achievement-action { min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:5px; }
+.achievement-action .ui-button { font-size:12px; padding:8px 10px; }
+.achievement-furniture { display:block; max-width:100%; width:112px; height:78px; object-fit:contain; background:#FFF2E6; border-radius:12px; }
+.achievement-specials { display:flex; gap:20px; padding-top:8px; flex-wrap:wrap; }
+.achievement-special { display:flex; flex-direction:column; gap:6px; min-width:180px; flex:1; font-size:13px; }
+.quest-reward-float { position:fixed; z-index:90; transform:translate(-50%,-15px); pointer-events:none; border:1px solid #EACB9D; background:#FFF4CA; color:#80552E; border-radius:14px; padding:6px 12px; font-size:12px; font-weight:700; animation:quest-reward-rise .8s ease-out forwards; }
+@keyframes quest-reward-rise { to { transform:translate(-50%,-72px) rotate(-4deg); opacity:0; } }
+.quest-story { display:flex; flex-direction:column; gap:12px; }
+.quest-story-scene { display:flex; align-items:center; justify-content:center; height:130px; background:#F5F0E5; border:1px solid #E9DACC; border-radius:20px; }
+.quest-story-portrait { width:100px; height:126px; object-fit:contain; }
+.quest-story-cloud { width:100px; height:118px; display:grid; place-items:center; }
+.quest-story-copy { min-height:140px; }
+.quest-story-copy h3 { font-size:14px; color:#975E7A; margin:0 0 9px; }
+.quest-story-line { margin:0; font-size:18px; line-height:1.85; color:#704B5D; }
+.quest-story-actions { display:grid; grid-template-columns:1fr 1fr 1.35fr; gap:8px; }
+.quest-story-actions .ui-button { padding:8px; min-width:0; font-size:13px; white-space:normal; line-height:1.5; }
+.modal-card:has(.quest-party) { width:min(860px,100%); }
+.quest-party { display:flex; flex-direction:column; gap:12px; }
+.quest-party p { margin:0; }
+.quest-party-canvas { display:block; width:100%; height:auto; aspect-ratio:17/9; background:#F9EADB; border:1px solid #DDC7B5; border-radius:19px; }
+.quest-ending-copy { font-size:16px; line-height:1.8; color:#795167; }
+.quest-party-dialogue { display:flex; flex-direction:column; gap:6px; min-height:84px; padding:12px 15px; border-radius:15px; background:#FFF4E4; color:#745363; }
+.quest-party-dialogue strong { font-size:12px; color:#8D5A73; }
+.quest-party-dialogue p { font-size:15px; line-height:1.75; }
+.quest-sprite-holder { position:fixed; left:-10000px; top:0; width:1200px; pointer-events:none; visibility:hidden; }
+.quest-sprite-holder canvas { display:inline-block; }
+@media (max-width:620px) {
+  .quest-book { gap:8px; }
+  .quest-book-tabs .ui-tab { font-size:11px; padding-inline:7px; }
+  .quest-rainbow { flex-wrap:nowrap; gap:6px; }
+  .quest-rainbow-label { font-size:10px; }
+  .quest-rainbow-pieces { gap:4px; }
+  .quest-rainbow-piece { width:23px; height:27px; font-size:9px; border-radius:8px 8px 11px 11px; }
+  .quest-book-controls { gap:7px; }
+  .quest-book-controls > .cute-select { min-width:160px; max-width:none; font-size:12px; }
+  .quest-book-controls > .ui-button { padding-inline:11px; font-size:12px; }
+  .quest-chapter-copy { flex-direction:column; align-items:flex-start; gap:2px; }
+  .quest-book-task { align-items:stretch; flex-direction:column; gap:9px; padding-block:12px; }
+  .quest-book-task.is-current { padding:12px; }
+  .quest-book-task.is-current .quest-conditions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:18px; row-gap:1px; }
+  .quest-task-copy h3 { font-size:15px; }
+  .quest-task-actions { display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:6px; min-width:0; }
+  .quest-task-actions .quest-task-reward { grid-column:1 / -1; }
+  .quest-task-actions .ui-button:only-of-type { grid-column:1 / -1; }
+  .achievement-step { grid-template-columns:30px minmax(0,1fr); gap:8px 10px; padding-block:15px; }
+  .achievement-medal { width:30px; height:36px; font-size:15px; border-radius:12px 12px 16px 16px; }
+  .achievement-action { grid-column:2; flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+  .achievement-action .ui-button { width:100%; }
+  .achievement-action .quest-task-reward { flex-basis:100%; }
+  .achievement-action .ui-small { flex:1; }
+  .achievement-furniture { width:98px; height:72px; }
+  .quest-story-copy { min-height:132px; }
+  .quest-story-line { font-size:16px; line-height:1.8; }
+  .quest-ending-copy { font-size:14px; }
+}
+@media (prefers-reduced-motion:reduce) { .quest-reward-float { animation:none; display:none; } }
+
+/* 第九批成长绘本。MC-078按原型还原竖向纸页，章节选择与当前心愿在同一阅读轴；故事/派对样式保持。 */
+.quest-book-v2 { --qb-ink:#6b4b59; --qb-muted:#795568; --qb-line:#e3cbd0; --qb-berry:#a64261; gap:10px; color:var(--qb-ink); padding:0 0 12px; font-size:12px; line-height:1.75; }
+.quest-book-v2 * { box-sizing:border-box; }
+.quest-book-v2 ::selection { background:#f0cfda; color:#573646; }
+.quest-book-v2 .quest-book-tabs { gap:4px; padding:0 0 8px; border-bottom:1px solid var(--qb-line); flex-wrap:nowrap; }
+.quest-book-v2 .quest-book-tabs .ui-tab { flex:1; min-height:40px; min-width:0; border-radius:9px; border:1px solid transparent; background:transparent; font-size:12px; line-height:1.5; padding:7px 4px; white-space:normal; color:var(--qb-muted); }
+.quest-book-v2 .quest-book-tabs .ui-tab.is-active { background:#f6dce2; border-color:#dfb8c1; color:var(--qb-berry); box-shadow:inset 0 1px 1px #fff9,0 2px 4px #99627012; }
+.quest-book-v2 .qb-tab-page { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.quest-book-v2 .qb-page-title { margin:0; font-size:16px; line-height:1.6; color:var(--qb-ink); }
+.quest-book-v2 .qb-page-intro { display:grid; gap:5px; padding:3px 0; }
+.quest-book-v2 .ui-small { font-size:11px; line-height:1.85; }
+.quest-book-v2 .ui-muted { color:var(--qb-muted); }
+.quest-book-v2 .ui-button { min-height:40px; min-width:0; font-size:12px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; border-radius:10px; }
+.quest-book-v2 .ui-button-primary { background:var(--qb-berry); border:1px solid #963953; color:#fff9ef; box-shadow:inset 0 1px 1px #e8a1b380,0 3px 7px #9d486626; }
+.quest-book-v2 .ui-button-soft { background:#f6e1e3; border:1px solid #dfbdc4; color:#8b4b63; box-shadow:inset 0 1px 1px #fff9,0 2px 4px #9c5c7510; }
+.quest-book-v2 :is(button,summary,[tabindex="-1"]):focus-visible { outline:3px solid #aa4666; outline-offset:-2px; }
+.quest-book-v2 :is(button,summary) { touch-action:manipulation; }
+.quest-book-v2 button:not(:disabled):hover { filter:brightness(.97); }
+.quest-book-v2 button:disabled { cursor:default; opacity:.65; color:#876f79; background:#f1e9e9; border-color:#dfd0d3; box-shadow:none; }
+.quest-book-v2 .ui-progress { display:block; appearance:none; width:100%; height:5px; border:0; border-radius:6px; background:#ead5d9; margin:8px 0 3px; }
+.quest-book-v2 .ui-progress::-webkit-progress-bar { background:#ead5d9; border-radius:6px; }
+.quest-book-v2 .ui-progress::-webkit-progress-value { background:#bd6b87; border-radius:6px; }
+.quest-book-v2 .ui-progress::-moz-progress-bar { background:#bd6b87; border-radius:6px; }
+.quest-book-v2 .quest-rainbow { display:flex; flex-direction:column; align-items:stretch; gap:4px; padding:1px 0 3px; background:transparent; border-radius:0; }
+.quest-book-v2 .quest-rainbow-label { font-size:10px; font-weight:500; line-height:1.6; color:var(--qb-muted); }
+.quest-book-v2 .quest-rainbow-pieces { width:100%; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; }
+.quest-book-v2 .quest-rainbow-piece { display:flex; flex-direction:column; align-items:center; gap:4px; width:auto; height:auto; min-width:0; padding:0; background:transparent; border:0; border-radius:0; color:var(--qb-muted); }
+.quest-book-v2 .quest-rainbow-piece.is-found { background:transparent; border:0; color:var(--qb-ink); font-weight:500; }
+.quest-book-v2 .quest-rainbow-swatch { display:block; width:29px; height:22px; border:1px solid #d1bcc5; border-radius:14px 14px 5px 5px; background:var(--piece-color); filter:grayscale(1); opacity:.38; box-shadow:inset 0 2px 3px #fff9; }
+.quest-book-v2 .quest-rainbow-piece.is-found .quest-rainbow-swatch { filter:none; opacity:1; box-shadow:inset 0 2px 3px #fff9,0 3px 5px #8b53601c; }
+.quest-book-v2 .quest-rainbow-piece > small { font-size:9px; line-height:1.3; }
+.quest-book-v2 .qb-chapter-layout { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.quest-book-v2 .qb-chapter-page { min-width:0; display:flex; flex-direction:column; gap:9px; }
+.quest-book-v2 .quest-book-controls { display:flex; align-items:center; flex-wrap:nowrap; gap:7px; }
+.quest-book-v2 .quest-book-controls > .cute-select { flex:1; min-width:0; width:0; max-width:none; min-height:40px; font-size:12px; padding:8px; border:1px solid #dfbdc4; border-radius:10px; color:var(--qb-ink); background:#fcf1e9; }
+.quest-book-v2 .quest-book-controls > .ui-button { min-height:40px; flex-shrink:0; padding:7px 9px; font-size:11px; }
+.quest-book-v2 .quest-chapter-copy { display:block; border:0; padding:0; margin:0; }
+.quest-book-v2 .quest-chapter-copy > summary { display:flex; justify-content:space-between; align-items:center; gap:8px; list-style:none; cursor:pointer; min-height:26px; padding:2px 0; font-size:10px; font-weight:500; line-height:1.6; color:var(--qb-muted); }
+.quest-book-v2 .quest-chapter-copy > summary::-webkit-details-marker { display:none; }
+.quest-book-v2 .quest-chapter-copy > summary::after { content:''; width:6px; height:6px; flex-shrink:0; border-right:1.5px solid #a77787; border-bottom:1.5px solid #a77787; transform:rotate(45deg); margin:0 3px 4px; }
+.quest-book-v2 .quest-chapter-copy[open] > summary::after { transform:rotate(225deg); margin-top:6px; }
+.quest-book-v2 .quest-chapter-copy > .qb-page-title { padding-top:6px; font-size:14px; }
+.quest-book-v2 .quest-chapter-copy > p { padding-top:5px; }
+.quest-book-v2 .quest-book-task { display:flex; flex-direction:column; gap:9px; align-items:stretch; padding:12px 0; border-bottom:1px solid var(--qb-line); }
+.quest-book-v2 .quest-book-task.is-current { padding:12px 13px; background:#fbecdf; border:1px solid #e2c7c8; border-radius:14px; box-shadow:inset 0 1px 2px #fffb,0 2px 5px #ad79600b; }
+.quest-book-v2 .quest-book-task.is-ready { border-color:#cd9bad; background:#f9e3e5; }
+.quest-book-v2 .quest-book-task.is-claimed { background:#f7f0e8; }
+.quest-book-v2 .quest-task-copy { gap:4px; }
+.quest-book-v2 .qb-task-heading { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.quest-book-v2 .quest-task-copy h3 { flex:1; font-size:14px; line-height:1.6; }
+.quest-book-v2 .quest-task-copy h4 { flex:1; font-size:12px; line-height:1.6; }
+.quest-book-v2 .qb-state { align-self:flex-start; flex-shrink:0; padding:3px 6px; font-size:9px; font-weight:500; line-height:1.6; color:#8c5f73; border-radius:6px; background:#f1dce0; }
+.quest-book-v2 .qb-state.is-ready { color:#983f60; background:#efcbd7; }
+.quest-book-v2 .qb-state.is-claimed { color:#82733f; background:#ede4c3; }
+.quest-book-v2 .qb-state.is-locked { color:#8b7680; background:#ebe1e1; }
+.quest-book-v2 .quest-task-actions { display:flex; flex-direction:row; flex-wrap:wrap; gap:7px; min-width:0; max-width:none; width:100%; }
+.quest-book-v2 .quest-task-actions > p { width:100%; }
+.quest-book-v2 .quest-task-actions .ui-button { flex:1; padding:8px 9px; font-size:11px; }
+.quest-book-v2 .quest-task-reward { font-size:11px; line-height:1.85; color:#946e47; overflow-wrap:anywhere; }
+.quest-book-v2 .qb-fragment-note { font-size:10px; line-height:1.7; color:#975e78; }
+.quest-book-v2 .quest-task-count { align-self:flex-end; font-size:10px; line-height:1.6; color:var(--qb-muted); font-variant-numeric:tabular-nums; }
+.quest-book-v2 .quest-conditions { display:grid; grid-template-columns:1fr; list-style:none; padding:0; margin:1px 0 0; gap:4px; font-size:11px; line-height:1.7; color:var(--qb-muted); }
+.quest-book-v2 .quest-conditions .is-done { color:#9b4d69; }
+.quest-book-v2 .quest-task-description > summary { width:fit-content; min-height:24px; font-size:10px; color:var(--qb-muted); cursor:pointer; }
+.quest-book-v2 .quest-task-description > p { padding-top:4px; }
+.quest-book-v2 .quest-chapter-list { border-top:1px solid var(--qb-line); padding-top:0; }
+.quest-book-v2 .quest-chapter-list > summary { min-height:40px; font-size:12px; padding:9px 0; }
+.quest-book-v2 .quest-chapter-list > summary::after { color:#a77787; }
+.quest-book-v2 .quest-chapter-list > summary:focus-visible { outline-color:#aa4666; }
+.quest-book-v2 .quest-chapter-finished { padding:12px; color:#8a6474; background:#f9ece5; border-color:#e5cbd0; font-size:12px; line-height:1.9; }
+.quest-book-v2 .quest-book-list .quest-book-task { padding-inline:0; }
+.quest-book-v2 .quest-book-list .quest-book-task.is-current { padding-inline:13px; }
+.quest-book-v2 .qb-chapter-shelf { margin-top:4px; border-bottom:1px solid var(--qb-line); }
+.quest-book-v2 .qb-chapter-spines { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:end; gap:6px; padding:12px 4px 9px; border-bottom:6px solid #c6a783; border-radius:0 0 5px 5px; }
+.quest-book-v2 .qb-chapter-spine { display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:7px; min-width:0; min-height:160px; padding:10px 5px; color:#795567; border:1px solid #e1b8c2; border-radius:6px 9px 8px 5px; background:var(--chapter-paper,#f3d8df); box-shadow:inset 3px 0 4px #fff7,inset -3px 0 4px #9b657719,0 3px 6px #96677915; text-align:center; font:inherit; cursor:pointer; transform:rotate(-1deg); }
+.quest-book-v2 .qb-chapter-spine:nth-child(even) { min-height:170px; transform:rotate(1deg); }
+.quest-book-v2 .qb-chapter-spine.is-selected { transform:translateY(-6px); outline:1px solid #b3758e; box-shadow:inset 3px 0 4px #fffa,0 5px 9px #96677925; }
+.quest-book-v2 .qb-chapter-spine.is-locked { filter:saturate(.35); }
+.quest-book-v2 .qb-chapter-number { font-size:9px; line-height:1.6; white-space:nowrap; }
+.quest-book-v2 .qb-chapter-spine strong { writing-mode:vertical-rl; letter-spacing:2px; font-size:12px; line-height:1.7; }
+.quest-book-v2 .qb-chapter-status { font-size:8px; line-height:1.5; }
+.quest-book-v2 .qb-daily-date { font-size:10px; color:var(--qb-muted); font-variant-numeric:tabular-nums; }
+.quest-book-v2 .qb-daily-list { display:grid; gap:10px; }
+.quest-book-v2 .quest-daily-chest { position:relative; display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:15px; border-radius:15px; border:1px solid #ddc9a0; background:#f8ebc9; box-shadow:inset 0 1px 2px #fff9,0 3px 6px #9c7c3e13; }
+.quest-book-v2 .quest-daily-chest h3 { padding-right:48px; font-size:16px; line-height:1.6; }
+.quest-book-v2 .quest-daily-chest > button { width:100%; margin-top:3px; }
+.quest-book-v2 .qb-chest-art { position:absolute; right:17px; top:19px; width:32px; height:30px; border:1px solid #ba8c7b; border-radius:4px 4px 6px 6px; background:#e9b0b6; box-shadow:inset -4px -3px 3px #c8849550,0 4px 6px #9b715f20; transform:rotate(5deg); }
+.quest-book-v2 .qb-chest-art::before { content:''; position:absolute; top:-4px; left:-3px; right:-3px; height:9px; background:#f3c3c6; border:1px solid #c28c98; border-radius:3px; }
+.quest-book-v2 .qb-chest-art::after { content:''; position:absolute; top:-4px; bottom:0; left:12px; width:7px; background:#fff0c4; border-inline:1px solid #dfc18d; }
+.quest-book-v2 .qb-chest-art > i { position:absolute; top:-14px; left:6px; width:20px; height:12px; border:4px solid #e8cda2; border-radius:8px; transform:rotate(-8deg); }
+.quest-book-v2 .achievement-step { display:grid; grid-template-columns:32px minmax(0,1fr); gap:8px 11px; padding:16px 0; border-bottom:1px solid var(--qb-line); }
+.quest-book-v2 .achievement-step:first-child { padding-top:4px; }
+.quest-book-v2 .achievement-step:last-child { border-bottom:0; }
+.quest-book-v2 .achievement-medal { width:32px; height:39px; background:#efe1db; border-color:#d1b9b5; color:#a07d81; font-size:15px; border-radius:12px 12px 16px 16px; box-shadow:inset 0 2px 2px #fff9,0 2px 4px #9b657710; }
+.quest-book-v2 .achievement-step.is-claimed .achievement-medal { color:#96762f; background:#eedcaf; border-color:#c8ab74; }
+.quest-book-v2 .achievement-step.is-ready .achievement-medal { color:#984766; background:#f1d1dc; border-color:#c792a5; }
+.quest-book-v2 .achievement-copy { gap:5px; }
+.quest-book-v2 .achievement-copy h3 { flex:1; font-size:14px; line-height:1.6; }
+.quest-book-v2 .achievement-action { grid-column:2; display:flex; flex-direction:column; align-items:flex-start; gap:7px; }
+.quest-book-v2 .achievement-action .ui-button { width:100%; padding:8px 10px; font-size:12px; }
+.quest-book-v2 .achievement-action .ui-small { flex:initial; }
+.quest-book-v2 .achievement-furniture { width:96px; height:76px; object-fit:contain; background:#fbefdf; border-radius:10px; }
+.quest-book-v2 .qb-gift-name { font-size:11px; font-weight:700; line-height:1.6; color:#906e47; }
+.quest-book-v2 .achievement-specials { display:flex; flex-direction:column; gap:0; padding:0; }
+.quest-book-v2 .achievement-special { display:flex; flex-direction:column; min-width:0; gap:7px; padding:14px 0; border-bottom:1px solid var(--qb-line); font-size:12px; }
+.quest-book-v2 .achievement-special h3 { font-size:14px; line-height:1.6; }
+.quest-book-v2 .achievement-special.is-source { background:#fae6e7; padding-inline:10px; border-radius:10px; }
+.quest-book-v2 .qb-feedback { margin:0; padding:10px 12px; border:1px solid #d6b9c6; border-radius:10px; font-size:12px; line-height:1.8; }
+.quest-book-v2 .qb-feedback.is-error { color:#8a3d4c; background:#fff0ed; }
+.quest-book-v2 .qb-feedback.is-success { color:#8c4d65; background:#f8e3e7; border-color:#d5aab9; }
+@media (max-width:620px),(pointer:coarse) {
+  .quest-book-v2 .quest-book-tabs .ui-tab,.quest-book-v2 .ui-button,.quest-book-v2 .quest-book-controls > .ui-button { min-height:44px; }
+  .quest-book-v2 .quest-book-controls > .cute-select { min-height:44px; font-size:13px; }
+  .quest-book-v2 .quest-chapter-list > summary { min-height:44px; }
+  .quest-book-v2 .quest-chapter-copy > summary { min-height:36px; }
+  .quest-book-v2 .quest-task-actions { display:flex; flex-direction:row; gap:7px; }
+  .quest-book-v2 .quest-task-actions > * { grid-column:auto; }
+  .quest-book-v2 .quest-book-task.is-current .quest-conditions { grid-template-columns:1fr; gap:4px; }
+  .quest-book-v2 .achievement-action { grid-column:2; }
+}
+@media (prefers-reduced-motion:reduce) { .quest-book-v2 button { transition:none; } }

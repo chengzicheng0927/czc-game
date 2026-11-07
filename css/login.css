@@ -1,0 +1,65 @@
+/* 七份心意按实际容器换行，外框宽度由公共外壳控制。 */
+.login-book { --lg-ink:#684557; --lg-muted:#805f6e; --lg-line:#e7ced3; container:login-book / inline-size; display:flex; flex-direction:column; gap:16px; width:100%; min-width:0; color:var(--lg-ink); font-size:14px; line-height:1.8; }
+.login-book,.login-book * { box-sizing:border-box; }
+.login-book [hidden] { display:none !important; }
+.login-book ::selection { background:#f1c6d4; color:#63384d; }
+.login-book p { margin:0; overflow-wrap:anywhere; }
+.login-book .login-top { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:10px 16px; }
+.login-book .login-top-copy { flex:1 1 240px; min-width:0; }
+.login-book .login-top h3 { margin:0 0 7px; font-size:20px; line-height:1.6; font-weight:800; text-wrap:balance; }
+.login-book .login-intro { font-size:14px; line-height:1.9; color:var(--lg-muted); }
+.login-book .login-cycle { flex:0 1 auto; max-width:100%; font-size:14px; line-height:1.8; color:#a34366; text-align:right; font-variant-numeric:tabular-nums; }
+.login-book .login-date { color:var(--lg-muted); font-size:13px; line-height:1.8; font-variant-numeric:tabular-nums; }
+.login-book .login-days { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,104px),1fr)); gap:10px; margin:0; padding:0; list-style:none; }
+.login-book .login-day { display:flex; flex-direction:column; align-items:center; min-width:0; gap:7px; padding:12px 8px; border:1px solid #e6cdd0; border-radius:10px; background:#f8eee2; text-align:center; box-shadow:inset 0 1px #fffaf0; overflow-wrap:anywhere; }
+.login-book .login-day-number { font-size:13px; line-height:1.5; }
+.login-book .login-day-icon { display:flex; width:28px; height:28px; color:#b88294; }
+.login-book .login-day-icon svg { display:block; width:100%; height:100%; }
+.login-book .login-day-name { display:flex; align-items:center; justify-content:center; min-height:44px; font-size:14px; line-height:1.6; font-weight:600; }
+.login-book .login-day-mark { margin-top:auto; color:var(--lg-muted); font-size:12px; line-height:1.6; }
+.login-book .login-day.is-current { border:2px solid #c4839b; padding:11px 7px; background:#f9dfe7; }
+.login-book .login-day.is-current .login-day-mark { color:#963f61; font-weight:700; }
+.login-book .login-day.is-collected { background:#f5e4e9; border-color:#dbb7c5; }
+.login-book .login-present { display:grid; grid-template-columns:minmax(0,1fr); align-items:center; gap:14px; min-width:0; padding:16px; border:1px solid #e4cfc8; border-radius:15px; background:#faf0df; }
+.login-book .login-present-art { display:flex; align-items:center; justify-content:center; justify-self:center; min-width:0; width:104px; height:104px; }
+.login-book .login-present-art canvas { display:block; width:104px; height:96px; object-fit:contain; }
+.login-book .login-present-art .login-gift { transform:scale(.54); flex:0 0 150px; }
+.login-book .login-present-copy { display:flex; flex-direction:column; gap:7px; min-width:0; flex:1; }
+.login-book .login-present-copy h4 { margin:0; font-size:16px; line-height:1.7; font-weight:750; overflow-wrap:anywhere; }
+.login-book .login-detail { color:#9b4e6c; font-size:14px; line-height:1.8; font-weight:700; }
+.login-book .login-destination { color:var(--lg-muted); font-size:14px; line-height:1.9; }
+.login-book .login-message { padding:12px 14px; border:1px solid #ead0d7; border-radius:11px; color:#8b536c; background:#f8e8e9; font-size:14px; line-height:1.9; }
+.login-book .login-feedback { padding:12px 14px; border:1px solid #dbb6c6; border-radius:10px; color:#934660; background:#fce9ed; font-size:14px; line-height:1.8; }
+.login-book .login-feedback.is-error { border-color:#d9b59e; background:#fbeedb; color:#8c5145; }
+.login-book .login-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.login-book .ui-button { min-height:44px; min-width:0; padding:10px 14px; border:1px solid #ddbdc8; border-radius:13px; background:#f9e9e8; box-shadow:inset 0 2px #fffaf2,0 3px 0 -1px #cdaab5,0 5px 8px #79505c12; color:#78465d; font-size:14px; font-weight:700; line-height:1.6; white-space:normal; overflow-wrap:anywhere; }
+.login-book .login-actions .ui-button-primary { flex:1 0 100%; background:linear-gradient(#bd5e7e,#a44166); border-color:#a34366; color:#fffaf0; box-shadow:inset 0 2px #ffffff30,0 3px 0 -1px #803650,0 6px 9px #7942521a; }
+.login-book .login-actions .ui-button-soft { flex:1 1 180px; }
+.login-book .ui-button:hover:not(:disabled) { background:#f3d5df; border-color:#b77b93; }
+.login-book .login-actions .ui-button-primary:hover:not(:disabled) { background:#9c3a60; }
+.login-book .ui-button:active:not(:disabled) { transform:translateY(1px); }
+.login-book .ui-button:disabled { opacity:1; color:#8b7480; background:#efe6e1; border-color:#dfd0ce; box-shadow:none; cursor:not-allowed; }
+.login-book .ui-button:focus-visible,.login-book [tabindex="-1"]:focus-visible,.login-book summary:focus-visible { outline:3px solid #a63f65; outline-offset:3px; }
+.login-book .login-footnote { border-block:1px solid var(--lg-line); color:var(--lg-muted); }
+.login-book .login-footnote summary { min-height:44px; padding:10px 0; color:#9b4e6c; font-size:14px; cursor:pointer; }
+.login-book .login-footnote p { margin:6px 0 13px; font-size:14px; line-height:1.95; }
+.login-book .login-footnote .login-total { color:#9b4e6c; font-weight:700; }
+.login-book .login-record { font-variant-numeric:tabular-nums; }
+.login-book .login-art-unavailable { color:var(--lg-muted); font-size:13px; line-height:1.8; text-align:center; }
+.login-book .login-present-icon svg { width:24px; height:24px; }
+/* 纯CSS礼物插图不占持续动画；家具仍用原缩略图与真实itemId。 */
+.login-gift { position:relative; width:150px; height:154px; filter:drop-shadow(0 10px 7px #83694426); }
+.login-gift-box { position:absolute; inset:53px 21px 9px 20px; border:1px solid #bd866a; border-radius:6px 6px 17px 17px; background:linear-gradient(105deg,#f7c8a0 0 76%,#dca47c 77%); transform:rotate(-5deg); }
+.login-gift-lid { position:absolute; z-index:2; top:43px; left:13px; width:124px; height:27px; border:1px solid #bd866a; border-radius:7px; background:linear-gradient(#ffe2bd,#efbc90); transform:rotate(-5deg); box-shadow:0 4px 5px #a86f5421; }
+.login-gift-ribbon { position:absolute; z-index:3; top:47px; bottom:9px; left:63px; width:22px; border:1px solid #ad687f; border-radius:2px 2px 6px 6px; background:linear-gradient(90deg,#dda4b7,#f3ced8 65%,#d395aa); transform:rotate(-5deg); }
+.login-gift-loop { position:absolute; z-index:4; top:17px; left:45px; width:54px; height:35px; transform:rotate(-5deg); }
+.login-gift-loop::before,.login-gift-loop::after { content:""; position:absolute; top:3px; width:29px; height:21px; border:5px solid #c17d97; background:#f9dce3; }
+.login-gift-loop::before { left:-3px; border-radius:7px 18px 6px 18px; transform:rotate(15deg); }
+.login-gift-loop::after { right:-4px; border-radius:18px 7px 18px 6px; transform:rotate(-15deg); }
+.login-gift-seal { position:absolute; z-index:4; top:85px; left:79px; display:grid; place-items:center; width:40px; height:40px; border:1px solid #c0a47b; border-radius:50%; color:#9a4b68; background:#fff2cd; font-size:24px; transform:rotate(8deg); }
+.login-gift.is-seeds .login-gift-box { background:linear-gradient(105deg,#c5d4a4 0 76%,#a1b789 77%); border-color:#879b72; }
+.login-gift.is-seeds .login-gift-lid { background:linear-gradient(#e5eac6,#c5d4a4); border-color:#879b72; }
+.login-gift.is-kept .login-gift-seal { font-weight:800; }
+@container login-book (min-width:440px) { .login-book .login-present { grid-template-columns:104px minmax(0,1fr); gap:18px; } }
+@container login-book (max-width:420px) { .login-book .login-cycle { text-align:left; } }
+@media (prefers-reduced-motion:reduce) { .login-book .ui-button:active:not(:disabled) { transform:none; } }

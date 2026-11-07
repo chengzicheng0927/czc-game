@@ -1,0 +1,580 @@
+/* MC-078：原型换装间的纸面三签页；红莓色选择态沿用正式游戏。 */
+.character-visual {
+  --character-ink: #62464d;
+  --character-muted: #82646d;
+  --character-paper: #fff9ef;
+  --character-line: #ead4d4;
+  --character-selected: #a34762;
+  --character-rose: #f3dfe2;
+  color: var(--character-ink);
+  min-width: 0;
+}
+.character-visual :is(button, input) { font: inherit; }
+.character-visual :is(button, input, .avatar-clothing):focus-visible { outline: 3px solid var(--character-selected); outline-offset: 3px; }
+.character-visual ::selection { background: #ecc2cc; color: #632e42; }
+.character-visual .ui-muted { color: var(--character-muted); }
+.character-visual .ui-button { min-height: 38px; border-radius: 11px; box-shadow: inset 0 1px 1px #fff9f499, 0 2px 4px #8d455112; }
+.character-visual .ui-button-primary { background: #a64e67; border-color: #97415c; color: #fffaf4; }
+.character-visual .ui-button-soft { background: #faeae8; border-color: #e3bdc8; color: #8a3f57; }
+.character-visual .ui-button:disabled { opacity: .58; cursor: default; }
+.character-visual .avatar-tabs { display: flex; gap: 3px; padding: 4px; border-radius: 13px; background: #f0e4dc; margin: 0 0 4px; }
+.character-visual .avatar-tab { flex: 1; min-width: 0; min-height: 36px; padding: 7px 5px; border: 0; border-radius: 10px; background: transparent; color: #816069; font-size: 12px; cursor: pointer; }
+.character-visual .avatar-tab.is-active { color: #943c59; background: #fff9ee; box-shadow: 0 2px 5px #8c485a12; font-weight: 800; }
+.character-visual .avatar-pane { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.character-visual :is(.avatar-pane, .avatar-look-hero)[hidden] { display: none; }
+.character-visual.avatar-panel { gap: 12px; }
+.character-visual .avatar-intro { margin: 0; color: var(--character-muted); font-size: 11px; line-height: 1.8; }
+.character-visual .avatar-footnote { margin: 0; font-size: 10px; line-height: 1.8; color: var(--character-muted); }
+.character-visual .avatar-preset-summary { display: flex; flex-direction: column; gap: 5px; padding: 12px; border-radius: 13px; background: #f3dfe2; border: 1px solid #edcdd3; }
+.character-visual .avatar-preset-summary strong { font-size: 15px; line-height: 1.5; color: #8e3d57; }
+.character-visual .avatar-preset-summary small { font-size: 10px; line-height: 1.7; }
+.character-picker-modal { width: min(820px, 100%); }
+.character-visual .preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.character-visual .preset-grid.avatar-inline-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.character-visual .preset-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0;
+  gap: 4px; padding: 8px; border: 1px solid #e2d2c6; border-radius: 15px;
+  background: #f6eee0; color: var(--character-ink); cursor: pointer; transform: none;
+  box-shadow: inset 0 1px 1px #fffdf8, 0 2px 5px #8558430a;
+  transition: background-color .16s ease-out, border-color .16s ease-out;
+}
+.character-visual button.preset-card:hover { background: #fae9e6; border-color: #cb93a5; }
+.character-visual .preset-card.is-selected { background: #f3dfe2; border: 2px solid var(--character-selected); padding: 7px; transform: none; box-shadow: inset 0 1px 1px #fffaf5, 0 3px 6px #a64e6712; }
+.character-visual button.preset-card:active { background: #eccbd4; }
+.character-preset-sheet article.preset-card { cursor: default; }
+.character-visual .preset-art { display: block; width: 100%; max-width: 112px; height: 146px; }
+.character-visual .avatar-inline-presets .preset-art { height: 107px; }
+.character-visual .preset-name { font-size: 12px; line-height: 1.5; font-weight: 800; overflow-wrap: anywhere; }
+.character-visual .preset-detail { font-size: 10px; line-height: 1.7; color: var(--character-muted); overflow-wrap: anywhere; }
+.character-visual .preset-check { position: absolute; right: 7px; top: 7px; visibility: hidden; color: #fff9ed; background: var(--character-selected); width: 20px; height: 20px; border-radius: 50%; line-height: 20px; font-size: 12px; text-align: center; }
+.character-visual .is-selected .preset-check { visibility: visible; }
+.character-visual .preset-summary { margin: 0; padding: 8px 0; font-size: 12px; line-height: 1.8; min-height: 40px; }
+.character-visual .avatar-compare { width: 100%; font-size: 12px; }
+.character-visual .avatar-look-hero { display: grid; grid-template-columns: 124px minmax(0, 1fr); align-items: center; gap: 14px; padding: 8px 12px; background: #f8eee4; border-radius: 14px; }
+.character-visual .avatar-preview { display: block; width: 124px; height: 168px; border: 0; border-radius: 0; background: transparent; }
+.character-visual .avatar-look-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.character-visual .avatar-current-name { font-size: 15px; line-height: 1.5; color: #8e3d57; }
+.character-visual .avatar-current-detail { margin: 0; font-size: 10px; line-height: 1.7; color: var(--character-muted); overflow-wrap: anywhere; }
+.character-visual .avatar-preview-status { margin: 0; color: var(--character-muted); font-size: 10px; line-height: 1.7; overflow-wrap: anywhere; }
+.character-visual .avatar-facing { display: flex; gap: 5px; flex-wrap: wrap; }
+.character-visual .avatar-facing .ui-button { min-height: 32px; padding: 5px 8px; font-size: 10px; }
+.character-visual .avatar-facing .is-active { background: #f3d5dd; border-color: #ba7289; }
+.character-visual .avatar-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.character-visual .avatar-fields .ui-field { gap: 6px; }
+.character-visual .avatar-fields .cute-select { width: 100%; min-width: 0; }
+.character-visual .avatar-catalog-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.character-visual .avatar-catalog-tools :is(.ui-field, .cute-select) { min-width: 0; width: 100%; }
+.character-visual .avatar-catalog-count { margin: 0; font-size: 10px; line-height: 1.8; color: var(--character-muted); }
+.character-visual .avatar-clothes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.character-visual .avatar-clothing { display: flex; flex-direction: column; padding: 9px; border: 1px solid #e3d1c6; border-radius: 14px; background: #f7efe0; box-shadow: inset 0 1px 1px #fffdf8, 0 2px 5px #8558430a; }
+.character-visual .avatar-clothing.is-wearing { background: #f4e0e4; border-color: #b9768c; }
+.character-visual .avatar-clothing-art { display: block; width: 100%; height: 112px; object-fit: contain; background: transparent; border-radius: 10px; }
+.character-visual .avatar-clothing-copy { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.character-visual .avatar-clothing-copy h4 { margin: 4px 0 0; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.character-visual .avatar-clothing-copy p { margin: 4px 0 8px; font-size: 10px; line-height: 1.7; }
+.character-visual .avatar-clothing-copy .ui-button { margin-top: auto; width: 100%; padding: 7px 3px; font-size: 10px; }
+.character-visual .avatar-clothes-grid > .ui-notice { grid-column: 1 / -1; }
+.character-visual .avatar-saved-section { display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed var(--character-line); margin-top: 6px; padding-top: 18px; }
+.character-visual .avatar-section-heading { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.character-visual .avatar-section-heading h3 { margin: 0; font-size: 13px; }
+.character-visual .avatar-section-heading small { font-size: 10px; color: var(--character-muted); }
+.character-visual .avatar-saved-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.character-visual .avatar-saved-slot { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; min-height: 55px; border: 1px dashed #dbb9c4; border-radius: 12px; padding: 9px 5px; color: var(--character-ink); background: transparent; cursor: pointer; }
+.character-visual .avatar-saved-slot.is-selected { background: #f3dfe2; border-style: solid; border-color: #b36d84; }
+.character-visual .avatar-saved-slot strong { font-size: 11px; }
+.character-visual .avatar-saved-slot small { font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+.character-visual .avatar-saved-editor { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.character-visual .avatar-saved-art { width: 54px; height: 76px; flex: 0 0 54px; background: #f7ecdf; border-radius: 10px; }
+.character-visual .avatar-saved-edit-copy { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.character-visual .avatar-saved-edit-copy :is(.ui-field, .ui-input) { width: 100%; min-width: 0; }
+.character-visual .avatar-saved-actions { display: flex; gap: 7px; }
+.character-visual .avatar-saved-actions .ui-button { flex: 1; padding: 7px 4px; font-size: 11px; }
+@media (max-width: 620px), (pointer: coarse) {
+  .character-visual .ui-button { min-height: 44px; }
+  .character-visual .avatar-tab { min-height: 40px; }
+  .character-visual .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .character-visual .preset-art { height: 128px; }
+  .character-visual .avatar-inline-presets .preset-art { height: 112px; }
+  .character-visual .avatar-look-hero { grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 8px 10px; }
+  .character-visual .avatar-preview { width: 112px; height: 152px; }
+  .character-visual .avatar-facing .ui-button { min-height: 44px; }
+  .character-visual .avatar-clothing-art { height: 112px; }
+}
+@media (prefers-reduced-motion: reduce) { .character-visual .preset-card { transition: none; } }
+
+
+/* ==========================================================================
+   蛋仔 3D 换装舞台与圆滚滚萌物换装槽专属样式
+   ========================================================================== */
+#app.has-open-panel:has(> #panel[data-kind=avatar]),
+#app.has-open-panel:has(.avatar-panel),
+body:has(#panel[data-kind=avatar]) #app {
+  --paper-width: min(960px, calc(100vw - 56px)) !important;
+}
+#app #panel[data-kind=avatar],
+#app #panel:has(.avatar-panel) {
+  width: var(--paper-width) !important;
+}
+
+.character-visual .avatar-preset-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #fdf5f7;
+  border: 1px solid #f2d4dc;
+  border-radius: 14px;
+}
+.character-visual .avatar-preset-pills {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.character-visual .avatar-preset-pill {
+  padding: 7px 5px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  border: 1px solid #eed0d8;
+  background: #ffffff;
+  color: #633644;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+.character-visual .avatar-preset-pill:hover {
+  background: #fff0f5;
+  border-color: #f095b2;
+}
+.character-visual .avatar-preset-pill.is-active {
+  background: #ec4899;
+  border-color: #db2777;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(236, 72, 153, 0.35);
+}
+.character-visual .avatar-all8-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  background: #fce7f3;
+  color: #9d174d;
+  border: 1px solid #fbcfe8;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.character-visual .avatar-all8-btn.is-active {
+  background: #db2777;
+  color: #ffffff;
+  border-color: #be185d;
+}
+
+/* 3D 舞台与控制栏区域 */
+.character-visual .avatar-stage-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.character-visual .avatar-stage-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.character-visual .avatar-act-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fdf2f6;
+  border: 1px solid #f8d7e2;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(100, 30, 50, 0.05);
+}
+.character-visual .avatar-act-btn {
+  padding: 6px 11px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 0;
+  background: transparent;
+  color: #70263c;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s ease-out;
+}
+.character-visual .avatar-act-btn:hover {
+  background: #ffffff;
+  color: #db2777;
+}
+.character-visual .avatar-act-btn.is-active {
+  background: #ec4899;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgba(236, 72, 153, 0.35);
+}
+.character-visual .avatar-drag-tip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fdf5f7;
+  border: 1px solid #f2d4dc;
+  color: #831843;
+}
+
+.character-visual .avatar-stage-wrap {
+  position: relative;
+  width: 100%;
+  height: 290px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1.5px solid #f0ccd6;
+  box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(163, 71, 98, 0.08);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.character-visual .avatar-stage-wrap:active {
+  cursor: grabbing;
+}
+/* 8只全家福要更高的舞台，前后两排才不会互相遮挡 */
+.character-visual .avatar-stage-wrap.is-all8 {
+  height: 380px;
+}
+
+/* 圆滚滚萌物专属换装槽容器 */
+.character-visual .avatar-slots-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: #fff8f8;
+  border: 1px solid #f0ccd6;
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(140, 40, 60, 0.05);
+}
+.character-visual .avatar-slots-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed #e8c2cc;
+  padding-bottom: 8px;
+}
+.character-visual .avatar-slots-title-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #592534;
+}
+.character-visual .avatar-current-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: #db2777;
+  background: #fce7f3;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+.character-visual .avatar-slot-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.character-visual .avatar-slot-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8c5264;
+}
+.character-visual .avatar-slot-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.character-visual .avatar-slot-btn {
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #ebd3da;
+  background: #ffffff;
+  color: #572937;
+  cursor: pointer;
+  transition: all 0.12s ease-out;
+}
+.character-visual .avatar-slot-btn:hover {
+  background: #fff3f6;
+  border-color: #f472b6;
+}
+.character-visual .avatar-slot-btn.is-active {
+  background: #ec4899;
+  border-color: #db2777;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 2px 5px rgba(236, 72, 153, 0.35);
+}
+.character-visual .avatar-color-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+.character-visual .avatar-color-pill {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s ease-out, border-color 0.15s ease-out;
+}
+.character-visual .avatar-color-pill:hover {
+  transform: scale(1.18);
+}
+.character-visual .avatar-color-pill.is-active {
+  transform: scale(1.25);
+  border-color: #db2777;
+  box-shadow: 0 0 0 2px #f472b6, 0 2px 6px rgba(219, 39, 119, 0.35);
+}
+
+/* ============================================================
+   突出形象功能：顶部HUD徽章、快捷栏高亮、主页大卡片与特写镜头
+   ============================================================ */
+
+/* 顶部 HUD 主角形象徽章 */
+.player-avatar-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 5px;
+  background: linear-gradient(135deg, #fff9f4 0%, #ffeaf1 100%);
+  border: 2px solid #fff5f8;
+  border-radius: 24px;
+  box-shadow: 0 4px 12px rgba(186, 78, 116, 0.16), inset 0 1px 1px #ffffff;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease-out;
+  outline: none;
+  flex-shrink: 0;
+}
+.player-avatar-badge:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(186, 78, 116, 0.24), inset 0 1px 1px #ffffff;
+}
+.player-avatar-badge:active {
+  transform: translateY(0) scale(0.98);
+}
+.avatar-badge-frame {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #fed7e2 100%);
+  border: 2px solid #f472b6;
+  box-shadow: 0 2px 6px rgba(219, 39, 119, 0.25);
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hud-avatar-canvas {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: block;
+}
+.avatar-badge-sparkle {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 11px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  animation: avatar-sparkle-float 2.2s ease-in-out infinite alternate;
+}
+@keyframes avatar-sparkle-float {
+  from { transform: translateY(0) scale(0.9); opacity: 0.85; }
+  to { transform: translateY(-3px) scale(1.15); opacity: 1; }
+}
+.avatar-badge-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+}
+.avatar-badge-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: #db2777;
+  letter-spacing: 0.5px;
+}
+.avatar-badge-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: #832747;
+  white-space: nowrap;
+}
+
+/* 快捷栏高亮我的形象按钮 */
+.quick-button.quick-button-avatar {
+  background: linear-gradient(135deg, #fff5f8 0%, #ffd6e5 100%);
+  border-color: #fca5a5;
+  box-shadow: 0 4px 3px #cf779470, 0 8px 18px #db277730;
+  color: #db2777;
+  animation: avatar-button-pulse 3s ease-in-out infinite alternate;
+}
+@keyframes avatar-button-pulse {
+  from { box-shadow: 0 4px 3px #cf779470, 0 8px 18px #db277730; }
+  to { box-shadow: 0 4px 4px #cf779490, 0 8px 22px #db277755; }
+}
+.quick-button.quick-button-avatar:hover {
+  transform: scale(1.08);
+}
+.avatar-nav-sparkle {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1;
+  animation: avatar-sparkle-float 1.8s ease-in-out infinite alternate;
+}
+
+/* 主页右侧便签纸主角专属形象大卡片 */
+.home-my-avatar-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fff5f8 0%, #feeef4 50%, #fbe7f0 100%);
+  border: 2px solid #ffd6e5;
+  box-shadow: 0 4px 14px rgba(186, 78, 116, 0.12), inset 0 1px 2px #ffffff;
+}
+.home-my-avatar-art-wrap {
+  position: relative;
+  width: 78px;
+  height: 94px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #fed7e2 80%);
+  border: 1.5px solid #f9a8d4;
+  box-shadow: 0 3px 8px rgba(219, 39, 119, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.home-my-avatar-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.home-my-avatar-badge-live {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: 800;
+  color: #be185d;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.home-my-avatar-sparkle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  line-height: 1;
+  animation: avatar-sparkle-float 2s infinite alternate;
+}
+.home-my-avatar-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.home-my-avatar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.home-my-avatar-tag {
+  font-size: 9px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #ec4899;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.home-my-avatar-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #701a35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-my-avatar-desc {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #8c5264;
+}
+.home-my-avatar-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.home-my-avatar-actions .ui-button {
+  padding: 5px 8px;
+  font-size: 11px;
+  min-height: 30px;
+  border-radius: 10px;
+}
+.home-avatar-btn-view {
+  flex: 1;
+  background: linear-gradient(135deg, #f43f5e, #ec4899) !important;
+  color: #ffffff !important;
+  font-weight: 800;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(236, 72, 153, 0.35) !important;
+}
+.home-avatar-btn-pick {
+  flex-shrink: 0;
+}
+
+/* 镜头看自己按钮 */
+.camera-controls .zoom-player-btn {
+  font-size: 16px;
+  background: linear-gradient(135deg, #fff5f8, #fce7f3);
+  border-color: #f472b6;
+  color: #db2777;
+}
+
+/* 响应式适配 */
+@media (max-width: 600px) {
+  .player-avatar-badge {
+    padding: 2px 8px 2px 3px;
+    gap: 4px;
+  }
+  .avatar-badge-frame {
+    width: 32px;
+    height: 32px;
+  }
+  .hud-avatar-canvas {
+    width: 30px;
+    height: 30px;
+  }
+  .avatar-badge-tag {
+    display: none;
+  }
+  .avatar-badge-name {
+    font-size: 10px;
+  }
+}

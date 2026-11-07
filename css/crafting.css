@@ -1,0 +1,65 @@
+/* MC-078：原型五份短配方与竖向成品纸页，保留真实批量与二次确认。 */
+.crafting-panel { container:crafting / inline-size; display:flex; flex-direction:column; width:100%; min-width:0; gap:16px; color:#694657; font-size:14px; line-height:1.8; }
+.crafting-panel,.crafting-panel * { box-sizing:border-box; }
+.crafting-panel :is(p,h3) { margin:0; overflow-wrap:anywhere; }
+.crafting-panel .ui-muted { color:#805d69; }
+.crafting-panel .ui-button { min-height:44px; min-width:0; padding:10px 14px; border:1px solid #dfc4c9; border-radius:12px; color:#754b5e; background:#f8eddf; box-shadow:inset 0 1px #fffdf7,0 3px 6px #9e667b16; font-size:14px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; }
+.crafting-panel .ui-button-primary { background:#b84466; color:#fff9f3; border-color:#a83e5d; box-shadow:inset 0 1px #dc849b,0 3px 7px #8e3e5525; }
+.crafting-panel .ui-button:hover:not(:disabled) { filter:brightness(1.035); }
+.crafting-panel button:disabled { opacity:1; color:#806b71; background:#eee7df; border-color:#d8c9c6; box-shadow:none; }
+.crafting-panel :is(button,input,summary,[tabindex="-1"]):focus-visible { outline:3px solid #a83357; outline-offset:3px; }
+.crafting-panel .crafting-v2-tabs { display:flex; flex-wrap:wrap; gap:8px; }
+.crafting-panel .ui-tab { flex:1 1 110px; min-width:0; min-height:44px; padding:9px 10px; border:1px solid #e9d8cb; border-radius:11px; background:#f4ebdc; color:#80576a; font-size:14px; line-height:1.6; white-space:normal; }
+.crafting-panel .ui-tab.is-active { color:#fff9f2; background:#b84466; border-color:#a83e5d; box-shadow:inset 0 1px #dc849b,0 3px 6px #8e3e551a; }
+.crafting-panel .crafting-v2-intro { color:#805d69; font-size:14px; line-height:1.8; }
+.crafting-panel .crafting-v2-layout { display:flex; flex-direction:column; gap:18px; min-width:0; }
+.crafting-panel .crafting-v2-recipes { display:flex; flex-direction:column; gap:8px; }
+.crafting-panel .crafting-v2-recipe { display:flex; flex-wrap:wrap; width:100%; min-width:0; align-items:center; gap:8px; min-height:76px; padding:10px; text-align:left; border:1px solid #e1c9bd; border-radius:13px; background:#f6ebdc; box-shadow:inset 0 1px #fffaf1,0 3px 6px #966b6910; }
+.crafting-panel .crafting-v2-recipe.is-selected { padding:9px; background:#f8e4e0; border:2px solid #b54a68; box-shadow:inset 0 1px #fff9f0,0 3px 7px #aa647723; }
+.crafting-panel .crafting-v2-recipe.is-locked:not(.is-selected) { background:#f2ece3; }
+.crafting-panel .crafting-v2-recipe-art { display:block; flex:0 0 52px; width:52px; height:52px; object-fit:contain; }
+.crafting-panel .crafting-v2-recipe-copy { display:flex; flex:1 1 140px; min-width:0; flex-direction:column; gap:4px; overflow-wrap:anywhere; }
+.crafting-panel .crafting-v2-recipe-copy strong { font-size:14px; line-height:1.6; }
+.crafting-panel .crafting-v2-recipe-copy span, .crafting-panel .crafting-v2-recipe-condition { font-size:13px; line-height:1.7; color:#805d69; }
+.crafting-panel .crafting-v2-recipe-condition { color:#896437; }
+.crafting-panel .crafting-v2-recipe-cue { flex:0 1 auto; font-size:13px; line-height:1.6; color:#a64766; }
+.crafting-panel .crafting-v2-detail { min-width:0; gap:10px; border-top:1px solid #e4cfc5; padding-top:14px; }
+.crafting-panel .crafting-v2-detail-title { font-size:15px; line-height:1.6; color:#8f3e5b; }
+.crafting-panel .crafting-bench { display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 10px 12px; border:0; border-radius:13px; background:#faf0df; box-shadow:inset 0 1px #fffdf5; text-align:center; }
+.crafting-panel .crafting-product-art { display:block; width:160px; height:120px; max-width:100%; object-fit:contain; background:transparent; }
+.crafting-panel .crafting-product-copy { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.crafting-panel .crafting-product-copy h3 { font-size:16px; line-height:1.5; }
+.crafting-panel .crafting-description, .crafting-panel .crafting-output, .crafting-panel .crafting-requirement, .crafting-panel .crafting-status { font-size:14px; line-height:1.8; }
+.crafting-panel .crafting-output { color:#805d69; font-variant-numeric:tabular-nums; }
+.crafting-panel .crafting-controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:12px; }
+.crafting-panel .crafting-controls .ui-field { margin:0; min-width:0; }
+.crafting-panel .crafting-controls .ui-field-label { font-size:14px; }
+.crafting-panel .crafting-controls .cute-select { width:100%; max-width:100%; min-width:0; min-height:44px; padding-inline:10px; border-color:#dcbfc5; background:#fffaf0; color:#754b5e; font-size:14px; }
+.crafting-panel .crafting-material { display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid #e8cfbb; border-radius:12px; background:#f6ecd9; color:#7c5946; }
+.crafting-panel .crafting-material.is-short { background:#fff0e2; color:#89543c; }
+.crafting-panel .crafting-crop-art { width:46px; height:42px; flex:0 0 46px; object-fit:contain; }
+.crafting-panel .crafting-material > div { min-width:0; }
+.crafting-panel .crafting-material p { font-size:14px; line-height:1.8; }
+.crafting-panel .crafting-material-stock { font-variant-numeric:tabular-nums; }
+.crafting-panel .crafting-v2-requirements { display:flex; flex-direction:column; gap:3px; color:#805d69; }
+.crafting-panel .crafting-requirement.is-locked { color:#925431; }
+.crafting-panel .crafting-actions, .crafting-panel .crafting-result-actions { display:flex; flex-wrap:wrap; gap:7px; }
+.crafting-panel .crafting-actions > .ui-button, .crafting-panel .crafting-result-actions > .ui-button { min-width:0; flex:1 1 160px; font-size:14px; }
+.crafting-panel .crafting-status { color:#805d69; }
+.crafting-panel .crafting-status:empty { display:none; }
+.crafting-panel .crafting-status.is-error { color:#9c3d4c; padding:10px 12px; border:1px solid #e7bfc7; border-radius:11px; background:#fff0e9; }
+.crafting-panel .crafting-v2-confirm { padding:13px; border:1px solid #d8b888; border-radius:13px; background:#fff0d5; gap:10px; }
+.crafting-panel .crafting-v2-confirm h3 { font-size:15px; line-height:1.6; }
+.crafting-panel .crafting-v2-quote { font-size:14px; line-height:1.8; color:#7a5144; font-weight:700; }
+.crafting-panel .crafting-finished { display:flex; flex-direction:column; gap:10px; padding:12px; border-radius:13px; border:1px solid #e4c2bc; background:#fae9df; }
+.crafting-panel .crafting-result-title { font-size:14px; line-height:1.8; font-weight:700; color:#9b3e5e; }
+.crafting-panel .crafting-recent { display:flex; flex-direction:column; gap:8px; padding-top:10px; border-top:1px solid #e4cfc5; }
+.crafting-panel .crafting-v2-history { padding-top:9px; border-top:1px solid #e4cfc5; color:#805d69; font-size:14px; line-height:1.8; }
+.crafting-panel .crafting-v2-history summary { min-height:44px; padding:10px 0; cursor:pointer; font-weight:700; color:#754b5e; }
+.crafting-panel .crafting-footnote { color:#805d69; font-size:14px; line-height:1.8; }
+.crafting-panel .ui-small { font-size:14px; line-height:1.8; }
+.crafting-panel ::selection { color:#71344d; background:#f3d0da; }
+@container crafting (min-width:700px) {
+  .crafting-panel .crafting-v2-layout { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.3fr); align-items:start; gap:24px; }
+}
+@media(prefers-reduced-motion:reduce) { .crafting-panel button { transition:none; } }

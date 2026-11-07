@@ -1,0 +1,54 @@
+/* MC-077 · 账号保留原表单与状态，位置由公共 shell.css 维护。 */
+.account-bar { display: flex; align-items: center; gap: 7px; min-width: 0; z-index: 5; }
+.account-bar .ui-button { min-height: 40px; height: 40px; padding: 5px 11px; margin: 0; font-size: 11px; line-height: 1.4; border-radius: 19px; }
+.account-launch { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 7px; min-width: 0; max-width: 190px; text-align: left; }
+.account-launch-name { display: block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; line-height: 1.4; }
+.account-launch-detail { display: block; flex-shrink: 0; font-size: 10px; line-height: 1.4; }
+.account-launch.is-signed-in { background: #f6dfe7; color: #793a54; }
+.neighbors-launch { min-width: 0; flex-shrink: 0; font-weight: 700; white-space: nowrap; }
+.neighbors-reception { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
+.neighbors-reception.has-guests { background: #f8d4df; border-color: #c46a88; color: #793a54; }
+.neighbors-reception:focus-visible { outline: 3px solid #943451; outline-offset: 3px; }
+/* 紧凑HUD不展示备注，但保留原role=status的状态播报；长称呼不参与外壳宽度。 */
+.account-bar-note { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+.cloud-account { width: 100%; max-width: 800px; margin-inline: auto; gap: 15px; }
+.cloud-account p, .cloud-account h3, .cloud-account h4 { margin: 0; overflow-wrap: anywhere; }
+.cloud-status-line { color: #943451; font-weight: 700; }
+.cloud-identity { font-weight: 700; }
+.cloud-description { max-width: 65ch; }
+.cloud-auth { width: min(100%, 540px); gap: 12px; }
+.cloud-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 12px; font-weight: 700; }
+.cloud-field .ui-small { font-weight: 400; }
+.cloud-field .ui-input { width: 100%; min-width: 0; font-size: 16px; }
+.cloud-auth-tabs { padding-bottom: 0; }
+.cloud-auth-tabs .ui-tab { flex: 1; }
+.cloud-account .ui-button { min-height: 44px; white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.cloud-feedback { padding: 11px 12px; color: var(--ink); border: 1px solid #e7ccd3; border-radius: 12px; background: #fae8ed; }
+.cloud-choice h3 { font-size: 16px; }
+.cloud-versions, .cloud-choice-actions, .cloud-backup-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cloud-versions-single { grid-template-columns: minmax(0, 1fr); }
+.cloud-version { padding: 12px; min-width: 0; background: #fff8ed; border: 1px solid #ead5c9; border-radius: 12px; }
+.cloud-version h3 { color: var(--muted); font-size: 12px; font-weight: 500; }
+.cloud-house-name { font-weight: 700; margin-top: 5px !important; }
+.cloud-version-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin: 10px 0 0; gap: 6px 8px; font-variant-numeric: tabular-nums; }
+.cloud-version-facts dt { grid-column: 1; color: var(--muted); font-size: 11px; }
+.cloud-version-facts dd { grid-column: 2; margin: 0; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; text-align: right; }
+.cloud-version .ui-small { margin-top: 8px; }
+.cloud-account .ui-actions { margin-top: 0; }
+.cloud-account-entry { width: 100%; }
+.cloud-backups { padding-top: 14px; border-top: 1px solid var(--line); }
+.cloud-backups summary { min-height: 44px; cursor: pointer; padding-block: 10px; font-weight: 700; overflow-wrap: anywhere; }
+.cloud-backups > p { margin-block: 0 12px; }
+.cloud-backup-row { padding-block: 13px; border-top: 1px solid var(--line); }
+.cloud-backup-row h4 { font-size: 14px; }
+.cloud-backup-row .ui-actions { margin-top: 8px; }
+@media (max-width: 620px), (pointer: coarse) {
+  .account-bar .ui-button { min-height: 44px; height: 44px; }
+}
+@media (max-width: 620px) {
+  .cloud-account { gap: 13px; }
+  .cloud-choice-actions, .cloud-backup-actions { grid-template-columns: minmax(0, 1fr); }
+  .cloud-version { padding: 10px; }
+  .cloud-account .ui-actions > .ui-button { flex: 1 1 100%; }
+}
