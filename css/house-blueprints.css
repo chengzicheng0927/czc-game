@@ -1,0 +1,67 @@
+/* 房子成长书继承公共奶油纸面与莓红操作，不影响其它内容页。 */
+.house-blueprints {
+  --house-book-ink: var(--ink, #6b4e5e);
+  --house-book-muted: var(--muted, #866674);
+  --house-book-berry: var(--pink-deep, #ad456b);
+  color: var(--house-book-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  container-type: inline-size;
+}
+.house-blueprints * { box-sizing: border-box; }
+.house-blueprints p, .house-blueprints h3 { margin: 0; }
+.house-blueprints p { font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.house-blueprints h3 { font-size: 18px; line-height: 1.5; }
+.house-blueprints-intro { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.house-blueprints-intro > p { flex: 1 1 230px; }
+.house-blueprints-player-level { color: var(--house-book-berry); background: var(--pink-soft, #ffedf2); border-radius: 12px; padding: 5px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.house-blueprints-selected { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.house-blueprints-selected-heading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.house-blueprints-selected-heading h3 { color: var(--house-book-berry); font-size: 22px; }
+.house-blueprints-level { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; border: 1px solid #e5c8d4; border-radius: 9px; padding: 1px 7px; color: #8b3f5b; background: #fff9ed; font-size: 12px; font-weight: 750; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.house-blueprints .house-blueprints-room-note, .house-blueprints .house-blueprints-preview-note { color: var(--house-book-muted); font-size: 13px; }
+.house-blueprints .house-blueprints-preview-note.is-previewing { color: var(--house-book-berry); font-weight: 700; }
+.house-blueprints .house-blueprints-bill { color: var(--house-book-berry); font-size: 15px; font-weight: 750; padding-top: 2px; }
+.house-blueprints .house-blueprints-status { color: var(--house-book-muted); font-size: 13px; }
+.house-blueprints-actions { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid #e8d0d5; }
+.house-blueprints-actions .ui-button { flex: 1 1 210px; min-width: 0; min-height: 48px; padding: 11px 14px; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; font-size: 14px; border-radius: 14px; }
+.house-blueprints-actions .ui-button-primary:disabled { opacity: 1; color: #896575; border-color: #dec8d1; background: #f0e4e6; box-shadow: none; }
+.house-blueprints-book { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.house-blueprints-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.house-blueprints-choice { display: flex; flex-direction: column; align-items: stretch; gap: 5px; min-width: 0; padding: 12px; text-align: center; color: var(--house-book-ink); border: 1px solid #e2c7cf; border-radius: 18px; background: #fff9ed; box-shadow: inset 0 1px #fffdf8, 0 5px 12px #8f5a7210; font: inherit; }
+.house-blueprints-choice:hover { background: #fff0f3; }
+.house-blueprints-choice.is-selected { border: 2px solid #bc7290; padding: 11px; background: #fff0f4; box-shadow: inset 0 1px #fffdf8, 0 5px 12px #8f5a7218; }
+.house-blueprints-choice:disabled { opacity: .7; }
+.house-blueprints-choice-head { display: flex; align-items: center; justify-content: space-between; gap: 5px; min-width: 0; text-align: left; }
+.house-blueprints-choice-state { color: var(--house-book-muted); font-size: 11px; line-height: 1.5; text-align: right; }
+.house-blueprints-stamp { display: block; width: 100%; max-width: 148px; margin: 0 auto; }
+.house-blueprints-stamp svg { display: block; width: 100%; height: auto; aspect-ratio: 5 / 4; }
+.house-blueprints-choice > strong { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; }
+.house-blueprints-choice-meta, .house-blueprints-choice-cost { color: var(--house-book-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.house-blueprints-choice-cost { color: #8b4d65; }
+.house-blueprints-care { display: flex; flex-direction: column; gap: 5px; padding: 13px 15px; border-radius: 14px; background: #f9edf1; color: #795465; }
+.house-blueprints-care strong { font-size: 14px; }
+.house-blueprints-care p { font-size: 12px; line-height: 1.85; }
+.house-blueprints-advanced { padding-top: 4px; color: var(--house-book-muted); font-size: 13px; }
+.house-blueprints-advanced summary { min-height: 44px; padding: 10px 0; cursor: pointer; line-height: 1.7; }
+.house-blueprints-advanced p { margin-bottom: 10px; font-size: 12px; }
+.house-blueprints-advanced .ui-button { min-height: 44px; padding: 9px 14px; font-size: 13px; }
+.house-blueprints :is(button, summary):focus-visible { outline: 3px solid var(--house-book-berry); outline-offset: 3px; }
+.house-blueprints ::selection { color: #62374a; background: var(--pink, #ffb6c8); }
+@container (min-width: 690px) { .house-blueprints-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .house-blueprints { gap: 14px; }
+  .house-blueprints-intro > p { flex-basis: 100%; }
+  .house-blueprints-selected-heading h3 { font-size: 20px; }
+  .house-blueprints-actions { gap: 8px; }
+  .house-blueprints-actions .ui-button { flex-basis: 100%; }
+  .house-blueprints-choices { gap: 9px; }
+  .house-blueprints-choice { padding: 9px; border-radius: 15px; }
+  .house-blueprints-choice.is-selected { padding: 8px; }
+  .house-blueprints-choice-head { align-items: start; }
+  .house-blueprints-choice-state { max-width: 58px; }
+  .house-blueprints-choice > strong { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { .house-blueprints button { transition: none; } }

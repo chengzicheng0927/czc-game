@@ -8,7 +8,7 @@
   var ui = G.ui = G.ui || {};
   var idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   // 串门中会改动自己小屋的面板：一律先回家再装扮；neighbors、账号、换装、设置、回忆、帮助放行。
-  var blocked = ['build', 'decor', 'yard', 'exterior', 'houseDesign', 'roomLayout', 'shop', 'garden', 'residents', 'crafting', 'play', 'quests', 'collection', 'observatory'];
+  var blocked = ['build', 'decor', 'yard', 'exterior', 'houseDesign', 'houseBlueprints', 'roomLayout', 'shop', 'garden', 'residents', 'crafting', 'play', 'quests', 'collection', 'observatory'];
   // phase：idle 在自己家 / loading 读取快照 / passerby 路过 / knocking 敲门等待 / live 同屋串门 / leaving 正在回家
   var phase = 'idle', ticket = 0, committed = false, houseId = '', wantMode = 'passerby';
   var visitState = null, meta = { title: '', ownerDisplayName: '' }, loadedUpdatedAt = null, loadedHouseVersion = '';

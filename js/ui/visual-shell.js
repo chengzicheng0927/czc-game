@@ -48,7 +48,7 @@
     cloudAccount: ['我的账号与小屋', '本机可以继续玩，云端同步由你选择。'],
     help: ['糯米陪你慢慢来', '从第一间房开始，把云岛变成家。']
   };
-  const decoration = ['build', 'decor', 'yard', 'exterior', 'houseDesign', 'roomLayout'];
+  const decoration = ['build', 'decor', 'yard', 'exterior', 'houseDesign', 'houseBlueprints', 'roomLayout'];
   const recollection = ['memories', 'collection', 'crafting', 'observatory', 'login'];
   let panelKind = null, initialized = false, scheduled = false, wishesKey = '', peopleKey = '', observedLayoutKey = '';
   function group(kind) { return !kind ? 'home' : decoration.includes(kind) ? 'decorate' : recollection.includes(kind) ? 'memories' : kind; }

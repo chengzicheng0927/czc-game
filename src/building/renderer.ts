@@ -36,7 +36,11 @@ import { buildIslandEnvironment, type IslandEnvironmentSpec } from '../content/i
 import { deriveSpaces, type Space } from './domain';
 import earcut from 'earcut';
 import { AvatarGeometry, buildAvatarFrame, buildStaticAvatar, avatarVertexShader, avatarFragmentShader } from '../content/avatar-model';
-import { addChimney, addOpeningDetails, addRoofDetails, heartProfile, openingProfile, paintExteriorWall, paintRoofPattern, paintWallpaper, roofProfile, starProfile, type ProfilePoint } from '../content/exterior-details';
+import { addOpeningDetails, heartProfile, openingProfile, paintExteriorWall, paintRoofPattern, paintWallpaper, starProfile, type ProfilePoint } from '../content/exterior-details';
+import { createRoofSurface } from '../content/roof-surface';
+import { mergeRoofFootprints, roofEaveHeight } from '../content/roof-footprints';
+import { createRoofVertexData } from './roof-mesh';
+import { buildToyArchitecture, type ArchitectureOpening } from '../content/toy-architecture';
 import { describeGarden, gardenLayout } from '../content/garden-environment.js';
 
 export type BuildMode = 'select' | 'wall' | 'door' | 'window' | 'furniture';
@@ -240,6 +244,8 @@ export class BuildingRenderer {
   private actorKey = '';
   private actorRevision = 0;
   private exteriorKey = '';
+  private highestRoofFloor = -Infinity;
+  private roofTop = 0;
   private actorsRoot: TransformNode | null = null;
   private grid: LinesMesh | null = null;
   private view: 'exterior' | 'cutaway' = 'exterior';
@@ -337,6 +343,25 @@ export class BuildingRenderer {
     }
     return material;
   }
+  private toyMaterial(tone: string, alpha = 1) {
+    const color = colorValue(tone, '#FFF2DA'), key = 'toy:' + color + ':' + alpha;
+    let material = this.materials.get(key);
+    if (!material) {
+      material = new StandardMaterial(key, this.scene); const base = Color3.FromHexString(color);
+      material.diffuseColor = base.scale(.88); material.emissiveColor = base.scale(.12);
+      material.specularColor = new Color3(.18, .16, .16); material.specularPower = 60;
+      material.alpha = alpha; material.backFaceCulling = false; this.materials.set(key, material);
+    }
+    return material;
+  }
+  private toyAdapter(parent: TransformNode) {
+    return new ClayAdapter({scene:this.scene,material:(tone,alpha)=>this.toyMaterial(tone,alpha),cloudMaterial:tone=>this.cloudMaterial(tone),addShadow:mesh=>this.addShadow(mesh)},parent);
+  }
+  private toyTexture(material: StandardMaterial) {
+    material.diffuseColor = new Color3(.88, .88, .88); material.emissiveColor = new Color3(.12, .12, .12);
+    material.emissiveTexture = material.diffuseTexture; material.specularColor = new Color3(.14, .12, .12); material.specularPower = 60;
+    return material;
+  }
   addShadow(mesh: AbstractMesh) { this.shadows.addShadowCaster(mesh, false); }
 
   setDocument(doc: BuildingDocument, activeFloorId: string, allFloors = false) {
@@ -354,12 +379,14 @@ export class BuildingRenderer {
     this.actorsRoot = new TransformNode('island-friends', this.scene);
     this.furnitureRoots.clear();
     this.updateBounds(); this.buildGround();
-    this.canvas.dataset.roofCount = '0';
+    this.canvas.dataset.roofCount = '0'; this.canvas.dataset.roofTriangleCount = '0'; this.canvas.dataset.towerCount = '0'; this.roofTop = 0;
     const selectedY = this.floorY, allSpaces: Space[] = [];
     const floors = this.view === 'exterior' || allFloors ? doc.floors : doc.floors.filter(floor => floor.id === activeFloorId);
-    for (const floor of floors) {
+    const floorSpaces = floors.map(floor => ({ floor, spaces: deriveSpaces(doc, floor.id) }));
+    this.highestRoofFloor = Math.max(-Infinity, ...floorSpaces.filter(entry => entry.spaces.length).map(entry => entry.floor.elevation));
+    for (const { floor, spaces } of floorSpaces) {
       this.activeFloorId = floor.id; this.floorY = floor.elevation;
-      const spaces = deriveSpaces(doc, floor.id); this.spaces = spaces; allSpaces.push(...spaces);
+      this.spaces = spaces; allSpaces.push(...spaces);
       this.buildFloorsAndRoofs(spaces);
       for (const wall of doc.walls.filter(value => value.floorId === floor.id)) this.buildWall(wall);
       for (const item of doc.furniture.filter(value => value.floorId === floor.id)) this.buildFurniture(item);
@@ -520,9 +547,11 @@ export class BuildingRenderer {
     }
     const island = this.islandSpec;
     const worldTop = Math.max(island.y + 3.2, ...(this.document?.walls || []).map(wall => wall.height + (this.document!.floors.find(floor => floor.id === wall.floorId)?.elevation || 0)));
-    const houseHeight = this.view === 'exterior' ? worldTop - island.y : 3.2;
+    const houseHeight = this.view === 'exterior' ? Math.max(worldTop, this.roofTop) - island.y : 3.2;
     this.camera.target.set(island.x, this.view === 'exterior' ? island.y + Math.max(.5, houseHeight * .26) : this.floorY + .5, island.z + .1);
-    this.camera.alpha = Math.PI / 2 - .43; this.camera.beta = .91;
+    const castle = ['roof_castle','roof_starry'].includes(String((this.visualState.exterior as Record<string,unknown>)?.roof));
+    this.camera.alpha = Math.PI / 2 - (this.view === 'exterior' && castle ? .22 : .43);
+    this.camera.beta = this.view === 'exterior' && castle ? 1.08 : .91;
     this.camera.radius = Math.min(150, Math.max(13, island.radius * 3, (houseHeight + 1.8) * 1.65) / Math.min(1, this.engine.getAspectRatio(this.camera)));
     // 留出底部导航，完整看到土层和云托，桌面/竖屏用同一画面比例。
     this.camera.targetScreenOffset.set(0, this.camera.radius * (houseHeight > 7 ? .045 : .07));
@@ -888,27 +917,6 @@ export class BuildingRenderer {
     }
     return included;
   }
-  private roofRectangles(space: Space) {
-    const rings = [space.polygon, ...(space.holes || [])];
-    if (rings.some(ring => ring.some((a, index) => { const b = ring[(index + 1) % ring.length]; return Math.abs(a.x - b.x) > .00001 && Math.abs(a.z - b.z) > .00001; }))) return null;
-    const xs = [...new Set(rings.flatMap(ring => ring.map(p => Number(p.x.toFixed(5)))))].sort((a, b) => a - b);
-    const zs = [...new Set(rings.flatMap(ring => ring.map(p => Number(p.z.toFixed(5)))))].sort((a, b) => a - b);
-    if (xs.length * zs.length > 1600) return null;
-    const fill = zs.slice(0, -1).map((z, row) => xs.slice(0, -1).map((x, col) => {
-      const point = { x: (x + xs[col + 1]) / 2, z: (z + zs[row + 1]) / 2 };
-      return this.inside(point, space.polygon) && !(space.holes || []).some(hole => this.inside(point, hole));
-    }));
-    const rectangles: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
-    // 仅做屋面覆盖的临时矩形分解；墙体与房间领域模型始终保持真实自由轮廓。
-    for (let row = 0; row < fill.length; row++) for (let col = 0; col < fill[row].length; col++) {
-      if (!fill[row][col]) continue;
-      let end = col + 1; while (end < fill[row].length && fill[row][end]) end++;
-      let bottom = row + 1; while (bottom < fill.length && fill[bottom].slice(col, end).every(Boolean)) bottom++;
-      rectangles.push({ minX: xs[col], maxX: xs[end], minZ: zs[row], maxZ: zs[bottom] });
-      for (let r = row; r < bottom; r++) for (let c = col; c < end; c++) fill[r][c] = false;
-    }
-    return rectangles;
-  }
   private decoratedMaterial(key: string, paint: (context: CanvasRenderingContext2D) => void, alpha = 1, pixelated = false) {
     const existing = this.wallArtMaterials.get(key); if (existing) return existing;
     const texture = new DynamicTexture(key + '-texture', { width: 512, height: 512 }, this.scene, true, pixelated ? Texture.NEAREST_SAMPLINGMODE : Texture.TRILINEAR_SAMPLINGMODE);
@@ -920,78 +928,108 @@ export class BuildingRenderer {
     material.backFaceCulling = false; this.wallArtMaterials.set(key, material); return material;
   }
   private roofMaterial(style: string, tone: string) {
-    return this.decoratedMaterial('exterior-roof:' + style + ':' + tone, context => paintRoofPattern(context, style, tone));
+    return this.toyTexture(this.decoratedMaterial('exterior-roof:' + style + ':' + tone, context => paintRoofPattern(context, style, tone)));
   }
-  private pitchedRoof(part: { minX: number; maxX: number; minZ: number; maxZ: number }, top: number, tone: string, overhang: number, chimney: boolean) {
-    const exterior = this.visualState.exterior as Record<string, unknown>, style = String(exterior.roof || 'roof_triangle');
-    const root = new TransformNode('exterior-' + style, this.scene), adapter = new ClayAdapter(this, root);
-    const width = part.maxX - part.minX + overhang, depth = part.maxZ - part.minZ + overhang;
-    const height = Math.min(1.6, Math.max(.55, width * .22)), x = (part.minX + part.maxX) / 2, z = (part.minZ + part.maxZ) / 2;
-    const profile = roofProfile(style), box = { minX: x - width / 2, maxX: x + width / 2, minZ: z - depth / 2, maxZ: z + depth / 2, top, height };
-    const roof = adapter.profile(profile, [x, top, z], [width, height, depth], tone);
-    roof.material = this.roofMaterial(style, tone);
-    addRoofDetails(adapter, box, style, tone, profile);
-    if (chimney) addChimney(adapter, box, String(exterior.chimney || 'normal'), profile);
-    adapter.merge(null); root.parent = this.contentRoot;
-    for (const mesh of root.getChildMeshes()) mesh.isPickable = false;
-  }
-  private flatRoofDetails(space: Space, top: number, tone: string) {
-    const exterior = this.visualState.exterior as Record<string, unknown>, style = String(exterior.roof || 'roof_triangle');
-    const roof = this.polygon('contour-' + style + '-' + space.id, space, top + .18, .18, tone);
-    roof.material = this.roofMaterial(style, tone);
-    const root = new TransformNode('contour-roof-details', this.scene), adapter = new ClayAdapter(this, root);
-    const rings = [space.polygon, ...(space.holes || [])], dark = Color3.FromHexString(tone).scale(.75).toHexString();
-    const positions = roof.getVerticesData(VertexBuffer.PositionKind)!, uv = roof.getVerticesData(VertexBuffer.UVKind)!;
-    const minX = Math.min(...space.polygon.map(point => point.x)), maxX = Math.max(...space.polygon.map(point => point.x));
-    const minZ = Math.min(...space.polygon.map(point => point.z)), maxZ = Math.max(...space.polygon.map(point => point.z));
-    for (let i = 0; i < positions.length / 3; i++) { uv[i * 2] = (positions[i * 3] - minX) / Math.max(.1, maxX - minX); uv[i * 2 + 1] = (positions[i * 3 + 2] - minZ) / Math.max(.1, maxZ - minZ); }
-    roof.setVerticesData(VertexBuffer.UVKind, uv);
-    for (const ring of rings) for (let i = 0; i < ring.length; i++) {
+  private continuousRoof(footprint: Parameters<typeof createRoofSurface>[0], top: number, tone: string, style: string, budget: number) {
+    const surface = createRoofSurface(footprint, { style, pitch: style === 'roof_castle' ? .32 : style === 'roof_starry' ? .4 : style === 'roof_oriental' ? .48 : .62, maxTriangles: budget });
+    const root = new TransformNode('continuous-roof-' + style, this.scene), adapter = this.toyAdapter(root);
+    root.parent = this.contentRoot;
+    const base = top + .06, thickness = .08;
+    // 大跨度保持同一比例缩放，不能把屋脊截成平顶，也避免大宅长出过高的屋盖。
+    const castle = style === 'roof_castle' || style === 'roof_starry';
+    const heightScale = Math.min(1, (style === 'roof_castle' ? .10 : style === 'roof_starry' ? .22 : 1.3) / Math.max(.001, surface.peak.height));
+    const peak = { ...surface.peak, height: surface.peak.height * heightScale };
+    const buildSheet = (underside: boolean) => {
+      const mesh = new Mesh(underside ? 'roof-cream-underside' : 'roof-clay-surface', this.scene);
+      const data = createRoofVertexData(surface, { baseHeight: base, heightScale, thickness, underside });
+      data.applyToMesh(mesh); mesh.parent = root;
+      mesh.material = underside ? this.toyMaterial('#FFF0D8') : castle ? this.toyMaterial(style === 'roof_starry' ? '#F0E9FA' : '#FFF3DB') : this.roofMaterial(style, tone);
+      mesh.isPickable = false; mesh.receiveShadows = true; this.addShadow(mesh);
+    };
+    buildSheet(false); buildSheet(true);
+    // 细檐沿真实外边界和天井连续绕行；不把二维屋顶轮廓挤成厚实阁楼。
+    for (const ring of surface.rings) for (let i = 0; i < ring.length; i++) {
       const a = ring[i], b = ring[(i + 1) % ring.length], length = Math.hypot(b.x - a.x, b.z - a.z);
-      adapter.box([(a.x + b.x) / 2, top + .015, (a.z + b.z) / 2], [length + .05, .15, .14], '#FFF0DA', .06, [0, -Math.atan2(b.z - a.z, b.x - a.x), 0]);
-      if (style === 'roof_castle') for (let t = .15; t < length; t += .42) adapter.box([a.x + (b.x - a.x) * t / length, top + .27, a.z + (b.z - a.z) * t / length], [.2, .25, .2], tone, .025);
-      if (style === 'roof_cloud' || style === 'roof_round') for (let t = .15; t < length; t += .32) adapter.sphere([a.x + (b.x - a.x) * t / length, top + .15, a.z + (b.z - a.z) * t / length], [.16, style === 'roof_cloud' ? .18 : .07, .16], tone, 10, 6);
-      if (style === 'roof_oriental') adapter.sphere([a.x, top + .25, a.z], [.1, .17, .1], dark, 12, 6);
-    }
-    const anchor = this.spaceAnchor(space);
-    if (style === 'roof_strawberry') for (let i = -2; i <= 2; i++) adapter.sphere([anchor.x + i * .07, top + .24, anchor.z], [.23, .035, .13], i % 2 ? '#A9C39B' : '#B7CDA7', 12, 6);
-    if (style === 'roof_starry') adapter.profile(starProfile(), [anchor.x, top + .2, anchor.z], [.3, .3, .035], '#F6DDA3', [Math.PI / 2, 0, 0]);
-    addChimney(adapter, { minX: anchor.x - .3, maxX: anchor.x + .3, minZ: anchor.z - .3, maxZ: anchor.z + .3, top: top + .18, height: 0 }, String(exterior.chimney || 'normal'), [{ x: -.5, y: 0 }, { x: .5, y: 0 }]);
-    adapter.merge(null); root.parent = this.contentRoot;
-    const lines: Vector3[][] = [];
-    for (let z = Math.ceil(minZ / .35) * .35; z < maxZ; z += .35) {
-      const intersections: number[] = [];
-      for (const ring of rings) ring.forEach((a, index) => { const b = ring[(index + 1) % ring.length]; if ((a.z > z) !== (b.z > z)) intersections.push(a.x + (z - a.z) * (b.x - a.x) / (b.z - a.z)); });
-      intersections.sort((a, b) => a - b);
-      for (let i = 0; i + 1 < intersections.length; i += 2) {
-        const a = intersections[i], b = intersections[i + 1];
-        lines.push([new Vector3(a, top + .186, z), new Vector3(b, top + .186, z)]);
-        for (let x = Math.ceil(a / .4) * .4; x < b; x += .4) {
-          const point = { x, z: z + .16 };
-          if (this.inside(point, space.polygon) && !(space.holes || []).some(hole => this.inside(point, hole))) lines.push([new Vector3(x, top + .186, z), new Vector3(x, top + .186, z + .16)]);
+      const rotation = [0, -Math.atan2(b.z - a.z, b.x - a.x), 0];
+      const x = (a.x + b.x) / 2 + (b.z - a.z) / length * .08;
+      const z = (a.z + b.z) / 2 - (b.x - a.x) / length * .08;
+      adapter.box([x, base - .045, z], [length + .14, .07, .18], '#FFF0D8', .03, rotation);
+      adapter.box([x, base - .005, z], [length + .14, .035, .20], tone, .015, rotation);
+      if(castle) {
+        const count = Math.max(1, Math.min(10, Math.floor(length / .8)));
+        for(let index=0;index<count;index++) {
+          const t=(index+.5)/count;
+          adapter.box([a.x+(b.x-a.x)*t,base+.17,a.z+(b.z-a.z)*t],[.30,.26,.30],style==='roof_starry'?'#F6EFFA':'#FFF3DB',.10);
         }
       }
     }
-    if (lines.length) {
-      const seams = MeshBuilder.CreateLineSystem('contour-roof-tiles', { lines }, this.scene);
-      seams.color = Color3.FromHexString(dark); seams.alpha = .7; seams.parent = this.contentRoot; seams.isPickable = false;
+    const at = (point: Point2, raise = 0): PrimitivePoint => [point.x, base + surface.heightAt(point) * heightScale + raise, point.z];
+    if (style === 'roof_strawberry') {
+      for (let i = -2; i <= 2; i++) adapter.sphere([peak.x + i * .07, base + peak.height + .04, peak.z], [.24, .035, .12], i % 2 ? '#A9C39B' : '#B7CDA7', 12, 6);
+      adapter.cylinder([peak.x, base + peak.height + .15, peak.z], .035, .2, '#88A580', .025, 8, [0, 0, -.24]);
+    } else if (style === 'roof_starry') {
+      adapter.profile(starProfile(), [peak.x, base + peak.height + .04, peak.z], [.24, .24, .03], '#F6DDA3', [Math.PI / 2, 0, 0]);
+    } else if (style === 'roof_cloud' || style === 'roof_mushroom') {
+      const ring = surface.rings[0], stride = Math.max(1, Math.ceil(ring.length / 16));
+      for (let i = 0; i < ring.length; i += stride) adapter.sphere(at(ring[i], .035), [.13, .065, .13], style === 'roof_mushroom' ? '#FFF0D8' : tone, 12, 6);
+    } else if (style === 'roof_oriental') {
+      for (const point of surface.rings[0]) adapter.sphere(at(point, .04), [.075, .085, .075], tone, 12, 6);
     }
+    const exterior = this.visualState.exterior as Record<string, unknown>, chimney = String(exterior.chimney || 'normal');
+    if (chimney !== 'none') {
+      const xs = footprint.polygon.map(p => p.x), zs = footprint.polygon.map(p => p.z);
+      const rear = { x: Math.min(...xs) + (Math.max(...xs) - Math.min(...xs)) * .26, z: Math.min(...zs) + (Math.max(...zs) - Math.min(...zs)) * .25 };
+      const anchor = surface.heightAt(rear) * heightScale > Math.max(.12, peak.height * .5) ? rear : peak;
+      const [x, y, z] = at(anchor), body = chimney === 'heart' ? '#DFA9BC' : '#E9CBB7';
+      adapter.box([x, y + .2, z], [.28, .45, .30], body, .045);
+      adapter.box([x, y + .44, z], [.38, .09, .4], '#FFF0D8', .035);
+      adapter.box([x, y + .49, z], [.23, .016, .24], '#9B7B79', .01);
+      for (let row = 0; row < 2; row++) adapter.box([x, y + .12 + row * .16, z + .155], [.27, .012, .01], '#C6A18F', .004);
+      for (let i = 0; i < 3; i++) {
+        if (chimney === 'heart') adapter.profile(heartProfile(), [x + i * .07, y + .58 + i * .2, z], [.14 + i * .025, .13 + i * .025, .06], '#F4C4D2');
+        else adapter.cloudSphere([x + i * .07, y + .57 + i * .19, z], [.09 + i * .025, .055 + i * .015, .07 + i * .015], '#FFFDF8', 12, 6);
+      }
+    }
+    adapter.merge(null);
+    for (const mesh of root.getChildMeshes()) mesh.isPickable = false;
+    this.roofTop = Math.max(this.roofTop, base + peak.height + (chimney === 'none' ? .35 : 1.05));
+    this.canvas.dataset.roofTriangleCount = String(Number(this.canvas.dataset.roofTriangleCount || 0) + surface.triangleCount * 2);
   }
   private buildFloorsAndRoofs(spaces: Space[]) {
+    for (const space of spaces) this.polygon('room-floor-' + space.id, space, this.floorY + .018, .22, '#EEDCBD');
+    if (this.view !== 'exterior' || !spaces.length) return;
     const walls = this.document!.walls.filter(wall => wall.floorId === this.activeFloorId);
-    const highestWallFloor = Math.max(...this.document!.floors.filter(floor => this.document!.walls.some(wall => wall.floorId === floor.id)).map(floor => floor.elevation));
-    const exterior = this.visualState.exterior as Record<string, unknown>;
-    const tone = colorValue(exterior.roofColor, '#C86E87');
-    for (const space of spaces) {
-      this.polygon('room-floor-' + space.id, space, this.floorY + .018, .22, '#EEDCBD');
-      if (this.view !== 'exterior' || this.floorY < highestWallFloor - .001) continue;
-      const top = this.floorY + Math.max(2.4, ...walls.map(wall => wall.height));
-      const parts = this.roofRectangles(space);
-      if (parts?.length) parts.forEach((part, index) => this.pitchedRoof(part, top, tone, parts.length === 1 ? .24 : 0, index === 0));
-      else this.flatRoofDetails(space, top, tone);
+    const exterior = this.visualState.exterior as Record<string, unknown>, style = String(exterior.roof || 'roof_triangle');
+    const tone = colorValue(exterior.roofColor, '#C86E87'), footprints = mergeRoofFootprints(spaces);
+    const openings = this.document!.openings.flatMap(opening => {
+      const wall = walls.find(value => value.id === opening.wallId); if (!wall) return [];
+      const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z);
+      const point = (distance: number) => ({ x: wall.start.x + (wall.end.x - wall.start.x) * distance / length, z: wall.start.z + (wall.end.z - wall.start.z) * distance / length });
+      return [{ kind: opening.kind, start: point(opening.offset), end: point(opening.offset + opening.width), sill: opening.sill, height: opening.height }];
+    });
+    for (const footprint of footprints) {
+      const top = this.floorY + roofEaveHeight(footprint, walls);
+      const root = new TransformNode('toy-house-architecture', this.scene), adapter = this.toyAdapter(root); root.parent = this.contentRoot;
+      const kind = this.floorY < this.highestRoofFloor - .001 ? 'cottage' : style === 'roof_castle' ? 'castle' : style === 'roof_starry' ? 'star_castle' : 'cottage';
+      const architecture = buildToyArchitecture(adapter, footprint, { floorY: this.floorY, eaveY: top, kind, roofColor: tone,
+        doors: openings.filter(value => value.kind === 'door') as ArchitectureOpening[], windows: openings.filter(value => value.kind === 'window') as ArchitectureOpening[] });
+      if(kind!=='cottage') {
+        const front=footprint.polygon.map((a,index)=>({a,b:footprint.polygon[(index+1)%footprint.polygon.length]})).sort((left,right)=>(right.a.z+right.b.z)-(left.a.z+left.b.z))[0];
+        const length=Math.hypot(front.b.x-front.a.x,front.b.z-front.a.z),nx=(front.b.z-front.a.z)/length,nz=-(front.b.x-front.a.x)/length;
+        const x=(front.a.x+front.b.x)/2+nx*.19,z=(front.a.z+front.b.z)/2+nz*.19,yaw=Math.atan2(nx,nz);
+        adapter.box([x,top+.12,z],[.14,.27,.14],'#FFF7E8',.05);
+        adapter.sphere([x,top+.36,z],[.35,.35,.08],'#FFF7E8',20,12,[0,yaw,0]);
+        adapter.profile(kind==='star_castle'?starProfile():heartProfile(),[x+nx*.09,top+.14,z+nz*.09],[.44,.44,.07],kind==='star_castle'?'#F6D98B':'#EF9DBD',[0,yaw,0]);
+      }
+      adapter.merge(null); for (const mesh of root.getChildMeshes()) mesh.isPickable = false;
+      this.canvas.dataset.towerCount = String(Number(this.canvas.dataset.towerCount || 0) + architecture.towerCount);
+      this.roofTop = Math.max(this.roofTop, top + (architecture.towerCount ? 1.5 : .3));
+      if (this.floorY < this.highestRoofFloor - .001) continue;
+      const vertices = footprint.polygon.length + (footprint.holes || []).reduce((sum, ring) => sum + ring.length, 0);
+      this.continuousRoof(footprint, top, tone, style, Math.max(vertices * 4, 256, Math.floor(16000 / footprints.length)));
     }
-    const count = Number(this.canvas.dataset.roofCount || 0);
-    this.canvas.dataset.roofCount = this.view === 'exterior' ? String(count + (this.floorY >= highestWallFloor - .001 ? spaces.length : 0)) : '0';
+    if (this.floorY >= this.highestRoofFloor - .001) this.canvas.dataset.roofCount = String(Number(this.canvas.dataset.roofCount || 0) + footprints.length);
+    this.canvas.dataset.roofGeometry = 'continuous-surface';
   }
   private spaceAnchor(space: Space): Point2 {
     const rings = [space.polygon, ...(space.holes || [])], vertices: number[] = [], holes: number[] = [];
@@ -1038,6 +1076,7 @@ export class BuildingRenderer {
     if (this.view === 'exterior') {
       const style = String(exterior.wall || 'wall_wood'), key = `wall-exterior:${style}:${baseTone}:${alpha}`;
       const material = this.decoratedMaterial(key, context => paintExteriorWall(context, style, baseTone), alpha);
+      if(style==='wall_toy')this.toyTexture(material);
       this.wallTileSizes.set(material, 5.12); return material;
     }
     const arts = this.visualState.customArts as Array<{ id: string; pixels: string }> | undefined;
@@ -1094,7 +1133,7 @@ export class BuildingRenderer {
       const outward = plusInside ? -1 : 1, faceZ = outward * (depth / 2 + .035);
       const exterior = this.visualState.exterior as Record<string, unknown>;
       const style = String(opening.kind === 'window' ? exterior.window || 'win_square' : exterior.door || 'door_wood');
-      const detailRoot = new TransformNode('opening-' + style + '-' + opening.id, this.scene), details = new ClayAdapter(this, detailRoot);
+      const detailRoot = new TransformNode('opening-' + style + '-' + opening.id, this.scene), details = this.toyAdapter(detailRoot);
       addOpeningDetails(details, { x, sill: opening.sill, width, height, depth, faceZ, outward, kind: opening.kind, style });
       if (opening.kind === 'window') {
         const glass = details.profile(openingProfile(style), [x, opening.sill, 0], [width * .94, height * .94, .016], '#B9DEE8');

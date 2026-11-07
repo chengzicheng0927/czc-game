@@ -1,7 +1,6 @@
 /** 原外观款式的纯装饰配方。数据ID沿用js/data/exterior.js，不持有引擎或游戏状态。 */
 import type { ClayGeometry } from './island-environment';
 export interface ProfilePoint { x: number; y: number }
-export interface RoofBox { minX: number; maxX: number; minZ: number; maxZ: number; top: number; height: number }
   const ink = '#A18480', cream = '#FFF2D5', tau = Math.PI * 2;
   function shade(hex: string, delta: number) { const value = /^#[0-9a-f]{6}$/i.test(hex) ? hex : '#D9B4B7'; return '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, parseInt(value.slice(i, i + 2), 16) + delta)).toString(16).padStart(2, '0')).join(''); }
   function line(c: CanvasRenderingContext2D, x: number, y: number, xx: number, yy: number, color = ink, width = 2) { c.beginPath(); c.moveTo(x, y); c.lineTo(xx, yy); c.strokeStyle = color; c.lineWidth = width; c.stroke(); }
@@ -37,6 +36,7 @@ export interface RoofBox { minX: number; maxX: number; minZ: number; maxZ: numbe
   }
 
 export function paintExteriorWall(context: CanvasRenderingContext2D, style: string, color: string) {
+  if(style==='wall_toy') { context.fillStyle=color;context.fillRect(0,0,context.canvas.width,context.canvas.height);return; }
   wall(context, { x: 0, y: 0, w: context.canvas.width, h: context.canvas.height, exterior: { wall: style, wallColor: color }, preview: true });
 }
 
@@ -65,17 +65,6 @@ class ProfileRecorder implements ProfilePen {
     for(let i=0;i<48;i++) { const t=start+(end-start)*i/48; this.points.push({x:x+Math.cos(t)*rx,y:y+Math.sin(t)*ry}); }
   }
 }
-  function roofPath(c: ProfilePen, type: string) {
-    c.beginPath();
-    if (type === 'roof_round' || type === 'roof_starry') { c.moveTo(-532, 7); c.bezierCurveTo(-510, -197, 510, -197, 532, 7); }
-    else if (type === 'roof_castle') { [[-530, 8], [-488, -62], [-470, -62], [-470, -105], [-416, -161], [-362, -105], [-362, -60], [-154, -60], [-154, -110], [-80, -179], [-6, -110], [-6, -60], [303, -60], [303, -105], [366, -158], [429, -105], [429, -60], [486, -60], [530, 8]].forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); }
-    else if (type === 'roof_mushroom') { c.moveTo(-535, 3); c.bezierCurveTo(-536, -62, -373, -170, 0, -173); c.bezierCurveTo(373, -170, 536, -62, 535, 3); c.bezierCurveTo(341, 34, -341, 34, -535, 3); }
-    else if (type === 'roof_strawberry') { c.moveTo(-530, 6); c.bezierCurveTo(-477, -103, -178, -157, 0, -165); c.bezierCurveTo(178, -157, 477, -103, 530, 6); }
-    else if (type === 'roof_cloud') { c.moveTo(-533, 6); c.bezierCurveTo(-586, -54, -494, -125, -406, -91); c.bezierCurveTo(-358, -184, -222, -170, -161, -117); c.bezierCurveTo(-88, -211, 87, -185, 144, -117); c.bezierCurveTo(230, -180, 359, -166, 408, -92); c.bezierCurveTo(497, -115, 588, -47, 532, 6); }
-    else if (type === 'roof_oriental') { c.moveTo(-543, -63); c.bezierCurveTo(-415, -42, -306, -101, -67, -145); c.quadraticCurveTo(0, -163, 67, -145); c.bezierCurveTo(306, -101, 415, -42, 543, -63); c.quadraticCurveTo(514, -14, 454, 9); c.lineTo(-454, 9); c.quadraticCurveTo(-514, -14, -543, -63); }
-    else { c.moveTo(-534, 8); c.lineTo(-410, -122); c.quadraticCurveTo(-402, -130, -387, -130); c.lineTo(387, -130); c.quadraticCurveTo(402, -130, 410, -122); c.lineTo(534, 8); }
-    c.closePath();
-  }
   function openingPath(c: ProfilePen, type: string) {
     c.beginPath();
     if (type === 'win_round' || type === 'door_round' || type === 'door_moon') c.ellipse(50, 52, 45, 45, 0, 0, tau);
@@ -85,27 +74,11 @@ class ProfileRecorder implements ProfilePen {
     c.closePath();
   }
 
-export function roofProfile(style: string): ProfilePoint[] {
-  const pen = new ProfileRecorder(); roofPath(pen,style);
-  const minX = Math.min(...pen.points.map(p=>p.x)), maxX = Math.max(...pen.points.map(p=>p.x));
-  const minY = Math.min(...pen.points.map(p=>p.y)), maxY = Math.max(...pen.points.map(p=>p.y));
-  return pen.points.map(p=>({x:(p.x-minX)/(maxX-minX)-.5,y:(maxY-p.y)/(maxY-minY)}));
-}
 export function openingProfile(style: string): ProfilePoint[] {
   const pen = new ProfileRecorder(); openingPath(pen,style);
   const minX=Math.min(...pen.points.map(p=>p.x)),maxX=Math.max(...pen.points.map(p=>p.x));
   const minY=Math.min(...pen.points.map(p=>p.y)),maxY=Math.max(...pen.points.map(p=>p.y));
   return pen.points.map(p=>({x:(p.x-minX)/(maxX-minX)-.5,y:(maxY-p.y)/(maxY-minY)}));
-}
-export function roofHeightAt(profile: ProfilePoint[], x: number) {
-  let height=0;
-  for(let i=0;i<profile.length;i++) {
-    const a=profile[i],b=profile[(i+1)%profile.length];
-    if(x<Math.min(a.x,b.x)-.00001||x>Math.max(a.x,b.x)+.00001)continue;
-    const t=Math.abs(b.x-a.x)<.00001?0:(x-a.x)/(b.x-a.x);
-    height=Math.max(height,a.y+(b.y-a.y)*t);
-  }
-  return height;
 }
 export function starProfile(): ProfilePoint[] {
   return Array.from({length:10},(_,i)=>{const angle=i*Math.PI/5+Math.PI/2,r=i%2?.45:1;return{x:Math.cos(angle)*r*.5,y:Math.sin(angle)*r*.5+.5};});
@@ -116,7 +89,16 @@ export function heartProfile(): ProfilePoint[] { return openingProfile('win_hear
 export function paintRoofPattern(c: CanvasRenderingContext2D, style: string, color: string) {
   const size=c.canvas.width; c.save(); c.scale(size/512,c.canvas.height/512); c.fillStyle=color;c.fillRect(0,0,512,512);
   const edge=shade(color,-25);c.lineCap='round';
-  if(['roof_triangle','roof_round','roof_oriental'].includes(style)) {
+  if(style==='roof_triangle') {
+    // 沿原型的细长软瓦方向排布，避免密集鱼鳞纹盖过轻薄屋面的轮廓。
+    for(let x=-64;x<576;x+=64) {
+      line(c,x+3,0,x+3,512,shade(color,10),3);
+      line(c,x,0,x,512,shade(color,-14),1.8);
+    }
+    for(let row=0;row<4;row++)for(let col=-1;col<9;col++) {
+      const x=col*64,y=row*144+(col%2?72:0);line(c,x+5,y,x+59,y,shade(color,-9),1.2);
+    }
+  }else if(['roof_round','roof_oriental'].includes(style)) {
     for(let row=-1;row<9;row++)for(let tile=-1;tile<9;tile++){const x=tile*68+row%2*34,y=row*64;curve(c,[x,y,x-2,y+45,x+66,y+45,x+68,y],edge,3);}
   }else if(style==='roof_mushroom') {
     [[66,83,34,23],[250,40,40,26],[419,126,31,22],[155,264,45,26],[374,330,40,26],[55,465,30,22],[278,495,33,22]].forEach(v=>ellipse(c,v[0],v[1],v[2],v[3],'#FFF0D6',shade(color,-10),2));
@@ -142,43 +124,6 @@ export function paintWallpaper(c: CanvasRenderingContext2D, pattern: 'solid'|'do
 export interface ExteriorGeometry extends ClayGeometry {
   profile(points: ProfilePoint[],position:[number,number,number],size:[number,number,number],color:string,rotation?:number[]): unknown;
 }
-export function addChimney(g: ExteriorGeometry, box: RoofBox, style: string, roof: ProfilePoint[]) {
-  if(style==='none')return;
-  const width=box.maxX-box.minX,depth=box.maxZ-box.minZ,cx=(box.minX+box.maxX)/2+width*.23,cz=(box.minZ+box.maxZ)/2-depth*.15;
-  const cy=box.top+roofHeightAt(roof,.23)*box.height,body=style==='heart'?'#DFA9BC':'#E4C2AD',edge=shade(body,-24);
-  g.box([cx,cy+.32,cz],[.34,.64,.36],body,.045);g.box([cx,cy+.68,cz],[.44,.12,.46],shade(body,17),.035);g.box([cx,cy+.745,cz],[.28,.02,.3],'#8D6F6B',.018);
-  for(let row=0;row<3;row++) {g.box([cx,cy+.13+row*.17,cz+.183],[.33,.018,.012],edge,.004);g.box([cx+(row%2?.08:-.065),cy+.2+row*.17,cz+.183],[.013,.15,.013],edge,.004);}
-  if(style==='heart')for(let i=0;i<3;i++)g.profile(heartProfile(),[cx+i*.07,cy+.84+i*.23,cz],[.16+i*.04,.15+i*.04,.08],'#F4C4D2');
-  else for(let i=0;i<3;i++)g.sphere([cx+i*.08,cy+.89+i*.22,cz],[.12+i*.03,.07+i*.025,.09+i*.02],'#FFF8EB',10,6);
-}
-
-export function addRoofDetails(g: ExteriorGeometry, box: RoofBox, style: string, color: string, profile: ProfilePoint[]) {
-  const width=box.maxX-box.minX,depth=box.maxZ-box.minZ,x=(box.minX+box.maxX)/2,z=(box.minZ+box.maxZ)/2;
-  const at=(u:number,v:number,raise=.03):[number,number,number]=>[x+u*width,box.top+roofHeightAt(profile,u)*box.height+raise,z+v*depth];
-  const dark=shade(color,-25),pale=shade(color,23);
-  // 原外观在蘑菇和云朵屋檐上有整排圆珠；其余保留柔圆厚檐。
-  for(const end of [-1,1]) {
-    if(style==='roof_mushroom'||style==='roof_cloud')for(let u=-.47;u<.49;u+=.07)g.sphere([x+u*width,box.top+.035,z+end*depth/2],[Math.min(.2,width*.04),.08,.1],pale,10,6);
-    else g.box([x,box.top+.025,z+end*depth/2],[width+.06,.12,.12],'#FFF2D5',.05);
-  }
-  for(const side of [-1,1])g.box([x+side*width/2,box.top+.02,z],[.13,.13,depth+.08],'#FFF2D5',.05);
-  if(style==='roof_strawberry') {
-    for(let i=-2;i<=2;i++)g.sphere(at(i*.028,0,.1),[width*.12,.045,.18],i%2?'#A9C39B':'#B7CDA7',12,6);
-    g.cylinder(at(0,0,.23),.045,.26,'#88A580',.032,8,[0,0,-.24]);
-  }else if(style==='roof_castle') {
-    for(const u of [-.393,-.075,.346]) {
-      const p=at(u,-.33,.13);g.cylinder(p,.018,.31,'#B79A78',undefined,8);
-      g.profile([{x:-.5,y:0},{x:-.5,y:1},{x:.5,y:.5}],[p[0]+.1,p[1]+.055,p[2]],[.22,.15,.025],'#EBCB91');
-    }
-    for(const end of [-1,1])for(const u of [-.393,-.075,.346])g.box([x+u*width,box.top+box.height*.51,z+end*(depth/2+.018)],[.16,.22,.035],'#FFF0CE',.07);
-  }else if(style==='roof_starry') {
-    for(const u of [-.34,-.13,.17,.35])g.profile(starProfile(),at(u,.28,.055),[.18,.18,.03],'#F6DDA3',[Math.PI/2,0,0]);
-  }else if(style==='roof_oriental') {
-    for(const side of [-1,1])for(const end of [-1,1])g.sphere([x+side*width*.48,box.top+roofHeightAt(profile,side*.48)*box.height+.055,z+end*depth/2],[.1,.1,.1],dark,12,6);
-    g.cylinder(at(0,0,.06),.065,depth+.1,dark,undefined,12,[Math.PI/2,0,0]);
-  }
-}
-
 export interface OpeningDetails {
   x: number; sill: number; width: number; height: number; depth: number; faceZ: number; outward: number;
   kind: 'window' | 'door'; style: string;

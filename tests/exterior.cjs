@@ -17,11 +17,11 @@ function sandbox(saved = []) {
 }
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('✓ ' + name); }
-test('31款外观数量、货币/等级配置与默认免费拥有权一致', () => {
+test('32款外观数量、货币/等级配置与默认免费拥有权一致', () => {
   const { G } = sandbox(), catalog = G.data.exteriorCatalog;
-  assert.deepEqual(Object.fromEntries(Object.entries(catalog).map(([key, values]) => [key, values.length])), { roof: 8, wall: 8, window: 6, door: 6, chimney: 3 });
-  const defs = Object.values(catalog).flat(); assert.equal(new Set(defs.map(def => def.id)).size, 31); assert.ok(defs.some(def => def.currency === 'heart')); assert.ok(defs.some(def => def.unlockLv > 1));
-  assert.equal(G.data.validateExterior(G.state.house.exterior), true); ['roof_triangle', 'wall_wood', 'win_square', 'door_wood', 'normal', 'none'].forEach(id => assert.equal(G.sys.exterior.owned(id), true));
+  assert.deepEqual(Object.fromEntries(Object.entries(catalog).map(([key, values]) => [key, values.length])), { roof: 8, wall: 9, window: 6, door: 6, chimney: 3 });
+  const defs = Object.values(catalog).flat(); assert.equal(new Set(defs.map(def => def.id)).size, 32); assert.ok(defs.some(def => def.currency === 'heart')); assert.ok(defs.some(def => def.unlockLv > 1));
+  assert.equal(G.data.validateExterior(G.state.house.exterior), true); ['roof_triangle', 'wall_wood', 'wall_toy', 'win_square', 'door_wood', 'normal', 'none'].forEach(id => assert.equal(G.sys.exterior.owned(id), true));
 });
 test('糖果购买仅扣一次，购买与换上分开；错误类目或未拥有不能装备', () => {
   const { G } = sandbox(), sys = G.sys.exterior, before = G.state.wallet.coin;
@@ -113,4 +113,4 @@ test('未拥有款只在预览试穿，购买后装备；所有选择与换色�
   descendants(host.children[0]).find(node => node.textContent === '购买并换上 · 60 糖果').click(); assert.equal(G.state.house.exterior.roof, 'roof_round'); assert.equal(G.state.wallet.coin, 240);
   G.ui.open('exterior'); advanceFrame(); const latestStyle = controls.filter(control => control.type === 'select').at(-1); latestStyle.node.choose('roof_triangle'); assert.equal(G.state.house.exterior.roof, 'roof_triangle'); assert.equal(G.state.wallet.coin, 240); advanceFrame();
 });
-console.log('\n' + passed + ' 组小屋外观规则与Promise预览接线检查通过；真实31款造型由浏览器核对。');
+console.log('\n' + passed + ' 组小屋外观规则与Promise预览接线检查通过；造型仍需真实浏览器核对。');

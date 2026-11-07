@@ -216,6 +216,7 @@
       if ($('panel').classList.contains('hidden')) { if (!options?.keepPlacing && G.runtime.placing) cancelPlacement(); return; }
       if (view.panel === 'cloudAccount' && ui.cloudAccount) ui.cloudAccount.close();
       if (view.panel === 'neighbors' && ui.neighbors) ui.neighbors.close();
+      if (view.panel === 'houseBlueprints' && ui.houseBlueprints) ui.houseBlueprints.close();
       G.audio.stopSpeech();
       const closedKind = view.panel;
       $('panel').classList.add('hidden'); $('panel').setAttribute('aria-hidden', 'true'); view.panel = null;
@@ -811,7 +812,7 @@
     if (typeof G.buildingEditor?.selection === 'function') G.buildingEditor.selection();
     else { const root = $('selection-tools'); root.replaceChildren(); root.classList.add('hidden'); }
   };
-  const renderers = { neighbors: () => ui.neighbors.panel(), cloudAccount: () => ui.cloudAccount.panel(), houseDesign: () => ui.houseDesign.panel(), crafting: () => ui.crafting.panel(view.options), roomLayout: () => buildingPanel('roomLayout'), observatory: () => ui.observatory.panel(), login: () => ui.login.panel(), build: () => buildingPanel('build'), decor: () => buildingPanel('decor'), shop: shopPanel, residents: residentsPanel, quests: questsPanel, play: playPanel, garden: () => ui.garden.panel(), avatar: () => ui.avatar.panel(), yard: () => buildingPanel('yard'), exterior: () => ui.exterior.panel(), settings: settingsPanel, memories: memoriesPanel, collection: () => ui.collectionBook.panel({ doAction, navigate: navigateToContent }), help: helpPanel };
+  const renderers = { houseBlueprints: () => ui.houseBlueprints.panel(), neighbors: () => ui.neighbors.panel(), cloudAccount: () => ui.cloudAccount.panel(), houseDesign: () => ui.houseDesign.panel(), crafting: () => ui.crafting.panel(view.options), roomLayout: () => buildingPanel('roomLayout'), observatory: () => ui.observatory.panel(), login: () => ui.login.panel(), build: () => buildingPanel('build'), decor: () => buildingPanel('decor'), shop: shopPanel, residents: residentsPanel, quests: questsPanel, play: playPanel, garden: () => ui.garden.panel(), avatar: () => ui.avatar.panel(), yard: () => buildingPanel('yard'), exterior: () => ui.exterior.panel(), settings: settingsPanel, memories: memoriesPanel, collection: () => ui.collectionBook.panel({ doAction, navigate: navigateToContent }), help: helpPanel };
   function renderCurrent() {
     if (view.dragPreparing) return;
     if (!view.panel || !renderers[view.panel]) return;
@@ -839,6 +840,7 @@
     const changed = view.panel !== name;
     if (changed && view.panel === 'cloudAccount' && ui.cloudAccount) ui.cloudAccount.close();
     if (changed && view.panel === 'neighbors' && ui.neighbors) ui.neighbors.close();
+    if (changed && view.panel === 'houseBlueprints' && ui.houseBlueprints) ui.houseBlueprints.close();
     if (changed) G.audio.stopSpeech();
     if (changed && typeof ui.controls?.close === 'function') ui.controls.close(false);
     view.panel = name; view.options = options || {};
@@ -947,7 +949,8 @@
     if (paperClose) paperClose.addEventListener('click', closeHomePaper);
     if (paperToggle) paperToggle.addEventListener('click', openHomePaper);
     document.querySelectorAll('[data-panel]').forEach(node => node.addEventListener('click', () => {
-      if (view.panel === node.dataset.panel) ui.panel.close();
+      if (node.dataset.panel === 'decor' && ui.houseBlueprints) { if (view.panel === 'houseBlueprints') ui.panel.close(); else ui.houseBlueprints.open(); }
+      else if (view.panel === node.dataset.panel) ui.panel.close();
       else if (node.dataset.panel === 'neighbors' && ui.neighbors) ui.neighbors.open();
       else ui.open(node.dataset.panel);
     }));

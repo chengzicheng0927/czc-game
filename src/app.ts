@@ -7,7 +7,8 @@ import { LiveVisitors } from './content/live-visitors';
 const G = window.Game;
 type Kind = 'wall' | 'opening' | 'furniture' | 'none';
 type Mode = 'select' | 'wall' | 'door' | 'window' | 'furniture' | 'wallpaper';
-type Entry = { before: BuildingDocument; after: BuildingDocument; inventory: Record<string, number>; label: string };
+type HouseHistory = { exteriorBefore: any; exteriorAfter: any; roomMaps: { before: Record<string, string>; after: Record<string, string> } };
+type Entry = { before: BuildingDocument; after: BuildingDocument; inventory: Record<string, number>; label: string; house?: HouseHistory };
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const node = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text?: string): HTMLElementTagNameMap[K] => {
   const n = document.createElement(tag); n.className = className; if (text !== undefined) n.textContent = text; return n;
@@ -32,8 +33,16 @@ let placement: string | null = null, wallHeight = 2.8, openingWidth = .9;
 let finishColor='#FFD6E0',finishPattern:'solid'|'dots'|'stripes'='dots';
 let undoStack: Entry[] = [], redoStack: Entry[] = [];
 let visitorDocument: BuildingDocument | null = null, visitorVisual:any = {customArts:[]};
+let housePreview: any = null;
 let houseView: {floor:string; view:'exterior'|'cutaway'} = {floor:'all',view:'exterior'};
-const doc = (): BuildingDocument => visitorDocument || G.state.building;
+const doc = (): BuildingDocument => visitorDocument || housePreview?.building || G.state.building;
+function visualState() {
+  if (visitorDocument) return visitorVisual;
+  if (!housePreview) return G.state;
+  const residents = clone(G.state.residents);
+  for (const assignment of housePreview.roomAssignments || []) if (residents[assignment.residentId]?.movedIn) residents[assignment.residentId].roomId = assignment.roomId;
+  return { ...G.state, building: housePreview.building, house: { ...G.state.house, exterior: housePreview.exterior }, residents };
+}
 const toast = (text:string) => G.ui.toast(text);
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 function field(label:string,input:HTMLElement) {return G.ui.controls.label(input,label);}
@@ -42,6 +51,7 @@ function numberInput(label:string,value:number,step=.25) {
 }
 function hintText() {
   if(visitorDocument)return '在朋友家看看 · 拖动转动镜头，滚轮缩放';
+  if(housePreview)return '正在看「'+housePreview.name+'」· 还没建造，选好后确认再搬进去';
   if(!editing)return '拖动转动小岛 · 滚轮放大看看 · 点「建造装饰」搭自己的小屋';
   return ({select:'点一点选择 · 拖动家具挪位置 · 随时可以退一步',wall:start?'接着点下一个墙角 · Esc 结束这一段':'在草坪上点两下，搭起一面墙',door:'在墙上点一下，装一扇小门',window:'在墙上点一下，添一扇窗',furniture:placement?'点草坪放好家具 · 小摆件也能放到桌面上':'从背包挑一件喜欢的家具',wallpaper:'挑个颜色和花纹，再点一面墙，给小屋换新衣'})[mode];
 }
@@ -105,13 +115,51 @@ function command(c: BuildingCommand, label: string, delta: Record<string,number>
   }catch(error){toast(message(error));paint();return false;}
 }
 function history(redo: boolean) {
+  if(housePreview)return {ok:false,message:'先回到现在的小屋，再退一步吧。'};
   const from=redo?redoStack:undoStack,to=redo?undoStack:redoStack,e=from.at(-1);if(!e)return {ok:false,message:'还没有可以'+(redo?'重做':'撤销')+'的布置。'};
   const content = (value:BuildingDocument) => JSON.stringify({...value,revision:0});
   if(content(doc())!==content(redo?e.before:e.after)){undoStack=[];redoStack=[];paint();return {ok:false,message:'小屋有了新的变化，已收好之前的布置记录。请从现在继续搭吧。'};}
-  try {const delta=Object.fromEntries(Object.entries(e.inventory).map(([id,n])=>[id,redo?n:-n]));persist(redo?e.after:e.before,delta);from.pop();to.push(e);selected={kind:'none',id:null};renderer.select('none',null);start=null;renderer.clearPreview();paint();renderOptions();return {ok:true,message:(redo?'重做：':'撤销：')+e.label};}
+  const ordered = (value:Record<string,unknown>) => JSON.stringify(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
+  const roomMap = () => Object.fromEntries(Object.entries(G.state.residents).filter(([,r]:any)=>r.movedIn).map(([id,r]:any)=>[id,r.roomId]));
+  const exteriorFields = (value:any) => Object.fromEntries(Object.entries(value).filter(([key])=>key!=='owned'));
+  if(e.house&&(ordered(roomMap())!==ordered(redo?e.house.roomMaps.before:e.house.roomMaps.after)||ordered(exteriorFields(G.state.house.exterior))!==ordered(redo?e.house.exteriorBefore:e.house.exteriorAfter))) {
+    undoStack=[];redoStack=[];paint();return {ok:false,message:'朋友的房间或小屋外观有了新安排，之前的换房记录收好啦，请从现在继续搭配。'};
+  }
+  try {const delta=Object.fromEntries(Object.entries(e.inventory).map(([id,n])=>[id,redo?n:-n]));persist(redo?e.after:e.before,delta,state=>{
+    if(!e.house)return;
+    Object.assign(state.house.exterior,clone(redo?e.house.exteriorAfter:e.house.exteriorBefore));
+    for(const [id,roomId] of Object.entries(redo?e.house.roomMaps.after:e.house.roomMaps.before)) if(state.residents[id]?.movedIn)state.residents[id].roomId=roomId;
+  });from.pop();to.push(e);selected={kind:'none',id:null};renderer.select('none',null);start=null;renderer.clearPreview();paint();renderOptions();return {ok:true,message:(redo?'重做：':'撤销：')+e.label};}
   catch(error){return {ok:false,message:message(error)};}
 }
+function endHousePreview() {
+  if(!housePreview)return;
+  housePreview=null;G.runtime.houseBlueprintPreviewId=null;
+  floorId=G.state.building.floors[0].id;houseView={floor:'all',view:'exterior'};
+  renderer.setReadOnly(true);renderer.setView('exterior');paint();renderer.resetCamera();
+}
+function previewHouse(id:string) {
+  if(visitorDocument||G.visitSession?.active?.())return {ok:false,message:'先回自己的小屋，再挑新房子吧。'};
+  try {
+    const preview=G.sys.houseBlueprints.preview(id);if(!preview?.building)return {ok:false,message:preview?.reason||'先选一座小屋吧。'};
+    leaveEditing();housePreview=preview;G.runtime.houseBlueprintPreviewId=id;
+    floorId=preview.building.floors[0].id;houseView={floor:'all',view:'exterior'};
+    renderer.setReadOnly(true);renderer.setView('exterior');paint();renderer.resetCamera();return {ok:true};
+  }catch(error){return {ok:false,message:message(error)};}
+}
+function buildHouse(id:string,quote:any) {
+  if(visitorDocument||G.visitSession?.active?.())return {ok:false,message:'先回自己的小屋，再建新房子吧。'};
+  try {
+    const result=G.sys.houseBlueprints.apply(id,quote);if(!result.ok)return result;
+    if(result.unchanged)return result;
+    undoStack.push({before:clone(result.buildingBefore),after:clone(result.buildingAfter),inventory:clone(result.inventoryDelta),label:'建造'+(result.name||'新房子'),house:{
+      exteriorBefore:clone(result.exteriorBefore),exteriorAfter:clone(result.exteriorAfter),roomMaps:clone(result.roomMaps),
+    }});if(undoStack.length>80)undoStack.shift();redoStack=[];
+    endHousePreview();floorId=G.state.building.floors[0].id;paint();return result;
+  }catch(error){return {ok:false,message:message(error)};}
+}
 function ground(point: Point2) {
+  if(housePreview)return;
   if(G.visitSession?.walkTo(point)||G.hostRoom?.walkTo(point))return;
   if(visitorDocument){if(visitorId&&G.live?.status()?.phase==='connected'){const next=G.liveSpace.destination(visitorVisual,point,floorId);if(next)G.live.move(next.zone,next.x,next.y);}return;}
   const p={x:Math.round(point.x*4)/4,z:Math.round(point.z*4)/4};
@@ -199,7 +247,7 @@ function paint() {
   if(!renderer)return;
   const building=doc();
   if(!building.floors.some(f=>f.id===floorId))floorId=building.floors[0].id;
-  renderer.setContentState({...(visitorDocument?visitorVisual:G.state),hidePlayer:!!G.live?.status()?.peerId});
+  renderer.setContentState({...visualState(),hidePlayer:!!G.live?.status()?.peerId});
   renderer.setDocument(building,floorId,houseView.floor==='all');
   document.querySelectorAll<HTMLButtonElement>('[data-history]').forEach(b=>b.disabled=!(b.dataset.history==='redo'?redoStack:undoStack).length);
   const summary=$('editor-options')?.querySelector('.building-summary');
@@ -273,7 +321,7 @@ function previewExterior(target:HTMLCanvasElement,exterior:any) {
       context.clearRect(0,0,target.width,target.height);context.drawImage(source,(source.width-width)/2,(source.height-height)/2,width,height,0,0,target.width,target.height);
       return {ok:true};
     } finally {
-      captureDepth--;renderer.setContentState(visitorDocument?visitorVisual:G.state);renderer.setView(houseView.view);renderer.setDocument(doc(),floorId,houseView.floor==='all');
+      captureDepth--;renderer.setContentState(visualState());renderer.setView(houseView.view);renderer.setDocument(doc(),floorId,houseView.floor==='all');
       if(epoch===editorEpoch&&building===doc()){camera.alpha=held.alpha;camera.beta=held.beta;camera.radius=held.radius;camera.target.copyFrom(held.target);camera.targetScreenOffset.copyFrom(held.offset);}renderer.screenshot();
     }
   };
@@ -291,7 +339,7 @@ function installBridges() {
     visit:{
       active:()=>!!visitorDocument,
       set:(next:any)=>{
-        leaveEditing();visitorDocument=next?validateDocument(next.building,G.data.furnitureById):null;visitorVisual=next||{customArts:[]};
+        housePreview=null;G.runtime.houseBlueprintPreviewId=null;leaveEditing();visitorDocument=next?validateDocument(next.building,G.data.furnitureById):null;visitorVisual=next||{customArts:[]};
         floorId=doc().floors[0].id;renderer.setReadOnly(!!visitorDocument);visitors?.clear();paint();renderer.setView('exterior');renderer.resetCamera();
       },
     },
@@ -304,13 +352,16 @@ function installBridges() {
       focusYard:()=>{const yard=doc().floors.find(f=>f.id==='legacy_yard');if(yard)focusFloor(yard.id);else renderer.resetCamera();},
       focusGarden:()=>renderer.resetCamera(),focusSea:()=>{renderer.resetCamera();renderer.camera.radius*=1.4;},focusPlayer:()=>{renderer.resetCamera();renderer.camera.radius*=.55;},
       getInteractionMode:()=>interaction,setInteractionMode:(value:string)=>{interaction=value;renderer.camera.detachControl();renderer.camera.attachControl(true,false,value==='pan'?0:2);G.bus.emit('camera:interaction',{});},
-      goHome:()=>{renderer.setSurface(null);leaveEditing();renderer.resetCamera();},
+      goHome:()=>{endHousePreview();renderer.setSurface(null);leaveEditing();renderer.resetCamera();},
     },
   });
   visitors=new LiveVisitors(renderer,()=>visitorDocument?visitorVisual:G.state,G.liveAvatars,()=>G.ui.view?.panel==='garden'?'__garden__':houseView.view==='cutaway'&&houseView.floor!=='all'?floorId:null);
   G.livePeers={set:(peers:any[],selfId:string|null,messages:any[])=>visitors.set(peers,selfId,messages),clear:()=>visitors.clear()};
   G.buildingEditor={
     panel:builderPanelContent,selection:selectionTools,hint:hintText,
+    previewHouse,endHousePreview,buildHouse,
+    openFurniture:()=>{endHousePreview();if(!G.state.building.walls.length){G.ui.open('houseBlueprints');toast('先挑一座房子，再搬进喜欢的家具吧。');return;}G.ui.open('decor',{tab:'furniture'});},
+    openAdvanced:()=>{endHousePreview();G.ui.open('build',{advanced:true});},
     undo:(options:any={})=>history(!!options.redo),
     beginPlacement:(id:string,spaceId:string|null)=>{
       if(visitorDocument)return {ok:false,message:'朋友的小屋只能看看哦。'};
@@ -356,10 +407,11 @@ function installEvents() {
     G.ui.refresh();
   });
   G.bus.on('state:change',paint);
-  G.bus.on('state:replace',()=>{editorEpoch++;undoStack=[];redoStack=[];leaveEditing();if(buildingPanels.has(G.ui.view?.panel))G.ui.panel.close();paint();});
+  G.bus.on('state:replace',()=>{editorEpoch++;undoStack=[];redoStack=[];housePreview=null;G.runtime.houseBlueprintPreviewId=null;leaveEditing();if(buildingPanels.has(G.ui.view?.panel)||G.ui.view?.panel==='houseBlueprints')G.ui.panel.close();paint();});
   G.bus.on('save:error',(e:any)=>toast(e.message));
   G.bus.on('shell:layout',(layout:any)=>{
     const current=G.ui.view?.panel;
+    if(housePreview&&current!=='houseBlueprints')endHousePreview();
     if(editing&&!buildingPanels.has(current)&&!G.runtime.placing)leaveEditing();
     syncSurface();
     updateCameraInset();
