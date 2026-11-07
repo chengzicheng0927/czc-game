@@ -73,6 +73,7 @@
     pending = false;
     view.message = result?.message || '小屋已经收好。'; ui.toast(view.message);
     if (result?.ok) {
+      view.message = '';
       bridge('endHousePreview'); G.audio?.play?.('success'); bridge('openFurniture');
     } else if (visible()) reopen();
   }
