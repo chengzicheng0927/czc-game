@@ -81,7 +81,7 @@ type ThumbnailSubject =
   | { kind: 'furniture'; defId: string; item?: { color?: string; artId?: string } }
   | { kind: 'resident'; id: string }
   | { kind: 'avatar'; look: Record<string, unknown>; yaw: number };
-type ClayHost = { scene: Scene; material(tone: string, alpha?: number): StandardMaterial; addShadow(mesh: AbstractMesh): void };
+type ClayHost = { scene: Scene; material(tone: string, alpha?: number): StandardMaterial; cloudMaterial?(tone: string): StandardMaterial; addShadow(mesh: AbstractMesh): void };
 
 const MeshBuilder = { CreateBox, CreateTiledBox, CreateSphere, CreateCylinder, CreateLineSystem, CreatePlane };
 
@@ -134,6 +134,11 @@ class ClayAdapter {
     }, this.owner.scene);
     mesh.scaling.set(Math.max(.002, size[0]), Math.max(.002, size[1]), Math.max(.002, size[2]));
     return this.finish(mesh, p, color, rotation);
+  }
+  cloudSphere(p: PrimitivePoint, size: PrimitivePoint, color: string, segments = 20, rings = 12) {
+    const mesh = this.sphere(p, size, color, segments, rings);
+    mesh.material = this.owner.cloudMaterial?.(color) || mesh.material;
+    return mesh;
   }
   cylinder(p: PrimitivePoint, radius: number, height: number, color: string, topRadius?: number, segments = 16, rotation?: number[]) {
     return this.finish(MeshBuilder.CreateCylinder(`clay-cylinder-${this.count++}`, {
@@ -194,8 +199,9 @@ class ClayAdapter {
       const mesh = parts.length > 1 ? Mesh.MergeMeshes(parts, true, true, undefined, false, false) : parts[0];
       if (!mesh) continue;
       mesh.parent = this.parent; mesh.material = material; mesh.metadata = metadata;
-      mesh.isPickable = !this.ghost; mesh.receiveShadows = true;
-      if (!this.ghost) this.owner.addShadow(mesh);
+      const cloud = material.metadata?.claySurface === 'cloud';
+      mesh.isPickable = !this.ghost && !cloud; mesh.receiveShadows = !cloud;
+      if (!this.ghost && !cloud) this.owner.addShadow(mesh);
       result.push(mesh);
     }
     return result;
@@ -313,6 +319,20 @@ export class BuildingRenderer {
       material.diffuseColor = Color3.FromHexString(color);
       material.specularColor = new Color3(.075, .065, .06); material.specularPower = 32;
       material.alpha = alpha; material.backFaceCulling = false;
+      this.materials.set(key, material);
+    }
+    return material;
+  }
+  cloudMaterial(tone: string) {
+    const color = colorValue(tone, '#FFFFFF'), key = 'cloud:' + color;
+    let material = this.materials.get(key);
+    if (!material) {
+      material = new StandardMaterial(key, this.scene);
+      // 云保留柔和体积受光，底面不被地面的褐色反照染成土块。
+      const base = Color3.FromHexString(color);
+      material.diffuseColor = base.scale(.6); material.emissiveColor = base.scale(.4);
+      material.specularColor = new Color3(.015, .015, .02); material.backFaceCulling = false;
+      material.metadata = { claySurface: 'cloud' };
       this.materials.set(key, material);
     }
     return material;
@@ -1066,9 +1086,10 @@ export class BuildingRenderer {
     for (const opening of openings) {
       const width = opening.width, height = opening.height, x = opening.offset + width / 2, y = opening.sill + height / 2;
       const depth = wall.thickness + .065, meta: Meta = { kind: 'opening', id: opening.id, wallId: wall.id };
-      const mid = { x: (wall.start.x + wall.end.x) / 2, z: (wall.start.z + wall.end.z) / 2 };
+      // 凹形/穿过多个空间的长墙，应在这扇窗所在处判断花箱朝外的方向。
+      const center = { x: wall.start.x + (wall.end.x - wall.start.x) * x / length, z: wall.start.z + (wall.end.z - wall.start.z) * x / length };
       const normal = { x: -(wall.end.z - wall.start.z) / length, z: (wall.end.x - wall.start.x) / length };
-      const plus = { x: mid.x + normal.x * .12, z: mid.z + normal.z * .12 };
+      const plus = { x: center.x + normal.x * .12, z: center.z + normal.z * .12 };
       const plusInside = this.spaces.some(space => this.inside(plus, space.polygon) && !(space.holes || []).some(hole => this.inside(plus, hole)));
       const outward = plusInside ? -1 : 1, faceZ = outward * (depth / 2 + .035);
       const exterior = this.visualState.exterior as Record<string, unknown>;
@@ -1076,8 +1097,12 @@ export class BuildingRenderer {
       const detailRoot = new TransformNode('opening-' + style + '-' + opening.id, this.scene), details = new ClayAdapter(this, detailRoot);
       addOpeningDetails(details, { x, sill: opening.sill, width, height, depth, faceZ, outward, kind: opening.kind, style });
       if (opening.kind === 'window') {
-        const glass = details.profile(openingProfile(style), [x, opening.sill, 0], [width * .94, height * .94, .016], '#D7E7E8');
-        glass.material = this.material('#D7E7E8', .19);
+        const glass = details.profile(openingProfile(style), [x, opening.sill, 0], [width * .94, height * .94, .016], '#B9DEE8');
+        glass.material = this.material('#B9DEE8', .55);
+        // 浅蓝玻璃与两道小高光，让远景里的窗也能一眼认出来；窗洞仍由真实墙体开口形成。
+        for (const face of [-1, 1]) for (const [dx, dy, size] of [[-.23, .73, .16], [-.1, .81, .09]]) {
+          details.box([x + dx * width, opening.sill + dy * height, face * .027], [.025, height * size, .014], '#F7FCFF', .009, [0, 0, -.5]);
+        }
         if (style === 'win_stained') {
           const panes: Array<{ points: ProfilePoint[]; tone: string }> = [
             { points: [{ x: -.43, y: .18 }, { x: -.43, y: .76 }, { x: 0, y: .49 }], tone: '#D9BAD8' },

@@ -8,24 +8,88 @@ export function createClayModels(data = {}, state = {}) {
   const validColor = (value, fallback) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
   const tint = (hex, n) => '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, parseInt(validColor(hex, '#FFFFFF').slice(i, i + 2), 16) + n)).toString(16).padStart(2, '0')).join('');
 
-  function island(g, x, z, radius, y = 0) {
+  function island(g, x, z, radius, y = 0, softClouds = false) {
     g.cylinder([x, y - .56, z], radius * .96, .88, C.soil, radius, 40);
     g.cylinder([x, y - .08, z], radius, .28, C.grass, radius * .99, 40);
     g.sphere([x, y - .71, z], [radius * .91, .67, radius * .87], C.clay, 24, 8);
+    if (softClouds) {
+      // 一整片宽云腹连接大小不等的云肩，不再让九颗等距小球围成波浪圈。
+      // 范围仍约为原半径的1.09倍，草坪、土层和落脚面完全沿用原尺寸。
+      const ball = g.cloudSphere ? g.cloudSphere.bind(g) : g.sphere.bind(g);
+      const segments = radius < 3 ? 16 : 20;
+      for (const [dx, dy, dz, rx, ry, rz, tone] of [
+        [0, -1.04, 0, 1.035, .48, .985, '#F4F5FF'],
+        [-.61, -.99, -.04, .46, .37, .59, '#FFFAF4'],
+        [.58, -1.04, .12, .48, .34, .61, '#FFFFFF'],
+        [.04, -.98, -.59, .69, .35, .45, '#FFFFFF'],
+        [-.10, -1.02, .59, .74, .34, .47, '#FFFFFF'],
+        [-.35, -1.01, .75, .44, .19, .30, '#FFFAF4'],
+        [.53, -1.07, .49, .37, .20, .43, '#FFFFFF'],
+      ]) ball([x + dx * radius, y + dy, z + dz * radius], [rx * radius, ry, rz * radius], tone, segments, 10);
+      return;
+    }
     for (let i = 0; i < 9; i++) {
       const a = i / 9 * TAU;
       g.sphere([x + Math.cos(a) * radius * .76, y - 1.05, z + Math.sin(a) * radius * .76], [radius * .33, .42, radius * .27], C.white, 12, 7);
     }
   }
   function cloud(g, x, y, z, s = 1) {
-    for (const a of [[0, 0, 0, 1.1, .33, .65], [-.55, .1, 0, .7, .5, .58], [.15, .25, -.05, .75, .58, .6], [.7, .06, .02, .7, .4, .5]]) g.sphere([x + a[0] * s, y + a[1] * s, z + a[2] * s], a.slice(3).map(v => v * s), C.white, 12, 8);
+    const ball = g.cloudSphere ? g.cloudSphere.bind(g) : g.sphere.bind(g);
+    // 深叠的宽底、偏心高峰与低云肩，形成连续而非串珠的软云轮廓。
+    for (const [dx, dy, dz, rx, ry, rz, tone] of [
+      [.02, -.12, .04, 1.52, .31, .74, '#F4F5FF'],
+      [-.07, .07, 0, 1.30, .41, .68, '#FFFAF4'],
+      [-.93, .10, .02, .64, .36, .54, '#FFFFFF'],
+      [-.33, .34, -.08, .68, .53, .59, '#FFFFFF'],
+      [.43, .26, -.05, .77, .45, .63, '#FFFFFF'],
+      [1.06, .025, .06, .53, .30, .48, '#FFFAF4'],
+      [-.10, -.12, .46, 1.12, .20, .35, '#FFFFFF'],
+    ]) ball([x + dx * s, y + dy * s, z + dz * s], [rx * s, ry * s, rz * s], tone, 18, 10);
   }
-  function tree(g, x, z, s = 1, y = 0, color = C.mint) {
-    g.sphere([x + .1 * s, y + .04, z], [.66 * s, .025, .5 * s], '#98B384', 14, 5);
-    g.cylinder([x, y + .8 * s, z], .12 * s, 1.5 * s, C.wood, .09 * s, 10);
-    g.cylinder([x + .18 * s, y + 1.25 * s, z], .07 * s, .55 * s, C.wood, .05 * s, 8, [0, 0, -.55]);
-    for (const a of [[0, 2.05, 0, .74, .94, .7], [-.37, 1.75, .05, .53, .62, .55], [.38, 1.9, -.03, .51, .66, .53]]) g.sphere([x + a[0] * s, y + a[1] * s, z + a[2] * s], a.slice(3).map(v => v * s), color, 16, 10);
-    for (let i = 0; i < 3; i++) g.sphere([x + (i - 1) * .34 * s, y + (1.68 + i % 2 * .38) * s, z + .59 * s], [.1 * s, .12 * s, .1 * s], color === C.mint ? C.butter : '#FFE5ED', 8, 6);
+  function tree(g, x, z, s = 1, y = 0, color = C.mint, environmentStyle = '') {
+    if (!environmentStyle) {
+      // 原园区与真实树类作物保持原有阶段造型；环境树通过显式款式升级。
+      g.sphere([x + .1 * s, y + .04, z], [.66 * s, .025, .5 * s], '#98B384', 14, 5);
+      g.cylinder([x, y + .8 * s, z], .12 * s, 1.5 * s, C.wood, .09 * s, 10);
+      g.cylinder([x + .18 * s, y + 1.25 * s, z], .07 * s, .55 * s, C.wood, .05 * s, 8, [0, 0, -.55]);
+      for (const a of [[0, 2.05, 0, .74, .94, .7], [-.37, 1.75, .05, .53, .62, .55], [.38, 1.9, -.03, .51, .66, .53]]) g.sphere([x + a[0] * s, y + a[1] * s, z + a[2] * s], a.slice(3).map(v => v * s), color, 16, 10);
+      for (let i = 0; i < 3; i++) g.sphere([x + (i - 1) * .34 * s, y + (1.68 + i % 2 * .38) * s, z + .59 * s], [.1 * s, .12 * s, .1 * s], color === C.mint ? C.butter : '#FFE5ED', 8, 6);
+      return;
+    }
+    const point = (dx, dy, dz) => [x + dx * s, y + dy * s, z + dz * s];
+    const ball = (p, radius, tone, segments = 12) => g.sphere(point(...p), radius.map(v => v * s), tone, segments, 8);
+    const branch = (a, b, radius, top) => {
+      const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], length = Math.hypot(dx, dy, dz);
+      g.cylinder(point((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), radius * s, length * s, C.wood, top * s, 12, [Math.atan2(dz, dy), 0, -Math.asin(dx / length)]);
+    };
+    ball([.03, .035, 0], [.67, .025, .53], '#A3BB91', 14);
+    branch([0, .06, 0], [.035, 1.50, -.025], .115, .073);
+    branch([.015, 1.01, 0], [-.38, 1.74, .02], .07, .035);
+    branch([.025, 1.16, -.01], [.41, 1.87, -.07], .065, .03);
+    ball([0, 1.12, 0], [.10, .12, .09], C.wood);
+    for (const side of [-1, 1]) ball([side * .12, .085, .03], [.19, .075, .12], C.wood);
+    // 七个相互深叠、大小和高度均不同的团簇，底部宽、顶部略偏心。
+    const segments = s < .5 ? 14 : 18;
+    for (const [dx, dy, dz, rx, ry, rz, light] of [
+      [.015, 2.08, -.045, .72, .72, .67, 0],
+      [-.42, 1.86, .02, .53, .48, .53, 0],
+      [.43, 1.91, .07, .55, .50, .52, 6],
+      [-.14, 2.24, -.37, .55, .57, .47, -5],
+      [.10, 2.49, -.045, .52, .55, .51, 13],
+      [-.20, 2.18, .38, .55, .48, .47, 6],
+      [.43, 2.35, .17, .48, .52, .45, 6],
+    ]) ball([dx, dy, dz], [rx, ry, rz], tint(color, light), segments);
+    if (environmentStyle === 'blossom') {
+      for (const [bx, by, bz, scale] of [[-.46, 2.13, .64, 1.25], [.22, 2.52, .70, 1]]) {
+        for (let i = 0; i < 5; i++) { const a = i * TAU / 5; ball([bx + Math.cos(a) * .065 * scale, by + Math.sin(a) * .065 * scale, bz], [.057 * scale, .049 * scale, .025], '#E8A6B5', 8); }
+        ball([bx, by, bz + .025], [.035 * scale, .035 * scale, .02], '#FFF0B8', 8);
+      }
+    } else if (environmentStyle === 'fruit') {
+      for (const [fx, fy, fz] of [[-.42, 1.84, .62], [.55, 2.10, .62], [.15, 2.47, .70]]) {
+        ball([fx, fy, fz], [.085, .095, .08], '#F6D98B', 12);
+        ball([fx + .035, fy + .095, fz], [.065, .025, .035], tint(color, -7), 10);
+      }
+    }
   }
   function flower(g, x, z, color = C.pink, s = 1, y = 0) {
     g.cylinder([x, y + .16 * s, z], .022 * s, .32 * s, C.mint, null, 6);

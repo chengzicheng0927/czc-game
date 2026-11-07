@@ -4,6 +4,7 @@ type Triple = [number, number, number];
 export interface ClayGeometry {
   box(position: Triple, size: Triple, color: string, radius?: number, rotation?: number[]): unknown;
   sphere(position: Triple, size: Triple, color: string, segments?: number, rings?: number): unknown;
+  cloudSphere?(position: Triple, size: Triple, color: string, segments?: number, rings?: number): unknown;
   cylinder(position: Triple, radius: number, height: number, color: string, topRadius?: number, segments?: number, rotation?: number[]): unknown;
   roof(position: Triple, width: number, depth: number, height: number, color: string): unknown;
 }
@@ -17,10 +18,10 @@ export function buildIslandEnvironment(g: ClayGeometry, models: ReturnType<typeo
   const { x, z, y, radius: r } = spec;
   const size = Math.max(.8, Math.min(1.25, r / 6));
   const local = (dx: number, dy: number, dz: number): Triple => [x + dx, y + dy, z + dz];
-  models.island(g, x, z, r, y - .06);
-  models.tree(g, x - r * .7, z - r * .27, size * .9, y, '#87BCB0');
-  models.tree(g, x + r * .72, z + r * .02, size * .83, y, '#B8C78B');
-  models.tree(g, x - r * .65, z + r * .42, size * .62, y, '#C8CE8B');
+  models.island(g, x, z, r, y - .06, true);
+  models.tree(g, x - r * .7, z - r * .27, size * .9, y, '#87BCB0', 'foliage');
+  models.tree(g, x + r * .72, z + r * .02, size * .83, y, '#ADD0AF', 'blossom');
+  models.tree(g, x - r * .65, z + r * .42, size * .62, y, '#BAD193', 'fruit');
 
   // 白色圆头栅栏、奶油长椅和莓红邮箱沿用原型的散件比例。
   const fenceX = -r * .62, fenceZ = r * .64;
@@ -71,12 +72,12 @@ export function buildIslandEnvironment(g: ClayGeometry, models: ReturnType<typeo
   // 远岛为无账号、无交互的背景景物，绝不冒充在线邻居。
   for (const [dx, dz, scale] of [[-1.48, -.7, .28], [1.6, .1, .24]] as const) {
     const ix = x + r * dx, iz = z + r * dz, ir = r * scale, iy = y - .55;
-    models.island(g, ix, iz, ir, iy);
+    models.island(g, ix, iz, ir, iy, true);
     g.box([ix, iy + .66, iz], [.95, 1.2, .85], '#FFF2D9', .075);
     g.roof([ix, iy + 1.25, iz], 1.18, 1.07, .49, scale > .25 ? '#87BCB0' : '#B9AED5');
     g.box([ix, iy + .44, iz + .45], [.25, .7, .05], '#43877F', .07);
     g.box([ix + .27, iy + .81, iz + .45], [.22, .24, .05], '#A9D4D7', .025);
-    models.tree(g, ix - ir * .58, iz + ir * .1, .35, iy, '#B8C78B');
+    models.tree(g, ix - ir * .58, iz + ir * .1, .35, iy, '#B8C78B', 'foliage');
   }
   for (const [dx, dz, scale] of [[-1.25, .5, 1.2], [.8, -1.15, 1.4], [1.38, .85, .95], [-.9, -1.2, 1.0], [.0, 1.6, 2.0]] as const) {
     models.cloud(g, x + dx * r, y - 1.45, z + dz * r, scale * Math.max(1, r / 5.5));
