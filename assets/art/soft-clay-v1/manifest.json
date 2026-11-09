@@ -2,7 +2,7 @@
   "created": "2026-11-09",
   "tool": "built-in image_gen.imagegen",
   "model": "Tool-selected; no exact model ID exposed",
-  "runtimeIntegrated": false,
+  "runtimeIntegrated": true,
   "style": "原创儿童软陶风格，奶油/莓红/金黄/森林绿",
   "assets": [
     {
@@ -10,21 +10,34 @@
       "file": "ginkgo-tree.png",
       "role": "银杏树透明图卡/远景素材与3D造型参考",
       "width": 1320,
-      "height": 1192
+      "height": 1192,
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/art-landscape.ts",
+      "pngRuntimeIntegrated": false,
+      "runtimeRole": "procedural-near-tree-reference"
     },
     {
       "id": "christmas-tree",
       "file": "christmas-tree.png",
       "role": "圣诞树透明图卡/远景素材与3D造型参考",
       "width": 1199,
-      "height": 1312
+      "height": 1312,
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/art-landscape.ts",
+      "pngRuntimeIntegrated": false,
+      "runtimeRole": "procedural-near-tree-reference"
     },
     {
       "id": "marshmallow-cloud",
       "file": "marshmallow-cloud.png",
       "role": "远景云PNG与体积云造型参考",
       "width": 1774,
-      "height": 887
+      "height": 887,
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/art-landscape.ts",
+      "pngRuntimeIntegrated": true,
+      "runtimeFile": "../../runtime/marshmallow-cloud.png",
+      "runtimeRole": "compressed-distant-png-and-volumetric-near-cloud-reference"
     },
     {
       "id": "candy-castle-reference",
@@ -35,10 +48,12 @@
       "limitation": "有宽背景光晕，不作为干净透明cutout、无缝材质或已制作3D模型"
     }
   ],
-  "validation": "Four PNG files visually inspected; alpha extrema and dimensions recorded in inspection.json. No gameplay source/save changes.",
+  "validation": "Original source inspection remains in inspection.json. Runtime code and geometry checks passed; browser QA blocked by saved origin permission.",
   "discardedAttempt": {
     "asset": "castle-cutout",
     "prompt": "Use case: background-extraction. Edit only the background/alpha of this already generated castle art. Preserve the exact castle design, every tower, roof tile, door, window, flower, color, texture, lighting, scale and framing. Remove ALL of the dark/pink/gold studio backdrop, broad colored halo and any ground/contact-shadow outside the physical castle. Deliver a clean isolated castle with a genuinely transparent empty background and crisp antialiased edges, not a black background and not a colored glow. Do not redraw or change the castle. No text or additional objects.",
     "reason": "One imagegen background-extraction edit still retained a broad colored halo; excluded from the selected pack. Original modeling reference retained."
-  }
+  },
+  "integrationStatus": "runtime-code-integrated-awaiting-browser",
+  "integrationEvidence": "../../../docs/art-integration.md"
 }

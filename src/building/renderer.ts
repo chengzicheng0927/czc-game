@@ -1,3 +1,4 @@
+import { roomCameraFrame, boundsOf, type RoomView, type RoomBounds } from './room-camera';
 import { Engine } from '@babylonjs/core/Engines/engine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera.js';
@@ -37,6 +38,7 @@ import { deriveSpaces, type Space } from './domain';
 import earcut from 'earcut';
 import { AvatarGeometry, buildAvatarFrame, buildStaticAvatar, avatarVertexShader, avatarFragmentShader } from '../content/avatar-model';
 import { addOpeningDetails, heartProfile, openingProfile, paintExteriorWall, paintRoofPattern, paintWallpaper, starProfile, type ProfilePoint } from '../content/exterior-details';
+import { buildArtRoofDetails } from '../content/art-architecture';
 import { createRoofSurface } from '../content/roof-surface';
 import { mergeRoofFootprints, roofEaveHeight } from '../content/roof-footprints';
 import { createRoofVertexData } from './roof-mesh';
@@ -285,6 +287,11 @@ export class BuildingRenderer {
   private lastPaint = 0;
   private resizeObserver: ResizeObserver;
   private cutaway = false;
+  private roomView: RoomView = 'admire';
+  private roomBounds: RoomBounds | null = null;
+  private usableViewport = { x: 0, y: 0, width: 1, height: 1 };
+  private readonly wallRoots = new Map<string, { root: TransformNode; wall: Wall; internal: boolean; lowered?: boolean }>();
+
   private bounds = { minX: -10, maxX: 10, minZ: -8, maxZ: 8 };
 
   constructor(
@@ -300,7 +307,7 @@ export class BuildingRenderer {
     this.engine.setHardwareScalingLevel(1 / Math.min(1.5, window.devicePixelRatio || 1));
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromHexString('#DCEAE8FF');
-    this.buildSky();
+    this.buildSky(); this.buildDistantArt();
     this.scene.ambientColor = new Color3(.015, .01, .015);
     this.camera = new ArcRotateCamera('building-camera', Math.PI / 2 - .43, .76, 20, new Vector3(0, .6, 0), this.scene);
     this.camera.lowerRadiusLimit = 3; this.camera.upperRadiusLimit = 160;
@@ -322,8 +329,22 @@ export class BuildingRenderer {
     canvas.addEventListener('contextmenu', this.contextMenu);
     document.addEventListener('visibilitychange', this.visibilityChange);
     this.resizeObserver = new ResizeObserver(() => { this.engine.resize(); if (this.document) this.resetCamera(); }); this.resizeObserver.observe(canvas);
+    this.scene.onBeforeRenderObservable.add(() => { this.updateProjection(); this.updateCutawayWalls(); });
     this.engine.runRenderLoop(this.renderFrame);
     canvas.dataset.renderer = 'babylon'; canvas.dataset.ready = 'true';
+  }
+
+  private buildDistantArt() {
+    const url = document.querySelector<HTMLLinkElement>('#art-marshmallow-cloud')?.href;
+    if (!url) return;
+    const material = new StandardMaterial('distant-cloud-png',this.scene);
+    const texture = new Texture(url,this.scene,true,false,Texture.BILINEAR_SAMPLINGMODE);
+    texture.hasAlpha = true; material.diffuseTexture = texture; material.useAlphaFromDiffuseTexture = true;
+    material.disableLighting = true; material.emissiveColor = Color3.White(); material.alpha = .42; material.backFaceCulling = false;
+    for (const [x,y,z,width] of [[-23,3,-28,11],[22,5,-34,14],[-7,7,-44,12]]) {
+      const cloud = CreatePlane('far-art-cloud',{width,height:width/2},this.scene);
+      cloud.position.set(x,y,z); cloud.material = material; cloud.billboardMode = Mesh.BILLBOARDMODE_ALL; cloud.isPickable = false;
+    }
   }
 
   material(tone: string, alpha = 1) {
@@ -386,7 +407,8 @@ export class BuildingRenderer {
     this.disposeRoot(this.contentRoot); this.disposeRoot(this.actorsRoot);
     this.contentRoot = new TransformNode('building-content', this.scene);
     this.actorsRoot = new TransformNode('island-friends', this.scene);
-    this.furnitureRoots.clear();
+    this.furnitureRoots.clear(); this.wallRoots.clear();
+    if (previousFloor && previousFloor !== activeFloorId) this.roomBounds = null;
     this.updateBounds(); this.buildGround();
     this.canvas.dataset.roofCount = '0'; this.canvas.dataset.roofTriangleCount = '0'; this.canvas.dataset.towerCount = '0'; this.roofTop = 0;
     const selectedY = this.floorY, allSpaces: Space[] = [];
@@ -401,6 +423,7 @@ export class BuildingRenderer {
       for (const item of doc.furniture.filter(value => value.floorId === floor.id)) this.buildFurniture(item);
     }
     this.activeFloorId = activeFloorId; this.floorY = selectedY; this.spaces = allSpaces;
+    this.updateCutawayWalls();
     this.buildActors(allSpaces);
     this.select(this.selected.kind, this.selected.id);
     this.clearPreview(); this.updateGhost();
@@ -611,7 +634,61 @@ export class BuildingRenderer {
     this.preview.material = this.material('#C75B82', .38); this.preview.isPickable = false;
   }
   clearPreview() { this.preview?.dispose(); this.preview = null; }
+  setUsableViewport(view: {x:number;y:number;width:number;height:number}) {
+    const rect = this.canvas.getBoundingClientRect();
+    const next = { x: view.x / rect.width, y: view.y / rect.height, width: Math.max(.1, view.width / rect.width), height: Math.max(.1, view.height / rect.height) };
+    const changed = Math.abs(next.width - this.usableViewport.width) > .02 || Math.abs(next.height - this.usableViewport.height) > .02;
+    this.usableViewport = next;
+    if (changed && this.view === 'cutaway' && !this.isYardFloor()) this.resetCamera();
+    this.updateProjection();
+  }
+  private updateProjection() {
+    if (this.camera.mode !== Camera.ORTHOGRAPHIC_CAMERA) return;
+    const halfHeight = this.camera.radius * Math.tan(this.camera.fov / 2), halfWidth = halfHeight * this.engine.getAspectRatio(this.camera);
+    this.camera.orthoLeft = -halfWidth; this.camera.orthoRight = halfWidth;
+    this.camera.orthoTop = halfHeight; this.camera.orthoBottom = -halfHeight;
+  }
+  setRoomView(view: RoomView) {
+    this.roomView = view; this.preferredView = 'cutaway'; this.view = 'cutaway';
+    if (this.document) this.setDocument(this.document, this.activeFloorId, false);
+    this.resetCamera();
+  }
+  getRoomView() { return this.roomView; }
+  focusRoomBounds(bounds: RoomBounds | null) { this.roomBounds = bounds; this.resetCamera(); }
+  private updateCutawayWalls() {
+    const enabled = this.view === 'cutaway' && ['select', 'furniture'].includes(this.mode) && !this.isYardFloor();
+    const dx = Math.cos(this.camera.alpha), dz = Math.sin(this.camera.alpha);
+    let lowered = 0;
+    for (const entry of this.wallRoots.values()) {
+      const {root,wall,internal} = entry;
+      const facing = ((wall.start.x + wall.end.x) / 2 - this.camera.target.x) * dx + ((wall.start.z + wall.end.z) / 2 - this.camera.target.z) * dz;
+      const low = enabled && (this.roomView === 'place' || internal || facing > .02);
+      if (entry.lowered !== low) {
+        root.scaling.y = low ? .12 : 1;
+        for (const child of root.getChildren()) if (child.name.startsWith('opening-')) child.setEnabled(!low);
+        entry.lowered = low;
+      }
+      if (low) lowered++;
+    }
+    this.canvas.dataset.loweredWalls = String(lowered);
+  }
   resetCamera() {
+    if (this.view === 'cutaway' && this.document && !this.isYardFloor()) {
+      const points = this.document.walls.filter(w => w.floorId === this.activeFloorId).flatMap(w => [w.start,w.end]);
+      if (points.length) {
+        const usable = this.usableViewport, aspect = this.engine.getAspectRatio(this.camera) * usable.width / usable.height;
+        const frame = roomCameraFrame(this.roomBounds || boundsOf(points), this.roomView, aspect);
+        this.camera.mode = this.roomView === 'place' ? Camera.ORTHOGRAPHIC_CAMERA : Camera.PERSPECTIVE_CAMERA;
+        this.camera.alpha = frame.alpha; this.camera.beta = frame.beta;
+        this.camera.radius = Math.min(150, frame.radius / usable.height);
+        this.camera.target.set(frame.x, this.floorY + (this.roomView === 'place' ? 0 : .65), frame.z);
+        this.camera.targetScreenOffset.set(0, 0); this.clearCameraMomentum(); this.updateProjection();
+        this.canvas.dataset.roomView = this.roomView; this.canvas.dataset.projection = this.roomView === 'place' ? 'orthographic' : 'perspective';
+        this.lastPaint = 0; return;
+      }
+    }
+    this.camera.mode = Camera.PERSPECTIVE_CAMERA;
+    this.canvas.dataset.roomView = 'home'; this.canvas.dataset.projection = 'perspective';
     if (this.surface === 'garden') {
       this.camera.target.set(0, .48, .05); this.camera.alpha = Math.PI / 2 - .18; this.camera.beta = Math.PI / 2 - .62;
       this.camera.radius = Math.max(17.5, 17.5 / Math.min(1, this.engine.getAspectRatio(this.camera)));
@@ -629,10 +706,7 @@ export class BuildingRenderer {
     this.camera.targetScreenOffset.set(0, this.camera.radius * (houseHeight > 7 ? .045 : .07));
     this.camera.inertialAlphaOffset = this.camera.inertialBetaOffset = this.camera.inertialRadiusOffset = 0;
   }
-  topView() {
-    this.camera.beta = .04; this.camera.alpha = Math.PI / 2;
-    this.camera.inertialAlphaOffset = this.camera.inertialBetaOffset = 0;
-  }
+  topView() { this.setRoomView('place'); }
   project(point: Point2 & { y?: number }) {
     const rect = this.canvas.getBoundingClientRect();
     this.scene.updateTransformMatrix(true);
@@ -1015,44 +1089,25 @@ export class BuildingRenderer {
     const surface = createRoofSurface(footprint, { style, pitch: style === 'roof_castle' ? .32 : style === 'roof_starry' ? .4 : style === 'roof_oriental' ? .48 : .62, maxTriangles: budget });
     const root = new TransformNode('continuous-roof-' + style, this.scene), adapter = this.toyAdapter(root);
     root.parent = this.contentRoot;
-    const base = top + .06, thickness = .08;
+    const base = top + .06, thickness = .12;
     // 大跨度保持同一比例缩放，不能把屋脊截成平顶，也避免大宅长出过高的屋盖。
-    const castle = style === 'roof_castle' || style === 'roof_starry';
-    const heightScale = Math.min(1, (style === 'roof_castle' ? .10 : style === 'roof_starry' ? .22 : 1.3) / Math.max(.001, surface.peak.height));
+    const heightScale = Math.min(1, (style === 'roof_castle' ? .85 : style === 'roof_starry' ? 1.05 : 1.3) / Math.max(.001, surface.peak.height));
     const peak = { ...surface.peak, height: surface.peak.height * heightScale };
     const buildSheet = (underside: boolean) => {
       const mesh = new Mesh(underside ? 'roof-cream-underside' : 'roof-clay-surface', this.scene);
       const data = createRoofVertexData(surface, { baseHeight: base, heightScale, thickness, underside });
       data.applyToMesh(mesh); mesh.parent = root;
-      mesh.material = underside ? this.toyMaterial('#FFF0D8') : castle ? this.toyMaterial(style === 'roof_starry' ? '#F0E9FA' : '#FFF3DB') : this.roofMaterial(style, tone);
+      mesh.material = underside ? this.toyMaterial('#FFF0D8') : this.roofMaterial(style, tone);
       mesh.isPickable = false; mesh.receiveShadows = true; this.addShadow(mesh);
     };
     buildSheet(false); buildSheet(true);
-    // 细檐沿真实外边界和天井连续绕行；不把二维屋顶轮廓挤成厚实阁楼。
-    for (const ring of surface.rings) for (let i = 0; i < ring.length; i++) {
-      const a = ring[i], b = ring[(i + 1) % ring.length], length = Math.hypot(b.x - a.x, b.z - a.z);
-      const rotation = [0, -Math.atan2(b.z - a.z, b.x - a.x), 0];
-      const x = (a.x + b.x) / 2 + (b.z - a.z) / length * .08;
-      const z = (a.z + b.z) / 2 - (b.x - a.x) / length * .08;
-      adapter.box([x, base - .045, z], [length + .14, .07, .18], '#FFF0D8', .03, rotation);
-      adapter.box([x, base - .005, z], [length + .14, .035, .20], tone, .015, rotation);
-      if(castle) {
-        const count = Math.max(1, Math.min(10, Math.floor(length / .8)));
-        for(let index=0;index<count;index++) {
-          const t=(index+.5)/count;
-          adapter.box([a.x+(b.x-a.x)*t,base+.17,a.z+(b.z-a.z)*t],[.30,.26,.30],style==='roof_starry'?'#F6EFFA':'#FFF3DB',.10);
-        }
-      }
-    }
+    buildArtRoofDetails(adapter, surface, {base,heightScale,style,tone});
     const at = (point: Point2, raise = 0): PrimitivePoint => [point.x, base + surface.heightAt(point) * heightScale + raise, point.z];
     if (style === 'roof_strawberry') {
       for (let i = -2; i <= 2; i++) adapter.sphere([peak.x + i * .07, base + peak.height + .04, peak.z], [.24, .035, .12], i % 2 ? '#A9C39B' : '#B7CDA7', 12, 6);
       adapter.cylinder([peak.x, base + peak.height + .15, peak.z], .035, .2, '#88A580', .025, 8, [0, 0, -.24]);
     } else if (style === 'roof_starry') {
       adapter.profile(starProfile(), [peak.x, base + peak.height + .04, peak.z], [.24, .24, .03], '#F6DDA3', [Math.PI / 2, 0, 0]);
-    } else if (style === 'roof_cloud' || style === 'roof_mushroom') {
-      const ring = surface.rings[0], stride = Math.max(1, Math.ceil(ring.length / 16));
-      for (let i = 0; i < ring.length; i += stride) adapter.sphere(at(ring[i], .035), [.13, .065, .13], style === 'roof_mushroom' ? '#FFF0D8' : tone, 12, 6);
     } else if (style === 'roof_oriental') {
       for (const point of surface.rings[0]) adapter.sphere(at(point, .04), [.075, .085, .075], tone, 12, 6);
     }
@@ -1186,6 +1241,9 @@ export class BuildingRenderer {
     root.parent = this.contentRoot; root.position.set(wall.start.x, this.floorY, wall.start.z);
     root.rotation.y = -Math.atan2(wall.end.z - wall.start.z, wall.end.x - wall.start.x);
     const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z);
+    const midpoint = {x:(wall.start.x+wall.end.x)/2,z:(wall.start.z+wall.end.z)/2}, nx = -(wall.end.z-wall.start.z)/length*.08, nz = (wall.end.x-wall.start.x)/length*.08;
+    const inSpace = (x:number,z:number) => this.spaces.some(space => this.inside({x,z},space.polygon) && !(space.holes || []).some(hole => this.inside({x,z},hole)));
+    this.wallRoots.set(wall.id,{root,wall,internal:inSpace(midpoint.x+nx,midpoint.z+nz)&&inSpace(midpoint.x-nx,midpoint.z-nz)});
     const openings = (this.document?.openings || []).filter(value => value.wallId === wall.id);
     const xs = [...new Set([0, length, ...openings.flatMap(value => [value.offset, value.offset + value.width])])].filter(value => value >= 0 && value <= length).sort((a, b) => a - b);
     const ys = [...new Set([0, wall.height, ...openings.flatMap(value => [value.sill, value.sill + value.height])])].filter(value => value >= 0 && value <= wall.height).sort((a, b) => a - b);
@@ -1282,7 +1340,7 @@ export class BuildingRenderer {
     const p = this.screenPoint(event);
     return this.scene.pick(p.x, p.y, mesh => {
       const meta = mesh.metadata as Meta | null;
-      return !!meta && ['wall', 'opening', 'furniture'].includes(meta.kind) && (!wallOnly || meta.kind === 'wall' || meta.kind === 'opening');
+      return mesh.isEnabled() && mesh.isPickable && !!meta && ['wall', 'opening', 'furniture'].includes(meta.kind) && (!wallOnly || meta.kind === 'wall' || meta.kind === 'opening');
     });
   }
   private pointerDown = (event: PointerEvent) => {

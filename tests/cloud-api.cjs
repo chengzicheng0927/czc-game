@@ -6,14 +6,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { Readable } = require('node:stream');
-const { prepareRelease, activateRelease, hash } = require('../server/releases.cjs');
+const { prepareRelease, activateRelease, hash, sourceAssets } = require('../server/releases.cjs');
 const { createHandler } = require('../server/handler.cjs');
 const { createCloudApi } = require('../server/cloud-api.cjs');
 const { openCloudStore } = require('../server/cloud-store.cjs');
 const root = path.resolve(__dirname, '..'), temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-cloud-api-'));
 const source = path.join(temporary, 'source'), dataDir = path.join(temporary, 'data'), origin = 'http://127.0.0.1:4173', prefix = '/cottage';
 const sourceHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const assets = [...new Set([...sourceHtml.matchAll(/(?:src|href)="((?:js|css)\/[^"?]+)\?v=[a-f0-9]+"/g)].map(match => match[1]))];
+const assets = [...new Set(sourceAssets(sourceHtml).map(reference => reference.path))];
 assert.ok(assets.includes('js/building/schema.js'), '实际发布入口必须带上新建筑校验器');
 assert.ok(assets.includes('js/core/content-spaces.js'), '实际发布入口必须带上真实空间投影');
 function write(file, value) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, value); }

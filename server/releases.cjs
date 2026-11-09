@@ -7,8 +7,8 @@ const crypto = require('node:crypto');
 
 const RELEASE_ID = /^r-[a-f0-9]{64}$/;
 const HASH = /^[a-f0-9]{64}$/;
-const ASSET_PATH = /^(?:js\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.js|css\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.css)$/;
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+const ASSET_PATH = /^(?:js\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.js|css\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.css|assets\/runtime\/[a-z0-9-]+\.(?:png|jpg|webp))$/;
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 
 function normalizeBasePath(value = '/') {
@@ -52,11 +52,13 @@ function sourceAssets(html) {
       attrs[name] = { value: attr[3], offset: tag.index + attr.index + attr[0].indexOf(attr[2]) + 1 };
     }
     const isScript = tag[1].toLowerCase() === 'script';
-    if (!isScript && attrs.rel?.value.toLowerCase() !== 'stylesheet') continue;
+    const relation = attrs.rel?.value.toLowerCase(), isArt = !isScript && relation === 'cottage-asset';
+    if (!isScript && relation !== 'stylesheet' && !isArt) continue;
     const reference = attrs[isScript ? 'src' : 'href'];
     if (!reference) throw new Error('资源标签缺少明确的本地 src/href，不支持内联脚本。');
     const match = /^(.*?)\?v=([a-f0-9]{10})$/.exec(reference.value);
-    if (!match || !ASSET_PATH.test(match[1]) || (isScript ? !match[1].endsWith('.js') : !match[1].endsWith('.css'))) throw new Error('入口只能引用带内容指纹的 js/ 或 css/ 本地资源。');
+    if (!match || !ASSET_PATH.test(match[1]) || (isArt ? !/^assets\/runtime\//.test(match[1]) : isScript ? !match[1].endsWith('.js') : !match[1].endsWith('.css'))) throw new Error('入口只能引用带内容指纹的 js/、css/ 或明确声明的 assets/runtime/ 本地资源。');
+    if (isArt && !/^[a-z0-9-]+$/.test(attrs['data-art']?.value || '')) throw new Error('美术资源需要明确的 data-art 标识。');
     references.push({ ...reference, path: match[1], fingerprint: match[2] });
   }
   if (!references.length) throw new Error('入口没有可发布的本地资源。');

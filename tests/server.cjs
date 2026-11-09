@@ -5,13 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { prepareRelease, activateRelease, readActiveId, listReleases, hash, normalizeBasePath } = require('../server/releases.cjs');
+const { prepareRelease, activateRelease, readActiveId, listReleases, hash, normalizeBasePath, sourceAssets, mimeFor } = require('../server/releases.cjs');
 const { createHandler } = require('../server/handler.cjs');
 const { parseArgs } = require('../server/cli.cjs');
 const project = path.resolve(__dirname, '..'), temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'marshmallow-server-'));
 const source = path.join(temporary, 'source'), dataDir = path.join(temporary, 'private-data'), prefix = '/cottage';
 const originalHtml = fs.readFileSync(path.join(project, 'index.html'), 'utf8');
-const assetPaths = [...originalHtml.matchAll(/(?:src|href)="((?:js|css)\/[^"?]+)\?v=[a-f0-9]+"/g)].map(match => match[1]);
+const assetPaths = sourceAssets(originalHtml).map(reference => reference.path);
 const uniqueAssets = [...new Set(assetPaths)];
 const checks = [];
 function test(name, check) { checks.push({ name, check }); }
@@ -80,12 +80,30 @@ test('全部真实游戏资源可读，类型正确且按 release 永久缓存',
     const response = await request(handler, assetUrl(first, relative) + '?v=ignored-by-server');
     assert.equal(response.status, 200, relative);
     assert.deepEqual(response.body, fs.readFileSync(path.join(source, relative)), relative);
-    assert.equal(response.headers['content-type'], relative.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8');
+    assert.equal(response.headers['content-type'], mimeFor(relative));
     assert.equal(response.headers['cache-control'], 'public, max-age=31536000, immutable');
     assert.equal(response.headers['x-content-type-options'], 'nosniff');
     assert.equal(response.headers['content-length'], String(response.body.length));
   }
   firstStyle = await request(handler, assetUrl(first, 'css/building.css'));
+});
+test('运行美术按指纹发布、正确MIME且原始大图与未声明图片不暴露', async () => {
+  const art = JSON.parse(fs.readFileSync(path.join(project, 'assets/runtime/manifest.json'), 'utf8'));
+  assert.ok(art.assets.length >= 5);
+  assert.ok(art.assets.reduce((bytes, asset) => bytes + fs.statSync(path.join(project, asset.file)).size, 0) <= art.maxBytes);
+  for (const asset of art.assets) {
+    const image = await request(handler, assetUrl(first, asset.file));
+    assert.equal(image.status, 200, asset.id);
+    assert.equal(image.headers['content-type'], asset.file.endsWith('.jpg') ? 'image/jpeg' : 'image/png');
+    assert.ok(firstHome.body.toString().includes('id="art-' + asset.id + '"'));
+    assert.equal((await request(handler, assetUrl(first, asset.source))).status, 404);
+  }
+  assert.equal((await request(handler, assetUrl(first, 'assets/runtime/unused.png'))).status, 404);
+  for (const target of ['assets/art/house-room-v1/house-starter.png', 'assets/runtime/../private.png', 'assets/runtime/attack.svg', 'https://else.test/art.png']) {
+    assert.throws(() => sourceAssets('<link rel="cottage-asset" data-art="bad" href="' + target + '?v=0123456789">'), /本地资源/);
+  }
+  assert.throws(() => sourceAssets('<script src="assets/runtime/house-starter.jpg?v=0123456789"></script>'), /本地资源/);
+  assert.throws(() => sourceAssets('<link rel="cottage-asset" href="assets/runtime/house-starter.jpg?v=0123456789">'), /data-art/);
 });
 test('HEAD与GET表示一致，ETag重验证含弱标签和列表', async () => {
   for (const url of [prefix + '/', prefix + '/index.html', assetUrl(first, 'css/building.css'), prefix + '/healthz', prefix + '/version.json', prefix + '/missing']) {

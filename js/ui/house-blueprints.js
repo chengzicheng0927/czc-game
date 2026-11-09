@@ -27,15 +27,15 @@
     catch (_) { return { ok: false, message: '小屋还没有准备好，当前的房子和家具都保留着。请再试一次。' }; }
   }
   function stamp(id) {
-    // 绘本小图只用于挑房型；完整建筑由主场景的正式几何预览呈现。
+    // 插画只用于挑房型；场景仍由可进入、可剖面的正式三维建筑呈现。
     const node = el('span', 'house-blueprints-stamp'); node.setAttribute('aria-hidden', 'true');
-    const cottage = '<rect x="27" y="40" width="66" height="45" rx="10" fill="#FFF0D5"/><path d="M20 43Q20 37 27 31L53 11Q60 6 67 11L94 31Q101 37 100 43Z" fill="#F4A8BA"/><path d="M31 43h58" stroke="#FFF9EC" stroke-width="5"/><rect x="53" y="57" width="17" height="28" rx="8" fill="#D8AEC0"/><rect x="35" y="53" width="12" height="14" rx="4" fill="#B9DCEB"/><path d="M41 54v12M36 60h10" stroke="#FFF9EC"/>';
-    const mushroom = '<path d="M34 42h53v36q0 8-9 8H43q-9 0-9-8Z" fill="#FFF0D5"/><path d="M17 46C14 15 42 7 60 8c22-1 46 11 43 38-22 7-65 7-86 0Z" fill="#EBA5A2"/><ellipse cx="41" cy="28" rx="8" ry="6" fill="#FFF7E9"/><ellipse cx="76" cy="23" rx="7" ry="5" fill="#FFF7E9"/><ellipse cx="86" cy="40" rx="5" ry="4" fill="#FFF7E9"/><path d="M53 85V67a9 9 0 0 1 18 0v18" fill="#C5B0DB"/><rect x="39" y="59" width="10" height="12" rx="5" fill="#B9DCEB"/>';
-    const cloud = '<rect x="25" y="43" width="70" height="42" rx="12" fill="#FFF2DB"/><path d="M21 47c-17-9-8-28 7-27 3-17 24-20 34-7 12-13 33-5 33 9 18-3 26 20 9 26Z" fill="#B9DCEB"/><path d="M32 47h58" stroke="#F5FCFF" stroke-width="5"/><rect x="51" y="59" width="18" height="26" rx="9" fill="#C7B6E1"/><rect x="33" y="57" width="12" height="13" rx="5" fill="#D2EBEB"/><rect x="75" y="57" width="12" height="13" rx="5" fill="#D2EBEB"/>';
-    const towers = '<rect x="17" y="37" width="25" height="48" rx="9" fill="#FFF0CF"/><rect x="78" y="37" width="25" height="48" rx="9" fill="#FFF0CF"/><path d="m13 39 14-29q3-6 6 0l13 29Z" fill="#F3A9C8"/><path d="m74 39 14-29q3-6 6 0l13 29Z" fill="#C6B6E6"/><path d="M20 43h20m40 0h20" stroke="#FFF9EB" stroke-width="5"/><rect x="37" y="49" width="46" height="36" rx="8" fill="#FFF0CF"/><path d="M37 52h46m-41-5v-8m13 8v-8m13 8v-8m11 8v-8" stroke="#FFF0CF" stroke-width="8"/><path d="M51 85V69a9 9 0 0 1 18 0v16" fill="#E4B6C8"/><rect x="25" y="51" width="9" height="15" rx="4.5" fill="#B9DCEB"/><rect x="86" y="51" width="9" height="15" rx="4.5" fill="#B9DCEB"/>';
-    const stars = '<rect x="22" y="39" width="18" height="45" rx="8" fill="#FFF0DE"/><rect x="80" y="39" width="18" height="45" rx="8" fill="#FFF0DE"/><rect x="37" y="35" width="46" height="50" rx="9" fill="#FFF0DE"/><path d="m17 41 13-26 14 26m32 0 14-26 13 26M33 38 55 11q5-6 10 0l22 27Z" fill="#BBB0E5"/><path d="m60 8 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" fill="#F6D98B"/><path d="M51 85V66a9 9 0 0 1 18 0v19" fill="#DAB3CE"/><rect x="45" y="43" width="10" height="12" rx="5" fill="#B9DCEB"/><rect x="65" y="43" width="10" height="12" rx="5" fill="#B9DCEB"/>';
-    node.innerHTML = '<svg viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#A77E8C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="60" cy="87" rx="46" ry="6" fill="#EFDCE2" stroke="none"/>' + ({ starter: cottage, mushroom, cloud, castle: towers, star_castle: stars }[id] || cottage) + '</svg>';
-    return node;
+    const artId = { starter: 'house-starter', mushroom: 'house-mushroom', cloud: 'house-cloud', castle: 'house-candy-castle', star_castle: 'house-star-castle' }[id];
+    const asset = artId && document.getElementById('art-' + artId);
+    if (!asset?.href) { node.append(el('span', 'house-blueprints-image-fallback', '外观图正在准备')); return node; }
+    const image = el('img'); image.src = asset.href; image.alt = ''; image.width = 480; image.height = 320; image.loading = 'lazy'; image.decoding = 'async';
+    image.dataset.houseId = id;
+    image.addEventListener('error', () => node.replaceChildren(el('span', 'house-blueprints-image-fallback', '外观图暂时没打开')));
+    node.append(image); return node;
   }
   function choice(scope, plan) {
     const node = button(scope, '', () => { if (pending) return; view.id = plan.id; view.message = ''; reopen(); }, 'house-blueprints-choice' + (plan.id === view.id ? ' is-selected' : ''), 'house-blueprint-choice-' + plan.id);

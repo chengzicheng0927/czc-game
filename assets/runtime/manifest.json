@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "maxBytes": 400000,
+  "assets": [
+    { "id": "house-starter", "file": "assets/runtime/house-starter.jpg", "source": "assets/art/house-room-v1/house-starter.png", "contentId": "starter", "unlockLv": 1, "role": "house-card", "width": 480, "height": 320 },
+    { "id": "house-mushroom", "file": "assets/runtime/house-mushroom.jpg", "source": "assets/art/house-room-v1/house-mushroom.png", "contentId": "mushroom", "unlockLv": 3, "role": "house-card", "width": 480, "height": 320 },
+    { "id": "house-cloud", "file": "assets/runtime/house-cloud.jpg", "source": "assets/art/house-room-v1/house-cloud.png", "contentId": "cloud", "unlockLv": 5, "role": "house-card", "width": 480, "height": 320 },
+    { "id": "house-candy-castle", "file": "assets/runtime/house-candy-castle.jpg", "source": "assets/art/house-room-v1/house-candy-castle.png", "contentId": "castle", "unlockLv": 8, "role": "house-card", "width": 480, "height": 320 },
+    { "id": "house-star-castle", "file": "assets/runtime/house-star-castle.jpg", "source": "assets/art/house-room-v1/house-star-castle.png", "contentId": "star_castle", "unlockLv": 12, "role": "house-card", "width": 480, "height": 320 },
+    { "id": "marshmallow-cloud", "file": "assets/runtime/marshmallow-cloud.png", "source": "assets/art/soft-clay-v1/marshmallow-cloud.png", "role": "distant-cloud", "width": 480, "height": 240 }
+  ]
+}

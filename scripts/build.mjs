@@ -12,6 +12,15 @@ const css = ["css/style.css", "css/quests.css", "css/creative.css", "css/gifts.c
 const fingerprint = async path => createHash('sha256').update(await readFile(path)).digest('hex').slice(0, 10);
 const scripts = await Promise.all([...legacy, 'js/building/app.js'].map(async path => `  <script src="${path}?v=${await fingerprint(path)}"></script>`));
 const styles = await Promise.all(css.map(async path => `  <link rel="stylesheet" href="${path}?v=${await fingerprint(path)}">`));
-const html = (await readFile('src/shell.html', 'utf8')).replace('<!-- STYLES -->', styles.join('\n')).replace('<!-- SCRIPTS -->', scripts.join('\n'));
+// 明确声明按需美术资源：自定义link关系不触发下载，实际图卡/远景读取后才载入。
+const artManifest = JSON.parse(await readFile('assets/runtime/manifest.json', 'utf8'));
+let artBytes = 0;
+const artLinks = await Promise.all(artManifest.assets.map(async asset => {
+  if (!/^[a-z0-9-]+$/.test(asset.id) || !/^assets\/runtime\/[a-z0-9-]+\.(?:jpg|png|webp)$/.test(asset.file)) throw new Error('运行美术资源路径无效。');
+  const content = await readFile(asset.file); artBytes += content.length;
+  return `  <link rel="cottage-asset" id="art-${asset.id}" data-art="${asset.id}" href="${asset.file}?v=${createHash('sha256').update(content).digest('hex').slice(0, 10)}">`;
+}));
+if (artBytes > artManifest.maxBytes) throw new Error('运行美术资源超过预算：' + artBytes);
+const html = (await readFile('src/shell.html', 'utf8')).replace('<!-- STYLES -->', [...styles, ...artLinks].join('\n')).replace('<!-- SCRIPTS -->', scripts.join('\n'));
 await writeFile('index.html', html);
-console.log(`Built free-building application: ${legacy.length + 1} scripts, ${css.length} styles; source fingerprints generated.`);
+console.log(`Built free-building application: ${legacy.length + 1} scripts, ${css.length} styles, ${artLinks.length} art assets (${artBytes} bytes); source fingerprints generated.`);

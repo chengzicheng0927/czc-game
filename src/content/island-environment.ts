@@ -1,5 +1,6 @@
 import { createClayModels } from './clay-models.js';
 import type { HomeLandscapeLayout } from './home-landscape';
+import { buildArtTree, buildMarshmallowCloud } from './art-landscape';
 
 type Triple = [number, number, number];
 export interface ClayGeometry {
@@ -23,8 +24,8 @@ export function buildIslandEnvironment(g: ClayGeometry, models: ReturnType<typeo
   const local = (dx: number, dy: number, dz: number): Triple => [x + dx, y + dy, z + dz];
   const yard = spec.layout?.yard, garden = spec.layout?.garden, house = spec.layout?.house;
   models.island(g, x, z, r, y - .06, true);
-  models.tree(g, house ? house.minX - .9 : x - r * .7, house ? house.minZ - .7 : z - r * .27, size * .9, y, '#87BCB0', 'foliage');
-  models.tree(g, garden ? garden.maxX + .35 : x + r * .72, garden ? garden.minZ - .3 : z + r * .02, size * .83, y, '#ADD0AF', 'blossom');
+  buildArtTree(g, 'ginkgo', house ? house.minX - .9 : x - r * .7, house ? house.minZ - .7 : z - r * .27, size * .9, y);
+  buildArtTree(g, 'christmas', garden ? garden.maxX + .35 : x + r * .72, garden ? garden.minZ - .3 : z + r * .02, size * .83, y);
   models.tree(g, yard ? yard.minX - .6 : x - r * .65, yard ? yard.maxZ - .45 : z + r * .42, size * .62, y, '#BAD193', 'fruit');
 
   // 白色圆头栅栏、奶油长椅和莓红邮箱沿用原型的散件比例。
@@ -105,6 +106,6 @@ export function buildIslandEnvironment(g: ClayGeometry, models: ReturnType<typeo
     models.tree(g, ix - ir * .58, iz + ir * .1, .35, iy, '#B8C78B', 'foliage');
   }
   for (const [dx, dz, scale] of [[-1.25, .5, 1.2], [.8, -1.15, 1.4], [1.38, .85, .95], [-.9, -1.2, 1.0], [.0, 1.6, 2.0]] as const) {
-    models.cloud(g, x + dx * r, y - 1.45, z + dz * r, scale * Math.max(1, r / 5.5));
+    buildMarshmallowCloud(g, x + dx * r, y - 1.45, z + dz * r, scale * Math.max(1, r / 5.5));
   }
 }

@@ -121,6 +121,123 @@ export function createClayModels(data = {}, state = {}) {
     if (template === 'crafting') template = def.tags?.includes('cake') ? 'cake' : def.tags?.includes('tree') ? 'tree' : def.tags?.includes('pumpkin') ? 'pumpkin_lantern' : 'vase';
     if (template === 'yard' || template === 'festival') template = def.motif;
     if (def.customArt) template = 'frame';
+    // 卧室样板把美术设定转成可绕看的实体；PNG不参与近景渲染。
+    // 这四个ID有独立轮廓，其他主题、目录与旧存档的内容编号保持原样。
+    if (['bed_basic', 'nightstand_basic', 'desk_lamp_basic', 'wardrobe_basic'].includes(def.id)) {
+      const honey = '#DFAB72', honeyLight = '#ECC18D', honeyDark = '#C99361';
+      const cream = '#FFF2D9', creamShade = '#F0DEC2', berry = validColor(item.color, '#D77C97');
+      const petal = (x, y, z, radius = .055) => {
+        for (let i = 0; i < 5; i++) {
+          const angle = i * TAU / 5;
+          ball(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius * .78, z, radius * .61, radius * .49, .018, cream, 8);
+        }
+        ball(x, y, z + .013, radius * .35, radius * .31, .019, berry, 10);
+      };
+      const profile = (points, x, y, z, ww, hh, dd, color) => g.profile(points.map(([px, py]) => ({ x: px, y: py })), pos(x, y, z), [ww * w, hh * h, dd * d], color);
+      if (def.id === 'bed_basic') {
+        // 支点位于床脚底部；床头与被面都没有越过 .72 米的真实高度。
+        for (const x of [-.425, .425]) for (const z of [-.447, .447]) {
+          box(x, .095, z, .115, .19, .075, honey, .07);
+          box(x, z < 0 ? .48 : .30, z, .115, z < 0 ? .82 : .40, .075, honey, .07);
+          ball(x, z < 0 ? .935 : .515, z, .065, .065, .045, honeyLight, 14);
+        }
+        for (const x of [-.427, .427]) box(x, .26, 0, .10, .16, .84, honey, .05);
+        box(0, .235, 0, .84, .16, .90, honeyDark, .08);
+        box(0, .37, -.005, .87, .18, .86, cream, .13);
+        // 弧顶床头是一块有厚度的连续面，前后均有圆润木边。
+        const head = [[-.5, 0], [-.5, .44], [-.43, .51], [-.31, .58], [-.17, .65], [0, .67], [.17, .65], [.31, .58], [.43, .51], [.5, .44], [.5, 0]];
+        profile(head, 0, .25, -.447, .81, 1, .052, honey);
+        for (const z of [-.476, -.414]) {
+          for (let i = 0; i < 15; i++) {
+            const x = -.39 + i * .78 / 14, arch = .72 + .19 * Math.cos(x / .40 * Math.PI / 2);
+            ball(x, arch, z, .045, .047, .024, honeyLight, 10);
+          }
+        }
+        // 奶油枕头、粉被和翻折被沿从侧面与顶部都有体积。
+        box(0, .515, -.278, .69, .16, .205, cream, .15);
+        box(0, .485, .135, .91, .16, .60, berry, .14);
+        box(0, .57, -.105, .89, .075, .115, tint(berry, 13), .09);
+        for (const x of [-.455, .455]) box(x, .385, .13, .035, .23, .58, berry, .1);
+        // 低对比绗缝线是窄实体，覆盖范围与床被一致，不烘焙到贴图。
+        for (const z of [.035, .185, .335]) box(0, .568, z, .79, .007, .009, tint(berry, -8), .005);
+        for (const x of [-.225, .225]) box(x, .568, .18, .009, .007, .40, tint(berry, -8), .005);
+        profile([[-.5, 0], [-.5, .11], [-.3, .18], [0, .21], [.3, .18], [.5, .11], [.5, 0]], 0, .22, .447, .79, 1, .057, honey);
+        return true;
+      }
+      if (def.id === 'nightstand_basic') {
+        for (const x of [-.365, .365]) for (const z of [-.34, .34]) {
+          box(x, .10, z, .15, .20, .16, honey, .09);
+          ball(x, .045, z, .075, .045, .08, honey, 10);
+        }
+        box(0, .54, -.01, .88, .70, .86, honey, .08);
+        for (const x of [-.435, .435]) box(x, .56, -.015, .025, .49, .63, creamShade, .04);
+        box(0, .56, -.445, .70, .46, .025, honeyLight, .05);
+        box(0, .66, .437, .72, .34, .065, cream, .10);
+        ball(0, .65, .482, .065, .06, .018, berry, 14);
+        box(0, .405, .43, .77, .075, .095, honeyLight, .05);
+        box(0, .30, .435, .72, .16, .065, berry, .07);
+        for (const x of [-.25, 0, .25]) ball(x, .24, .435, .12, .07, .032, berry, 10);
+        petal(0, .31, .468, .065);
+        // 桌面顶高恰好等于目录的 .58 米，可独立放置台灯。
+        box(0, .95, 0, 1, .10, 1, honeyLight, .10);
+        box(0, .993, 0, .83, .014, .81, honey, .06);
+        return true;
+      }
+      if (def.id === 'desk_lamp_basic') {
+        // 陶座、木颈、裙边灯罩都是立体几何；没有广告牌或假开灯交互。
+        cyl(0, .035, 0, .285, .07, honey, .285, 24);
+        ball(0, .215, 0, .30, .18, .30, berry, 18);
+        cyl(0, .402, 0, .15, .07, honeyLight, .15, 20);
+        cyl(0, .465, 0, .09, .12, honey, .075, 18);
+        petal(0, .225, .291, .055);
+        ball(-.13, .21, .275, .045, .023, .012, cream, 10);
+        ball(.13, .21, .275, .045, .023, .012, cream, 10);
+        cyl(0, .69, 0, .455, .38, cream, .25, 24);
+        ball(0, .505, 0, .27, .025, .27, '#F8D99B', 16);
+        // 交叠裙褶沿一整圈排列；背面与侧面同样有饰边。
+        for (let i = 0; i < 16; i++) {
+          const angle = i * TAU / 16, x = Math.cos(angle), z = Math.sin(angle);
+          ball(x * .425, .515, z * .425, .072, .033, .072, berry, 10);
+        }
+        cyl(0, .885, 0, .259, .035, creamShade, .259, 24);
+        ball(0, .958, 0, .09, .042, .09, berry, 12);
+        return true;
+      }
+      if (def.id === 'wardrobe_basic') {
+        for (const x of [-.36, .36]) for (const z of [-.31, .31]) {
+          box(x, .05, z, .12, .10, .14, honey, .08);
+          ball(x, .025, z, .06, .025, .07, honey, 10);
+        }
+        box(0, .495, -.025, .89, .79, .83, creamShade, .08);
+        for (const x of [-.45, .45]) box(x, .48, -.025, .055, .75, .87, cream, .05);
+        box(0, .115, 0, 1, .055, .98, cream, .07);
+        for (const x of [-.217, .217]) {
+          box(x, .475, .425, .418, .68, .055, cream, .065);
+          box(x, .465, .458, .315, .565, .018, creamShade, .055);
+          box(x, .465, .473, .275, .53, .012, cream, .055);
+          ball(x * .30, .455, .479, .04, .022, .018, berry, 12);
+        }
+        // 两侧的嵌板与背板使侧后视有真实结构，绝非正面图卡。
+        for (const x of [-.478, .478]) box(x, .49, -.025, .018, .61, .62, creamShade, .04);
+        box(0, .49, -.451, .76, .64, .018, cream, .04);
+        box(0, .49, -.465, .018, .61, .012, creamShade, .01);
+        const crown = [[-.5, 0], [-.5, .05], [-.37, .065], [-.27, .095], [-.18, .145], [-.09, .18], [0, .19], [.09, .18], [.18, .145], [.27, .095], [.37, .065], [.5, .05], [.5, 0]];
+        profile(crown, 0, .79, 0, .97, 1, .94, cream);
+        // 木冠连续绕到背面；上沿的圆珠深叠为柔和曲线。
+        for (const z of [-.44, .44]) for (let i = 0; i < 19; i++) {
+          const x = -.455 + i * .91 / 18;
+          const y = .84 + .14 * Math.exp(-Math.pow(x / .22, 2));
+          ball(x, y, z, .045, .02, .04, honey, 10);
+        }
+        for (const x of [-.455, .455]) box(x, .845, 0, .07, .035, .88, honey, .04);
+        for (const z of [-.477, .477]) {
+          ball(0, .89, z, .018, .025, .009, berry, 10);
+          ball(-.055, .875, z, .022, .013, .009, berry, 10);
+          ball(.055, .875, z, .022, .013, .009, berry, 10);
+        }
+        return true;
+      }
+    }
     switch (template) {
       case 'bed':
         legs(.18); box(0, .28, 0, 1, .28, .98, C.wood, .09); box(0, .48, 0, .97, .22, .95, C.white, .12);

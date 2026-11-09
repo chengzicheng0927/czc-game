@@ -92,7 +92,7 @@ export function buildToyArchitecture(
   };
   for (const edge of edges) {
     band(edge, floorY + .095, .18, .20, cream);
-    band(edge, eaveY - .035, .19, kind === 'cottage' ? .22 : .27, cream);
+    band(edge, eaveY - .055, .24, kind === 'cottage' ? .26 : .32, cream);
     if (kind !== 'cottage') band(edge, floorY + Math.min(.36, wallHeight * .18), .10, .17, mix(roofTone, 15));
   }
   const corners: Corner[] = [];
@@ -117,7 +117,7 @@ export function buildToyArchitecture(
       ball([p.x, eaveY - .015, p.z], [radius * 1.16, .12, radius * 1.16], cream);
     }
   } else {
-    const towerBase = Math.max(floorY, eaveY - 2.75), towerTop = eaveY + .12;
+    const towerBase = Math.max(floorY, eaveY - 2.75), towerTop = eaveY + .17;
     const mainDoor = doors.find(opening => edges.some(edge => openingOnEdge(opening, edge))), doorMiddle = mainDoor ? { x: (mainDoor.start.x + mainDoor.end.x) / 2, z: (mainDoor.start.z + mainDoor.end.z) / 2 } : null;
     const candidates: Tower[] = [];
     for (const corner of corners) {
@@ -148,12 +148,23 @@ export function buildToyArchitecture(
       ball([p.x, towerBase + .10, p.z], [r * 1.10, .14, r * 1.10], cream, 20);
       cylinder([p.x, towerBase + .22, p.z], r * 1.025, .15, mix(cap, 16), r * 1.025, 24);
       ball([p.x, towerTop - .035, p.z], [capRadius, .185, capRadius], milk, 20);
+      // 分层软陶檐口与塔身稀疏砖缝拥有完整圆周，背视也不露平面。
+      cylinder([p.x, towerTop + .035, p.z], capRadius * .97, .16, cap, capRadius * .97, 28);
+      for (let row = 0; row < 3; row++) for (let part = 0; part < 6; part++) {
+        const angle = (part / 6 + row % 2 / 12) * Math.PI * 2, rr = r * .985;
+        box([p.x + Math.sin(angle) * rr, towerBase + .55 + row * .55, p.z + Math.cos(angle) * rr], [.22, .12, .045], row % 2 ? '#F6E4CB' : '#EFDAC1', .025, [0, angle, 0]);
+      }
       const capHeight = kind === 'star_castle' ? 1.0 : .94;
       for (let i = 0; i < 8; i++) {
         const a = i / 8, b = (i + 1) / 8, radiusAt = (t: number) => .025 + (capRadius - .025) * Math.pow(1 - t, 1.13);
         cylinder([p.x, towerTop + .10 + (a + b) / 2 * capHeight, p.z], radiusAt(a), capHeight / 8 + .008, cap, radiusAt(b), 24);
       }
-      ball([p.x, towerTop + .10 + capHeight, p.z], [.06, .075, .06], cap, 16);
+      ball([p.x, towerTop + .10 + capHeight, p.z], [.07, .085, .07], cap, 16);
+      // 塔帽瓦檐只作浅浮雕，不在锥顶叠出独立厚块。
+      for (let row = 0; row < 3; row++) {
+        const t = .16 + row * .25, rr = .025 + (capRadius - .025) * Math.pow(1 - t, 1.13);
+        cylinder([p.x, towerTop + .10 + t * capHeight, p.z], rr + .022, .035, mix(cap, row % 2 ? 6 : -5), rr + .018, 28);
+      }
       // 大号心/星是玩具徽章，不伪造一扇没有真实开口的塔窗。
       profile(kind === 'star_castle' ? starProfile() : heartProfile(), [p.x, towerBase + bodyHeight * .54, p.z + r * .985], [.30, .30, .065], kind === 'star_castle' ? butter : blush);
       const crownY = towerTop + capHeight + .22;

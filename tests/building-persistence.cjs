@@ -219,6 +219,13 @@ async function request(api, release, actor, body, etag) {
       const open = plain(checked.save.building); open.walls.pop();
       assert.equal(checker.countBuildingRooms(open), 0, '旧house仍有卧室也不能冒充已闭合新空间');
       assert.throws(() => contractHash({ ...release, files: release.files.filter(file => file.path !== 'js/building/schema.js') }));
+      const oldFiles = release.files.filter(file => !['js/building/schema.js', 'js/building/app.js'].includes(file.path));
+      assert.doesNotThrow(() => contractHash({ ...release, files: oldFiles }), '无新app的历史发布仍可用自己的旧校验合同启动');
+      assert.notEqual(contractHash({ ...release, files: oldFiles }), contractHash(release), '旧合同不能冒充schema2写入合同');
+      assert.throws(() => contractHash({ ...release, files: oldFiles.filter(file => file.path !== 'js/core/store.js') }), '所有发布仍须有真实store校验器');
+      const reordered = release.files.filter(file => file.path !== 'js/building/schema.js');
+      reordered.push(release.files.find(file => file.path === 'js/building/schema.js'));
+      assert.throws(() => contractHash({ ...release, files: reordered }), '即使schema存在，排在store之后仍拒绝');
     });
     const actor = { id: 'synthetic_account', token: crypto.randomBytes(32).toString('base64url') };
     let epoch;

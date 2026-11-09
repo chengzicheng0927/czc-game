@@ -142,18 +142,18 @@ export function addOpeningDetails(g: ExteriorGeometry, spec: OpeningDetails) {
     const a=profile[i],b=profile[(i+1)%profile.length];
     if(isDoor&&Math.max(a.y,b.y)<.055)continue;
     const ax=x+a.x*w,ay=sill+a.y*h,bx=x+b.x*w,by=sill+b.y*h;
-    g.box([(ax+bx)/2,(ay+by)/2,face*(depth/2+.018)],[Math.hypot(bx-ax,by-ay)+.025,.065,.075],tone,.025,[0,0,Math.atan2(by-ay,bx-ax)]);
+    g.box([(ax+bx)/2,(ay+by)/2,face*(depth/2+.026)],[Math.hypot(bx-ax,by-ay)+.035,.09,.10],tone,.035,[0,0,Math.atan2(by-ay,bx-ax)]);
   }
   if(!isDoor) {
     const middle=style==='win_arch'?.54:.5,span=profileSpanAtY(profile,middle);
-    g.box([x,sill+h*.49,z],[.032,h*.88,.032],'#BEA58C',.012);
-    g.box([x+(span[0]+span[1])*w/2,sill+h*middle,z],[(span[1]-span[0])*w,.032,.032],'#BEA58C',.012);
+    g.box([x,sill+h*.49,z],[.045,h*.88,.045],'#C6AB8C',.018);
+    g.box([x+(span[0]+span[1])*w/2,sill+h*middle,z],[(span[1]-span[0])*w,.045,.045],'#C6AB8C',.018);
     if(style==='win_stained')g.profile(starProfile(),[x,sill+h*.49,z+outward*.025],[w*.23,h*.22,.025],'#F6DF9F');
     if(style==='win_lace') {
       for(let i=0;i<10;i++)for(const y of [sill,sill+h])g.sphere([x-w*.47+i*w*.105,y,z],[w*.055,h*.045,.045],'#F5E4DF',10,6);
       for(const side of [-1,1])g.profile([{x:-.5,y:0},{x:.5,y:.16},{x:.28,y:1},{x:-.5,y:1}],[x+side*w*.41,sill+h*.23,z],[w*.18,h*.74,.04],'#E7BCC7',side<0?undefined:[0,Math.PI,0]);
     }
-    if(style!=='win_round'&&style!=='win_heart')g.box([x,sill-.018,z],[w+.1,.08,.18],'#DEC5A7',.028);
+    if(style!=='win_round'&&style!=='win_heart')g.box([x,sill-.025,z],[w+.15,.12,.24],'#E5C5A0',.045);
     return;
   }
   if(style==='door_castle') {

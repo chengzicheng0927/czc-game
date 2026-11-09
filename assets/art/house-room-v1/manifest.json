@@ -2,7 +2,7 @@
   "created": "2026-11-09",
   "tool": "built-in image_gen.imagegen",
   "model": "Tool-selected; exact model ID not exposed",
-  "runtimeIntegrated": false,
+  "runtimeIntegrated": true,
   "style": "原创儿童软陶风格：奶油、莓粉、蜜木、浅蓝、淡紫；保留原人物及莓红面板。",
   "scope": "五档房型外观＋一间卧室美术样板，不覆盖完整家具目录",
   "specification": "../../../docs/house-room-art-direction.md",
@@ -16,9 +16,12 @@
       "role": "房屋外观设定",
       "status": "concept",
       "sourceGeneratedFile": "exec-573f8eb5-3421-438d-a346-65c52a3e4d4b.png",
-      "runtimeIntegrated": false,
+      "runtimeIntegrated": true,
       "meshProduced": false,
-      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。"
+      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。 运行图卡与程序几何已接线，真实浏览器验收待完成。",
+      "runtimeRole": "compressed-house-card-and-procedural-geometry-reference",
+      "runtimeFile": "../../runtime/house-starter.jpg",
+      "geometrySource": "src/content/art-architecture.ts + src/content/toy-architecture.ts"
     },
     {
       "id": "house-mushroom",
@@ -27,9 +30,12 @@
       "role": "房屋外观设定",
       "status": "concept",
       "sourceGeneratedFile": "exec-f15f1424-734a-4100-84d4-c32020522430.png",
-      "runtimeIntegrated": false,
+      "runtimeIntegrated": true,
       "meshProduced": false,
-      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。"
+      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。 运行图卡与程序几何已接线，真实浏览器验收待完成。",
+      "runtimeRole": "compressed-house-card-and-procedural-geometry-reference",
+      "runtimeFile": "../../runtime/house-mushroom.jpg",
+      "geometrySource": "src/content/art-architecture.ts + src/content/toy-architecture.ts"
     },
     {
       "id": "house-cloud",
@@ -38,9 +44,12 @@
       "role": "房屋外观设定",
       "status": "concept",
       "sourceGeneratedFile": "exec-1409ce99-2fcb-49fb-8578-a986a8306b56.png",
-      "runtimeIntegrated": false,
+      "runtimeIntegrated": true,
       "meshProduced": false,
-      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。"
+      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。 运行图卡与程序几何已接线，真实浏览器验收待完成。",
+      "runtimeRole": "compressed-house-card-and-procedural-geometry-reference",
+      "runtimeFile": "../../runtime/house-cloud.jpg",
+      "geometrySource": "src/content/art-architecture.ts + src/content/toy-architecture.ts"
     },
     {
       "id": "house-candy-castle",
@@ -49,9 +58,12 @@
       "role": "单层城堡外观设定",
       "status": "concept",
       "sourceGeneratedFile": "exec-ede4acdd-1c2e-46c1-9b73-16d36e79dba5.png",
-      "runtimeIntegrated": false,
+      "runtimeIntegrated": true,
       "meshProduced": false,
-      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。"
+      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。 运行图卡与程序几何已接线，真实浏览器验收待完成。",
+      "runtimeRole": "compressed-house-card-and-procedural-geometry-reference",
+      "runtimeFile": "../../runtime/house-candy-castle.jpg",
+      "geometrySource": "src/content/art-architecture.ts + src/content/toy-architecture.ts"
     },
     {
       "id": "house-star-castle",
@@ -60,9 +72,12 @@
       "role": "双层城堡外观设定",
       "status": "concept",
       "sourceGeneratedFile": "exec-79d1793e-76b5-43b0-aa18-7c4246ef53be.png",
-      "runtimeIntegrated": false,
+      "runtimeIntegrated": true,
       "meshProduced": false,
-      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。"
+      "limitation": "仅造型参考，门窗和房间仍由真实蓝图决定。不是三维网格。 运行图卡与程序几何已接线，真实浏览器验收待完成。",
+      "runtimeRole": "compressed-house-card-and-procedural-geometry-reference",
+      "runtimeFile": "../../runtime/house-star-castle.jpg",
+      "geometrySource": "src/content/art-architecture.ts + src/content/toy-architecture.ts"
     },
     {
       "id": "room-two-views",
@@ -73,7 +88,10 @@
       "sourceGeneratedFile": "exec-3a5268a9-ba3b-4322-8a55-790b6fd76e7f.png",
       "runtimeIntegrated": false,
       "meshProduced": false,
-      "limitation": "家具位置基本一致，窗户细节未严格对应；非真实场景截图或精确多视图。"
+      "limitation": "家具位置基本一致，窗户细节未严格对应；非真实场景截图或精确多视图。",
+      "cameraReferenceImplemented": true,
+      "cameraSource": "src/building/room-camera.ts + renderer.ts",
+      "runtimeNote": "Concept board is not loaded; runtime switches the same room camera."
     },
     {
       "id": "furniture-bed-basic",
@@ -85,7 +103,10 @@
       "runtimeIntegrated": false,
       "meshProduced": false,
       "cleanCutoutAccepted": false,
-      "limitation": "有宽棕粉光晕，一次背景清理仍未解决；不作为干净透明图卡。"
+      "limitation": "有宽棕粉光晕，一次背景清理仍未解决；不作为干净透明图卡。",
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/clay-models.js",
+      "runtimeNote": "PNG remains reference-only; independent mesh primitives are generated at runtime."
     },
     {
       "id": "furniture-nightstand-basic",
@@ -97,7 +118,10 @@
       "runtimeIntegrated": false,
       "meshProduced": false,
       "cleanCutoutAccepted": false,
-      "limitation": "RGBA但有局部边缘杂色，未通过实底边缘验收；独立图的装饰与房间板有差异。"
+      "limitation": "RGBA但有局部边缘杂色，未通过实底边缘验收；独立图的装饰与房间板有差异。",
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/clay-models.js",
+      "runtimeNote": "PNG remains reference-only; independent mesh primitives are generated at runtime."
     },
     {
       "id": "furniture-desk-lamp-basic",
@@ -109,7 +133,10 @@
       "runtimeIntegrated": false,
       "meshProduced": false,
       "cleanCutoutAccepted": false,
-      "limitation": "RGBA但有局部边缘杂色，未通过实底边缘验收；不是可运行灯光或精确模型。"
+      "limitation": "RGBA但有局部边缘杂色，未通过实底边缘验收；不是可运行灯光或精确模型。",
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/clay-models.js",
+      "runtimeNote": "PNG remains reference-only; independent mesh primitives are generated at runtime."
     },
     {
       "id": "furniture-wardrobe-basic",
@@ -121,7 +148,10 @@
       "runtimeIntegrated": false,
       "meshProduced": false,
       "cleanCutoutAccepted": false,
-      "limitation": "RGBA但有局部边缘杂色，未通过实底边缘验收；背面/顶部需真实模型。"
+      "limitation": "RGBA但有局部边缘杂色，未通过实底边缘验收；背面/顶部需真实模型。",
+      "geometryReferenceImplemented": true,
+      "geometrySource": "src/content/clay-models.js",
+      "runtimeNote": "PNG remains reference-only; independent mesh primitives are generated at runtime."
     },
     {
       "id": "material-cream-wall",
@@ -132,7 +162,8 @@
       "sourceGeneratedFile": "exec-9107d828-880a-44b9-8936-c1294f3e3df4.png",
       "runtimeIntegrated": false,
       "meshProduced": false,
-      "limitation": "未验证无缝铺贴/UV比例，没有配套法线/粗糙度。"
+      "limitation": "未验证无缝铺贴/UV比例，没有配套法线/粗糙度。",
+      "runtimeDecision": "Not accepted: baked broad lighting and mismatched tile boundaries. Keep lit procedural materials."
     },
     {
       "id": "material-honey-wood",
@@ -143,7 +174,8 @@
       "sourceGeneratedFile": "exec-8a869499-412f-4349-af86-0cfe60ad41ac.png",
       "runtimeIntegrated": false,
       "meshProduced": false,
-      "limitation": "未验证无缝铺贴/UV比例，没有配套法线/粗糙度。"
+      "limitation": "未验证无缝铺贴/UV比例，没有配套法线/粗糙度。",
+      "runtimeDecision": "Not accepted: baked broad lighting and mismatched tile boundaries. Keep lit procedural materials."
     }
   ],
   "discardedEdits": [
@@ -152,5 +184,8 @@
       "reason": "一次定向编辑仍保留宽光晕，未选用修正版。",
       "sourceGeneratedFile": "exec-4aae8949-2e8d-418b-8ad7-e4a6d9b2bcbb.png"
     }
-  ]
+  ],
+  "integrationStatus": "runtime-code-integrated-awaiting-browser",
+  "integrationEvidence": "../../../docs/art-integration.md",
+  "runtimeNote": "Five compressed house cards are packaged; procedural 3D follows references. Original furniture PNGs and texture candidates are not runtime textures. Browser QA blocked by saved origin permission."
 }

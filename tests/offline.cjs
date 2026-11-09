@@ -34,6 +34,9 @@ function worker(script, { failAsset = false } = {}) {
     await check('离线清单只含当前不可变资源，worker允许的范围限定在站点前缀', () => {
       assert.equal(resource.headers['Service-Worker-Allowed'], basePath + '/'); assert.equal(resource.headers['Cache-Control'], 'no-cache');
       assert.ok(config.assets.length > 100); assert.ok(config.assets.every(value => value.startsWith(basePath + '/releases/' + release.id + '/') && !value.includes('/api/')));
+      const art = JSON.parse(fs.readFileSync(path.join(root, 'assets/runtime/manifest.json'), 'utf8'));
+      for (const asset of art.assets) assert.ok(config.assets.some(value => value.includes('/' + asset.file + '?v=')), '运行图片应进入离线清单：' + asset.id);
+      assert.ok(config.assets.every(value => !value.includes('/assets/art/')), '离线包不载入美术源图和无关参考图');
       assert.equal(config.entry, basePath + '/offline-shell/' + release.id);
       assert.equal(resource.body.includes('__COTTAGE_OFFLINE_CONFIG__'), false);
     });
@@ -48,6 +51,7 @@ function worker(script, { failAsset = false } = {}) {
       const map = [...app.stores.values()][0]; assert.equal(map.size, config.assets.length + 2);
       app.online(false); const page = await app.fetch('https://cottage.test' + config.shell, 'navigate'); assert.equal(await page.text(), '<html>pinned-release</html>');
       const asset = await app.fetch('https://cottage.test' + config.assets[0]); assert.equal(await asset.text(), 'public asset');
+      for (const image of config.assets.filter(value => value.includes('/assets/runtime/'))) assert.equal(await (await app.fetch('https://cottage.test' + image)).text(), 'public asset');
     });
     await check('API/账号/POST/跨域请求完全绕过缓存，不能返回离线HTML冒充存档', async () => {
       const before = app.calls.length;

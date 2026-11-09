@@ -7,7 +7,9 @@ const MAX_SAVE_BYTES = 3 * 1024 * 1024, MAX_SAVE_CHARS = 2500000;
 function contractFiles(manifest) {
   const selected = manifest.files.filter(file => file.path.startsWith('js/data/') || ['js/core/namespace.js', 'js/core/utils.js', 'js/building/schema.js', 'js/core/store.js'].includes(file.path));
   const schemaIndex = selected.findIndex(file => file.path === 'js/building/schema.js'), storeIndex = selected.findIndex(file => file.path === 'js/core/store.js');
-  if (schemaIndex < 0 || storeIndex < 0 || schemaIndex > storeIndex) throw new Error('发布版本缺少建筑校验模块或加载顺序有误。');
+  // 普通入口可以仍是升级前快照；它继续使用自己发布时的校验代码与兼容身份。
+  const freeBuilding = manifest.files.some(file => file.path === 'js/building/app.js');
+  if (storeIndex < 0 || freeBuilding && schemaIndex < 0 || schemaIndex >= 0 && schemaIndex > storeIndex) throw new Error('发布版本缺少建筑校验模块或加载顺序有误。');
   return selected;
 }
 function contractHash(manifest) { return hash(JSON.stringify(contractFiles(manifest).map(file => [file.path, file.sha256]))); }

@@ -29,3 +29,6 @@
 
 /* 独立体验标记在窄屏由入口说明承担，避免盖住原HUD。 */
 @media(max-width:600px){.free-review-banner{display:none;}}
+
+.free-room-views { gap: 6px; }
+.free-room-views .ui-button { flex: 1; min-height: 42px; }
