@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ginkgo-tree",
+    "size": [
+      1320,
+      1192
+    ],
+    "mode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentPixels": 728825,
+    "totalPixels": 1573440,
+    "bytes": 1834909
+  },
+  {
+    "id": "christmas-tree",
+    "size": [
+      1199,
+      1312
+    ],
+    "mode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentPixels": 923699,
+    "totalPixels": 1573088,
+    "bytes": 1528999
+  },
+  {
+    "id": "marshmallow-cloud",
+    "size": [
+      1774,
+      887
+    ],
+    "mode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentPixels": 764397,
+    "totalPixels": 1573538,
+    "bytes": 1333453
+  },
+  {
+    "id": "candy-castle-reference",
+    "size": [
+      1536,
+      1024
+    ],
+    "mode": "RGBA",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentPixels": 641456,
+    "totalPixels": 1572864,
+    "bytes": 2397267
+  }
+]
