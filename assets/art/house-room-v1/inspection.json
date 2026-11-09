@@ -1,0 +1,168 @@
+{
+  "inspected": "2026-11-09",
+  "method": "Read-only Pillow metadata/hash and visual inspection. No image processing edits.",
+  "runtimeIntegrated": false,
+  "images": [
+    {
+      "file": "furniture-bed-basic.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "bytes": 1915340,
+      "sha256": "fbed544975e87957f53c8be7ce779914421257e49dd84a18f822e5b26d2fcdba",
+      "alpha": {
+        "range": [
+          0,
+          254
+        ],
+        "fullyTransparentFraction": 0.57034,
+        "fullyOpaqueFraction": 0.0,
+        "nonzeroBounds": [
+          0,
+          51,
+          1518,
+          1006
+        ]
+      }
+    },
+    {
+      "file": "furniture-desk-lamp-basic.png",
+      "width": 1083,
+      "height": 1452,
+      "mode": "RGBA",
+      "bytes": 1374473,
+      "sha256": "45f2fa4b58059297379e504fbd5b4ff57b91baa95e071c6d12b3dce05ad2c2c8",
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "fullyTransparentFraction": 0.53268,
+        "fullyOpaqueFraction": 0.00063,
+        "nonzeroBounds": [
+          0,
+          15,
+          1069,
+          1436
+        ]
+      }
+    },
+    {
+      "file": "furniture-nightstand-basic.png",
+      "width": 1312,
+      "height": 1199,
+      "mode": "RGBA",
+      "bytes": 1676764,
+      "sha256": "66ff112f2cf6f17f15678fe8a79b0a2991b2ff43f76758e652f40c68c629b9bd",
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "fullyTransparentFraction": 0.47998,
+        "fullyOpaqueFraction": 0.00012,
+        "nonzeroBounds": [
+          0,
+          23,
+          1306,
+          1199
+        ]
+      }
+    },
+    {
+      "file": "furniture-wardrobe-basic.png",
+      "width": 1086,
+      "height": 1448,
+      "mode": "RGBA",
+      "bytes": 1616311,
+      "sha256": "d7a5a39e6282bb316c5648a4026bdd9b02692f2d04d875925a6075c3e54a7858",
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "fullyTransparentFraction": 0.40644,
+        "fullyOpaqueFraction": 0.00073,
+        "nonzeroBounds": [
+          0,
+          29,
+          1066,
+          1416
+        ]
+      }
+    },
+    {
+      "file": "house-candy-castle.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "bytes": 2078734,
+      "sha256": "a0c0cd96f44ad8fdcce92e1d345f013750d4d405ba0484b98e42b32108c583b9"
+    },
+    {
+      "file": "house-cloud.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "bytes": 1805034,
+      "sha256": "6b66718a1efa6d24ab1afc319a5967720d1634b2418fa993322bd2f7a0527a03"
+    },
+    {
+      "file": "house-mushroom.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "bytes": 2105176,
+      "sha256": "2310b769ab1693dab34a69ad196ebb85d4ef569b5311ff2528eaca487eb2f6f9"
+    },
+    {
+      "file": "house-star-castle.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "bytes": 2023289,
+      "sha256": "d4aba0e7275bfff5b090b28b022f6dcc5a2cf27ec03f5111303eb76d4f7ec9f2"
+    },
+    {
+      "file": "house-starter.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "bytes": 1837952,
+      "sha256": "06a573bf06721d6b65170f8ebc678f9f8b5152fa84351434a8fd76fcf1973299"
+    },
+    {
+      "file": "material-cream-wall.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "bytes": 2014335,
+      "sha256": "04f5e4a95c0d6972d00465ea8b56d2db0e1b2e76d2d4834139cbcde70b72c2f7"
+    },
+    {
+      "file": "material-honey-wood.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 1681603,
+      "sha256": "ee20acf66b95d323b0feda1985c3a0172ee175ba82246a340fc748d00030f38b"
+    },
+    {
+      "file": "room-two-views.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGB",
+      "bytes": 1667920,
+      "sha256": "c6a6b07bc03f97e5747031e78e2fe95467252970d8cf0e1ba537bc9b77191bee"
+    }
+  ],
+  "visualReview": {
+    "scope": "All 12 selected PNGs viewed; independent review of room, four furniture pieces and house samples.",
+    "houseStyle": "五档外观同属奶油/莓粉/淡紫的儿童软陶方向；只作建模参考。",
+    "room": "床、柜、灯、入口大致同位；俯视左墙比斜视多一窗，不是严格对应的真实场景双视图。",
+    "furniture": "四件同属蜜木/奶油/莓红风格，装饰细节与房间板不完全一致。",
+    "alpha": "床带宽光晕，一次imagegen定向清理仍未解决，修正版未采用。另三件边缘有局部白边/彩边，均不标为clean cutout。",
+    "textures": "墙地为候选颜色贴图，未验证无缝铺贴、UV或PBR效果。",
+    "runtime": "No new meshes, camera changes, release inclusion, gameplay, save or browser acceptance in this art-only batch."
+  }
+}

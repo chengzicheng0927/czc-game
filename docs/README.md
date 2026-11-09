@@ -3,6 +3,8 @@
 - [打开与游玩](../README.md)
 - [开发约定](../AGENTS.md)
 - [视觉约定](../DESIGN.md)
+- [五档房型与室内美术源图](../assets/art/house-room-v1/README.md)
+- [房间相机、米制尺寸与三维素材接入规格](house-room-art-direction.md)
 - [当前进度](../TODO.md)
 - [模块接口](interfaces.md)
 - [架构决策](decisions/README.md)
