@@ -36,6 +36,8 @@ let visitorDocument: BuildingDocument | null = null, visitorVisual:any = {custom
 let housePreview: any = null;
 let houseView: {floor:string; view:'exterior'|'cutaway'} = {floor:'all',view:'exterior'};
 const doc = (): BuildingDocument => visitorDocument || housePreview?.building || G.state.building;
+const isYardFloor = (floor: {id:string}) => floor.id.includes('yard');
+const isYardItem = (item: BuildingDocument['furniture'][number], building = doc()) => item.legacyRoomId === 'yard' || G.data.furnitureById[item.defId]?.place === 'yard' || building.floors.some(floor=>floor.id===item.floorId&&isYardFloor(floor));
 function visualState() {
   if (visitorDocument) return visitorVisual;
   if (!housePreview) return G.state;
@@ -64,7 +66,8 @@ function syncSelection() {
 function setMode(next:Mode) {
   if(visitorDocument)return;
   editing=true;mode=next;start=null;
-  renderer.setReadOnly(next==='wallpaper');renderer.clearPreview();renderer.setMode(next==='wallpaper'?'select':next);houseView={floor:floorId,view:'cutaway'};renderer.setView('cutaway');
+  const outdoors=doc().floors.some(f=>f.id===floorId&&isYardFloor(f));
+  renderer.setReadOnly(next==='wallpaper');renderer.clearPreview();renderer.setMode(next==='wallpaper'?'select':next);houseView={floor:outdoors?'all':floorId,view:outdoors?'exterior':'cutaway'};renderer.setView(houseView.view);
   if(next!=='furniture'){placement=null;renderer.setPlacement(null);}
   syncSelection();paint();hint();
   document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===next)));
@@ -98,6 +101,10 @@ function persist(building: BuildingDocument, delta: Record<string,number> = {}, 
 }
 function command(c: BuildingCommand, label: string, delta: Record<string,number> = {}) {
   try {
+    if(c.type==='furniture.move'){
+      const item=doc().furniture.find(value=>value.id===c.id);
+      if(item&&isYardItem(item)&&!yardPositionAllowed(c.position,item.dimensions,c.rotation??item.rotation))throw new Error('请把家具留在屋前的庭院草坪里，给小屋和花圃留出通路。');
+    }
     const before=clone(doc()),after=executeCommand(before,c,G.data.furnitureById);let levels:number[]=[];
     persist(after,delta,state=>{
       if(c.type==='wall.finish'){state.quests.stats.wallpaperChanges=(state.quests.stats.wallpaperChanges||0)+1;}
@@ -117,7 +124,9 @@ function command(c: BuildingCommand, label: string, delta: Record<string,number>
 function history(redo: boolean) {
   if(housePreview)return {ok:false,message:'先回到现在的小屋，再退一步吧。'};
   const from=redo?redoStack:undoStack,to=redo?undoStack:redoStack,e=from.at(-1);if(!e)return {ok:false,message:'还没有可以'+(redo?'重做':'撤销')+'的布置。'};
-  const content = (value:BuildingDocument) => JSON.stringify({...value,revision:0});
+  // 打开旧档院子准备的空地面不是布置变动；有墙或家具的院子仍严格参与冲突校验。
+  const emptyYards = (value:BuildingDocument) => value.floors.filter(f=>isYardFloor(f)&&!value.walls.some(w=>w.floorId===f.id)&&!value.furniture.some(item=>item.floorId===f.id));
+  const content = (value:BuildingDocument) => {const empty=new Set(emptyYards(value).map(f=>f.id));return JSON.stringify({...value,revision:0,floors:value.floors.filter(f=>!empty.has(f.id))});};
   if(content(doc())!==content(redo?e.before:e.after)){undoStack=[];redoStack=[];paint();return {ok:false,message:'小屋有了新的变化，已收好之前的布置记录。请从现在继续搭吧。'};}
   const ordered = (value:Record<string,unknown>) => JSON.stringify(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
   const roomMap = () => Object.fromEntries(Object.entries(G.state.residents).filter(([,r]:any)=>r.movedIn).map(([id,r]:any)=>[id,r.roomId]));
@@ -125,7 +134,7 @@ function history(redo: boolean) {
   if(e.house&&(ordered(roomMap())!==ordered(redo?e.house.roomMaps.before:e.house.roomMaps.after)||ordered(exteriorFields(G.state.house.exterior))!==ordered(redo?e.house.exteriorBefore:e.house.exteriorAfter))) {
     undoStack=[];redoStack=[];paint();return {ok:false,message:'朋友的房间或小屋外观有了新安排，之前的换房记录收好啦，请从现在继续搭配。'};
   }
-  try {const delta=Object.fromEntries(Object.entries(e.inventory).map(([id,n])=>[id,redo?n:-n]));persist(redo?e.after:e.before,delta,state=>{
+  try {const delta=Object.fromEntries(Object.entries(e.inventory).map(([id,n])=>[id,redo?n:-n])),target=clone(redo?e.after:e.before);for(const floor of emptyYards(doc()))if(!target.floors.some(f=>f.id===floor.id))target.floors.push(clone(floor));persist(target,delta,state=>{
     if(!e.house)return;
     Object.assign(state.house.exterior,clone(redo?e.house.exteriorAfter:e.house.exteriorBefore));
     for(const [id,roomId] of Object.entries(redo?e.house.roomMaps.after:e.house.roomMaps.before)) if(state.residents[id]?.movedIn)state.residents[id].roomId=roomId;
@@ -158,6 +167,41 @@ function buildHouse(id:string,quote:any) {
     endHousePreview();floorId=G.state.building.floors[0].id;paint();return result;
   }catch(error){return {ok:false,message:message(error)};}
 }
+// 庭院有自己的稳定地面；它不是屋内楼层，也不从历史归档重复领取家具。
+function yardSnapshot() {
+  const building=G.state.building,unlockLv=G.data.yardConfig.unlockLv;
+  return {unlocked:G.state.level>=unlockLv,unlockLv,floorId:building.floors.find(isYardFloor)?.id||null,
+    items:building.furniture.filter((item:any)=>isYardItem(item,building)).map((item:any)=>({...clone(item),name:G.data.furnitureById[item.defId]?.name||'庭院家具'}))};
+}
+function ensureYard() {
+  const before:BuildingDocument=clone(G.state.building),after=clone(before);
+  let yard=after.floors.find(isYardFloor);
+  if(!yard){yard={id:'legacy_yard',name:'我的院子',elevation:0};after.floors.push(yard);}
+  for(const item of after.furniture)if(isYardItem(item,after)&&!after.floors.some(f=>f.id===item.floorId&&isYardFloor(f)))item.floorId=yard.id;
+  if(JSON.stringify(after)!==JSON.stringify(before)){
+    persist(after);
+  }
+  return yard.id;
+}
+function openYard(options:any={}) {
+  if(visitorDocument||G.visitSession?.active?.())return {ok:false,message:'先回自己的小屋，再来布置院子吧。'};
+  try{
+    endHousePreview();const entering=!editing||builderPanel!=='yard',snapshot=yardSnapshot();
+    if(snapshot.unlocked&&entering){
+      floorId=ensureYard();editing=true;builderPanel='yard';mode='select';placement=null;start=null;
+      renderer.setReadOnly(false);renderer.setMode('select');renderer.setPlacement(null);
+      houseView={floor:'all',view:'exterior'};renderer.setView('exterior');paint();
+    }else if(!snapshot.unlocked)leaveEditing();
+    if(entering)renderer.focusYard();
+    if(options.panel!==false)G.ui.open('yard');
+    return {ok:true};
+  }catch(error){return {ok:false,message:message(error)};}
+}
+function yardPositionAllowed(point:Point2,dimensions:{width:number;depth:number},rotation=0) {
+  const b=renderer.yardBounds(),c=Math.abs(Math.cos(rotation)),s=Math.abs(Math.sin(rotation));
+  const x=(dimensions.width*c+dimensions.depth*s)/2,z=(dimensions.width*s+dimensions.depth*c)/2;
+  return point.x-x>=b.minX&&point.x+x<=b.maxX&&point.z-z>=b.minZ&&point.z+z<=b.maxZ;
+}
 function ground(point: Point2) {
   if(housePreview)return;
   if(G.visitSession?.walkTo(point)||G.hostRoom?.walkTo(point))return;
@@ -171,6 +215,8 @@ function ground(point: Point2) {
   if(mode==='furniture' && placement) {
     const def=G.data.furnitureById[placement];if(!def)return;
     const dims=furnitureDimensions(def), y=placementHeight(def,p);
+    if(def.place==='yard'&&!yardPositionAllowed(p,dims)){toast('把它放在屋前的庭院草坪里吧，花圃和小屋要留出通路。');return;}
+    if(def.place==='yard'&&yardSnapshot().items.length>=G.data.yardConfig.maxItems){toast('院子已经放满啦，先收起一些再继续布置吧。');return;}
     const item={id:uid('furniture'),defId:placement,floorId,position:{...p,y},rotation:0,dimensions:dims};
     if(command({type:'furniture.add',furniture:item},'摆放'+def.name,{[placement]:-1})) { selected={kind:'furniture',id:item.id};renderer.select('furniture',item.id); if(!(G.state.inventory[placement]>0))setMode('select');else renderOptions();syncSelection();selectionTools(); }
   }
@@ -181,7 +227,7 @@ function wallClick(id: string, offset: number) {
   if(command({type:'opening.add',opening},mode==='door'?'安装一扇门':'安装一扇窗')) {selected={kind:'opening',id:opening.id};renderer.select('opening',opening.id);syncSelection();renderOptions();selectionTools();}
 }
 function choose(kind:Kind,id:string|null) { if(mode==='wallpaper'&&kind==='wall'&&id){command({type:'wall.finish',wallIds:[id],color:finishColor,pattern:finishPattern},'换上喜欢的墙纸');return;}if(mode!=='select'||!editing)return;selected={kind,id};syncSelection();renderer.select(kind,id);renderOptions();selectionTools(); }
-function move(id:string,position:Vec3) { if(!editing||mode!=='select'||visitorDocument)return;const item=doc().furniture.find(f=>f.id===id&&f.floorId===floorId);if(!item)return;command({type:'furniture.move',id,position:{x:Math.round(position.x*4)/4,y:item.position.y,z:Math.round(position.z*4)/4}},'移动家具');selected={kind:'furniture',id};renderer.select('furniture',id);syncSelection();renderOptions();selectionTools(); }
+function move(id:string,position:Vec3) { if(!editing||mode!=='select'||visitorDocument)return;const item=doc().furniture.find(f=>f.id===id&&f.floorId===floorId);if(!item)return;const next={x:Math.round(position.x*4)/4,y:item.position.y,z:Math.round(position.z*4)/4};if(isYardItem(item)&&!yardPositionAllowed(next,item.dimensions,item.rotation)){toast('请把家具留在屋前的庭院草坪里。');paint();return;}command({type:'furniture.move',id,position:next},'移动家具');selected={kind:'furniture',id};renderer.select('furniture',id);syncSelection();renderOptions();selectionTools(); }
 function removeSelected() {
   if(!selected.id)return;const item=doc().furniture.find(f=>f.id===selected.id),delta=item&&!G.data.furnitureById[item.defId]?.customArt?{[item.defId]:1}:{};
   if(command({type:'entity.remove',id:selected.id},item?'收起家具':'移除选中内容',delta)){selected={kind:'none',id:null};renderer.select('none',null);syncSelection();renderOptions();selectionTools();}
@@ -256,9 +302,9 @@ function paint() {
 }
 function syncSurface() {
   if(!renderer)return;
-  if(!visitorDocument&&!editing&&G.ui.view?.panel==='garden'){
-    renderer.setSurface('garden',{state:G.state,gardenStatuses:Array.from({length:G.sys.garden.capacity()},(_,index)=>G.sys.garden.status(index)),selectedPlot:G.runtime.gardenVisual?.selectedPlot});
-  }else renderer.setSurface(null);
+  renderer.setHomeGarden(visitorDocument||housePreview?null:{state:G.state,gardenStatuses:Array.from({length:G.sys.garden.capacity()},(_,index)=>G.sys.garden.status(index)),selectedPlot:G.runtime.gardenVisual?.selectedPlot});
+  // 打开园艺面板只在同一主岛近看，房子和院子不再被另一座花园岛替换。
+  renderer.setSurface(null);
 }
 function addFloor() {
   const ordinary=doc().floors.filter(f=>!f.id.includes('yard')&&!f.id.includes('attic'));
@@ -266,6 +312,7 @@ function addFloor() {
   if(command({type:'floor.add',floor},'添加楼层')){floorId=floor.id;houseView={floor:floorId,view:'cutaway'};paint();renderer.resetCamera();G.ui.refresh();}
 }
 function builderPanelContent(name:string,options:any={}) {
+  if(doc().floors.some(f=>f.id===floorId&&isYardFloor(f)))floorId=doc().floors.find(f=>!isYardFloor(f))!.id;
   const isEntering=!editing||builderPanel!==name;builderPanel=name;editing=true;
   if(isEntering){mode=options.tab==='wallpaper'?'wallpaper':name==='build'?'wall':'furniture';start=null;placement=null;renderer.setReadOnly(mode==='wallpaper');renderer.setPlacement(null);renderer.setMode(mode==='wallpaper'?'select':mode);}
   houseView={floor:floorId,view:'cutaway'};renderer.setView('cutaway');renderer.setDocument(doc(),floorId,false);
@@ -276,7 +323,7 @@ function builderPanelContent(name:string,options:any={}) {
     b.dataset.tool=id;b.setAttribute('aria-pressed',String(mode===id));tabs.append(b);
   }
   const floors=node('div','ui-row free-floor-picker'),select=node('select','ui-input');select.setAttribute('aria-label','编辑楼层');
-  for(const floor of doc().floors){const option=node('option','',floor.name);option.value=floor.id;select.append(option);}select.value=floorId;
+  for(const floor of doc().floors.filter(f=>!isYardFloor(f))){const option=node('option','',floor.name);option.value=floor.id;select.append(option);}select.value=floorId;
   const epoch=editorEpoch;
   select.onchange=()=>{if(epoch!==editorEpoch||!select.isConnected)return;floorId=select.value;houseView={floor:floorId,view:'cutaway'};start=null;selected={kind:'none',id:null};renderer.clearPreview();paint();renderer.resetCamera();G.ui.refresh();};
   floors.append(field('这次布置哪一层？',select),button('＋ 再搭一层',addFloor));
@@ -349,8 +396,8 @@ function installBridges() {
       fit:()=>renderer.resetCamera(),reset:()=>renderer.resetCamera(),resetView:()=>renderer.resetCamera(),
       zoom:(factor:number)=>renderer.camera.radius=Math.max(3,Math.min(150,renderer.camera.radius/factor)),
       focusRoom,focusObservatory:()=>{const f=doc().floors.find(f=>f.id==='observatory_floor'||f.id==='legacy_attic');if(f)focusFloor(f.id);},
-      focusYard:()=>{const yard=doc().floors.find(f=>f.id==='legacy_yard');if(yard)focusFloor(yard.id);else renderer.resetCamera();},
-      focusGarden:()=>renderer.resetCamera(),focusSea:()=>{renderer.resetCamera();renderer.camera.radius*=1.4;},focusPlayer:()=>{renderer.resetCamera();renderer.camera.radius*=.55;},
+      focusYard:()=>renderer.focusYard(),
+      focusGarden:()=>renderer.focusGarden(),focusSea:()=>{renderer.resetCamera();renderer.camera.radius*=1.4;},focusPlayer:()=>{renderer.resetCamera();renderer.camera.radius*=.55;},
       getInteractionMode:()=>interaction,setInteractionMode:(value:string)=>{interaction=value;renderer.camera.detachControl();renderer.camera.attachControl(true,false,value==='pan'?0:2);G.bus.emit('camera:interaction',{});},
       goHome:()=>{endHousePreview();renderer.setSurface(null);leaveEditing();renderer.resetCamera();},
     },
@@ -359,6 +406,8 @@ function installBridges() {
   G.livePeers={set:(peers:any[],selfId:string|null,messages:any[])=>visitors.set(peers,selfId,messages),clear:()=>visitors.clear()};
   G.buildingEditor={
     panel:builderPanelContent,selection:selectionTools,hint:hintText,
+    yardSnapshot,openYard,
+    removeYard:(id:string)=>{if(!yardSnapshot().unlocked)return {ok:false,message:'小屋到Lv.'+G.data.yardConfig.unlockLv+'就能布置院子啦。'};const item=G.state.building.furniture.find((value:any)=>value.id===id);if(!item||!isYardItem(item))return {ok:false,message:'这件庭院家具已经有了新位置，请重新看看。'};const ok=command({type:'entity.remove',id},'收起'+(G.data.furnitureById[item.defId]?.name||'庭院家具'),G.data.furnitureById[item.defId]?.customArt?{}:{[item.defId]:1});return {ok,message:ok?'庭院家具收回背包啦。':'这次还没有收好，原来的家具保留着。'};},
     previewHouse,endHousePreview,buildHouse,
     openFurniture:()=>{endHousePreview();if(!G.state.building.walls.length){G.ui.open('houseBlueprints');toast('先挑一座房子，再搬进喜欢的家具吧。');return;}G.ui.open('decor',{tab:'furniture'});},
     openAdvanced:()=>{endHousePreview();G.ui.open('build',{advanced:true});},
@@ -366,12 +415,20 @@ function installBridges() {
     beginPlacement:(id:string,spaceId:string|null)=>{
       if(visitorDocument)return {ok:false,message:'朋友的小屋只能看看哦。'};
       if(!(G.state.inventory[id]>0))return {ok:false,message:'这件家具已经摆好啦，先去背包看看。'};
+      const def=G.data.furnitureById[id];if(def?.place==='yard'){
+        const required=Math.max(G.data.yardConfig.unlockLv,def.unlockLv||1);if(G.state.level<required)return {ok:false,message:'小屋到Lv.'+required+'就能布置这件庭院家具啦。'};
+        const opened=openYard({panel:false});if(!opened.ok)return opened;
+        floorId=ensureYard();renderer.setDocument(doc(),floorId,true);
+        mode='furniture';placement=id;renderer.setPlacement(id);renderer.setMode('furniture');
+        houseView={floor:'all',view:'exterior'};renderer.setView('exterior');paint();renderer.focusYard();syncSelection();hint();selectionTools();return {ok:true};
+      }
+      if(doc().floors.find(f=>f.id===floorId&&isYardFloor(f)))floorId=doc().floors.find(f=>!isYardFloor(f))!.id;
       const room=spaceId?G.contentSpaces.get(spaceId):null;if(room)floorId=room.floorId;
       setMode('furniture');placement=id;renderer.setPlacement(id);syncSelection();hint();selectionTools();return {ok:true};
     },
     cancelPlacement:()=>{placement=null;start=null;mode='select';renderer.setMode('select');renderer.setPlacement(null);renderer.clearPreview();syncSelection();selectionTools();hint();},
     focusFloor,
-    focusFurniture:(id:string)=>{const f=doc().furniture.find(v=>v.id===id);if(f){focusFloor(f.floorId);G.ui.open('decor');setMode('select');selected={kind:'furniture',id};renderer.select('furniture',id);renderOptions();selectionTools();}},
+    focusFurniture:(id:string)=>{const f=doc().furniture.find(v=>v.id===id);if(f){if(isYardItem(f)){const opened=openYard();if(!opened.ok)return opened;const current=G.state.building.furniture.find((item:any)=>item.id===id);if(!current)return {ok:false,message:'这件家具的位置刚刚有了变化，请重新选择。'};floorId=current.floorId;selected={kind:'furniture',id};paint();renderer.select('furniture',id);syncSelection();selectionTools();return {ok:true};}focusFloor(f.floorId);G.ui.open('decor');setMode('select');selected={kind:'furniture',id};renderer.select('furniture',id);renderOptions();selectionTools();}},
     focusWall:(id:string)=>{const w=doc().walls.find(v=>v.id===id);if(w){focusFloor(w.floorId);G.ui.open('build');setMode('select');selected={kind:'wall',id};renderer.select('wall',id);renderOptions();}},
   };
 }
@@ -442,7 +499,7 @@ async function boot() {
   }
   floorId=doc().floors[0].id;
   renderer=new BuildingRenderer($<HTMLCanvasElement>('scene'),G.data.furnitureById,{
-    onGround:ground,onWall:wallClick,onSelect:choose,onMove:move,onGardenPlot:(index:number)=>G.ui.garden.openPlot(index),
+    onGround:ground,onWall:wallClick,onSelect:choose,onMove:move,onGardenPlot:(index:number)=>G.ui.garden.openPlot(index),onGardenEntry:()=>G.ui.open('garden'),
     onHoverGround:(p:Point2)=>{if(mode==='wall'&&start)renderer.previewWall(start,{x:Math.round(p.x*4)/4,z:Math.round(p.z*4)/4},wallHeight);},
   },G.data);
   installBridges();

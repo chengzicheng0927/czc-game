@@ -30,6 +30,29 @@ function openingCenter(opening, wall) { const length = Math.hypot(wall.end.x - w
 function resident(roomId, index = 0) {
   return { movedIn: true, roomId, affection: 500 + index, happiness: 75, heartBubbles: index % 3, lastBubbleAt: 1234 + index, patsToday: index % 3, interactDate: '2026-11-07', giftDate: '2026-11-06', wish: null, wishLastClaimedDate: '', friendshipClaims: [1, 2, 3], bestFriendBadge: false };
 }
+function plantedGarden(G) {
+  G.store.update(state => {
+    const plantedAt = 1730000000000;
+    state.garden.plots[0] = { crop: 'daisy', plantedAt, durationMs: G.data.cropById.daisy.growMs, watered: [plantedAt + 1000, null, null] };
+    state.garden.seeds.daisy = 2; state.garden.harvest.carrot = 3;
+  });
+}
+function yardFixture(env, floorId = 'legacy_yard', closed = false) {
+  const { G, schema } = env;
+  G.store.update(state => {
+    if (!state.building.floors.some(floor => floor.id === floorId)) state.building = schema.executeCommand(state.building, { type: 'floor.add', floor: { id: floorId, name: '前院', elevation: 0 } }, G.data.furnitureById);
+    state.building = schema.executeCommand(state.building, { type: 'furniture.add', furniture: { id: 'kept_yard_lamp', defId: 'yard_streetlamp', floorId, position: { x: 11, y: 0, z: 5 }, rotation: .5, color: '#AABBCC', legacyRoomId: 'yard', dimensions: schema.furnitureDimensions(G.data.furnitureById.yard_streetlamp) } }, G.data.furnitureById);
+    if (closed) {
+      const polygon = [{ x: 10, z: 4 }, { x: 14, z: 4 }, { x: 14, z: 7 }, { x: 10, z: 7 }];
+      polygon.forEach((start, index) => { state.building = schema.executeCommand(state.building, { type: 'wall.add', wall: { id: 'yard_border_' + index, floorId, start, end: polygon[(index + 1) % 4], height: .8, thickness: .12, color: '#F4DDE7' } }, G.data.furnitureById); });
+      state.building = schema.executeCommand(state.building, { type: 'opening.add', opening: { id: 'yard_gate', wallId: 'yard_border_0', kind: 'door', offset: 1.5, width: .8, height: .65, sill: 0 } }, G.data.furnitureById);
+    }
+  });
+}
+function yardSnapshot(G) {
+  const document = G.state.building, floors = document.floors.filter(G.sys.houseBlueprints.isYardFloor), ids = new Set(floors.map(floor => floor.id)), walls = document.walls.filter(wall => ids.has(wall.floorId)), wallIds = new Set(walls.map(wall => wall.id));
+  return plain({ floors, walls, openings: document.openings.filter(opening => wallIds.has(opening.wallId)), furniture: document.furniture.filter(item => ids.has(item.floorId)) });
+}
 const tests = [], test = (name, run) => tests.push({ name, run });
 
 test('五档复用原屋顶等级/货币/价格，实际围合2/2/3/4/6房和一至两层', () => {
@@ -41,7 +64,10 @@ test('五档复用原屋顶等级/货币/价格，实际围合2/2/3/4/6房和一
     assert.equal(roof.unlockLv, level); assert.equal(roof.price, price); assert.equal(roof.currency, currency);
     assert.deepEqual(plain(schema.validateDocument(status.building, G.data.furnitureById)), plain(status.building));
     assert.equal(status.building.furniture.length, 0); assert.equal(status.building.migration, undefined);
-    assert.equal(status.building.floors[0].elevation, 0); if (floorCount === 2) assert.equal(status.building.floors[1].elevation, 2.65);
+    const houseFloors = status.building.floors.filter(floor => !G.sys.houseBlueprints.isYardFloor(floor)), yardFloors = status.building.floors.filter(G.sys.houseBlueprints.isYardFloor);
+    assert.equal(houseFloors.length, floorCount); assert.equal(status.building.floors.length, floorCount + 1);
+    assert.deepEqual(plain(yardFloors), [{ id: 'legacy_yard', name: '前院', elevation: 0 }], '五型都自带空院地面，不能把它算成屋内楼层');
+    assert.equal(houseFloors[0].elevation, 0); if (floorCount === 2) assert.equal(houseFloors[1].elevation, 2.65);
     assert.ok(status.building.walls.every(wall => wall.height === 2.35));
     const derived = status.building.floors.flatMap(floor => schema.deriveSpaces(status.building, floor.id)); assert.equal(derived.length, roomCount);
     for (const space of derived) {
@@ -106,11 +132,12 @@ test('原价购屋顶及整栋一次提交，换回已拥有房型免费且不�
   assert.equal(G.state.house.exterior.owned.roof_cloud, true); assert.equal(G.state.house.exterior.owned.roof_triangle, true);
 });
 
-test('只回收新doc室内/庭院/阁楼家具一次，自画框卸下而作品和旧house归档保留', () => {
+test('屋内和阁楼家具回包，庭院实体原位保留，自画框卸下且旧house归档不重复回收', () => {
   const { G, schema } = setup(); fund(G); const room = spaces.buildSpace(G, 0, 0).roomId; spaces.placeItem(G, 'bed_basic', room);
   G.store.update(state => {
     state.house.floors[0].slots[0] = 'archive_room';
     state.house.rooms.archive_room = { type: 'bedroom', paidPrice: 0, wallpaper: { pattern: 'solid', color: '#FFE3C9', color2: '#FFF8FB' }, floor: { pattern: 'wood', color: '#EED7B9' }, light: 'warm', items: [{ uid: 'archive_bed', defId: 'bed_basic', x: 15, y: 130, z: 1, flip: false, color: null, parent: null, depth: .75 }] };
+    state.house.yard.items = [{ uid: 'yard_furniture', defId: 'yard_streetlamp', x: 0, y: 20, z: 0, flip: false, color: null }];
     for (const floor of [{ id: 'fixture_yard', name: '庭院', elevation: 0 }, { id: 'fixture_attic', name: '阁楼', elevation: 3 }]) state.building = schema.executeCommand(state.building, { type: 'floor.add', floor }, G.data.furnitureById);
     for (const [id, defId, floorId] of [['yard_furniture', 'yard_streetlamp', 'fixture_yard'], ['attic_furniture', 'nightstand_basic', 'fixture_attic']]) state.building = schema.executeCommand(state.building, { type: 'furniture.add', furniture: { id, defId, floorId, position: { x: 0, y: 0, z: 0 }, rotation: 0, dimensions: schema.furnitureDimensions(G.data.furnitureById[defId]) } }, G.data.furnitureById);
     state.customArts.push({ id: 'blueprint_art', name: '搬家也带上小画', pixels: '1' + '.'.repeat(255) });
@@ -118,12 +145,69 @@ test('只回收新doc室内/庭院/阁楼家具一次，自画框卸下而作品
     state.building = schema.executeCommand(state.building, { type: 'wall.decorate', wallIds: [state.building.walls[0].id], artId: 'blueprint_art' }, G.data.furnitureById);
   });
   const before = plain(G.state), status = G.sys.houseBlueprints.preview('cloud');
-  assert.deepEqual(plain(status.returnedInventory), { bed_basic: 1, yard_streetlamp: 1, nightstand_basic: 1 }); assert.equal(status.removedPaintings.length, 1);
+  assert.deepEqual(plain(status.returnedInventory), { bed_basic: 1, nightstand_basic: 1 }); assert.equal(status.removedPaintings.length, 1);
+  assert.equal(status.floorCount, 1); assert.equal(status.roomCount, 3); assert.equal(status.building.floors.length, 2);
   const result = success(G.sys.houseBlueprints.apply('cloud', status.quote));
   for (const [id, amount] of Object.entries(result.returnedInventory)) assert.equal(G.state.inventory[id], (before.inventory[id] || 0) + amount);
-  assert.equal(G.state.inventory.custom_art_frame, undefined); assert.deepEqual(plain(G.state.customArts), before.customArts); assert.equal(G.state.building.furniture.length, 0);
+  assert.equal(G.state.inventory.custom_art_frame, undefined); assert.deepEqual(plain(G.state.customArts), before.customArts); assert.equal(G.state.building.furniture.length, 1);
+  assert.deepEqual(plain(G.state.building.furniture[0]), before.building.furniture.find(item => item.id === 'yard_furniture'));
+  assert.equal(G.state.inventory.yard_streetlamp, before.inventory.yard_streetlamp); assert.equal(G.state.building.floors.find(floor => floor.id === 'fixture_yard').elevation, 0);
   const archive = plain(G.state.house); delete archive.exterior; const oldArchive = before.house; delete oldArchive.exterior; assert.deepEqual(archive, oldArchive);
   unchanged(G, () => G.sys.houseBlueprints.apply('cloud', status.quote)); assert.equal(G.state.inventory.bed_basic, before.inventory.bed_basic + 1);
+});
+
+test('连续换房保留全部庭院层/围墙/门/家具和种植字段，庭院围合不参与房型与朋友容量', () => {
+  const env = setup(), { G, schema } = env; fund(G); success(apply(G, 'starter'));
+  const bedroom = G.contentSpaces.list()[0]; spaces.placeItem(G, 'bed_basic', bedroom.id);
+  G.store.update(state => { state.residents.lily = resident(bedroom.id); });
+  yardFixture(env, 'legacy_yard', true); plantedGarden(G);
+  G.store.update(state => {
+    state.building = schema.executeCommand(state.building, { type: 'floor.add', floor: { id: 'side_yard', name: '侧院', elevation: 0 } }, G.data.furnitureById);
+    state.customArts.push({ id: 'outdoor_art', name: '院子里的画', pixels: '.'.repeat(256) });
+    state.building = schema.executeCommand(state.building, { type: 'furniture.add', furniture: { id: 'outdoor_frame', defId: G.data.creativeConfig.frameId, floorId: 'side_yard', artId: 'outdoor_art', position: { x: -8, y: 1, z: 4 }, rotation: 0, dimensions: schema.furnitureDimensions(G.data.furnitureById[G.data.creativeConfig.frameId]) } }, G.data.furnitureById);
+    state.building = schema.executeCommand(state.building, { type: 'furniture.add', furniture: { id: 'outdoor_table', defId: 'nightstand_basic', floorId: 'side_yard', position: { x: -8, y: 0, z: 5 }, rotation: .2, dimensions: schema.furnitureDimensions(G.data.furnitureById.nightstand_basic) } }, G.data.furnitureById);
+    state.inventory.yard_streetlamp = 9999;
+  });
+  const yard = yardSnapshot(G), arts = plain(G.state.customArts); let garden = plain(G.state.garden);
+  assert.equal(G.sys.houseBlueprints.preview('starter').selected, true, '围合庭院不能使当前房型变成可清空重建');
+  let inventory;
+  for (const [id, count, floors] of [['cloud', 3, 1], ['castle', 4, 1], ['star_castle', 6, 2]]) {
+    const status = success(G.sys.houseBlueprints.preview(id)); assert.equal(status.canApply, true); assert.equal(status.roomCount, count); assert.equal(status.floorCount, floors); assert.equal(status.capacity, count * 2);
+    assert.equal(status.building.floors.length, floors + 2); assert.equal(status.returnedInventory.yard_streetlamp, undefined); assert.equal(status.removedPaintings.length, 0);
+    assert.ok(status.roomAssignments.every(assignment => status.rooms.some(room => room.id === assignment.roomId && !G.sys.houseBlueprints.isYardFloor(room.floorId))));
+    const previewYard = status.building.furniture.find(item => item.id === 'kept_yard_lamp'); previewYard.position.x = 999;
+    assert.equal(G.state.building.furniture.find(item => item.id === 'kept_yard_lamp').position.x, 11, '预览保留实体也必须是独立副本');
+    if (id === 'cloud') { success(G.sys.garden.plant(1, 'daisy')); garden = plain(G.state.garden); assert.equal(G.sys.houseBlueprints.preview(id).quote, status.quote, '确认期间实际播种不应被换房覆盖或使物质报价过期'); }
+    success(G.sys.houseBlueprints.apply(id, status.quote)); assert.deepEqual(yardSnapshot(G), yard); assert.deepEqual(plain(G.state.garden), garden); assert.deepEqual(plain(G.state.customArts), arts);
+    assert.equal(G.state.inventory.yard_streetlamp, 9999, '保留院子不因满包拒绝或增长库存');
+    if (inventory) assert.deepEqual(plain(G.state.inventory), inventory, '后续换房不能反复回收同一庭院实体'); inventory = plain(G.state.inventory);
+    assert.equal(G.sys.houseBlueprints.preview(id).selected, true);
+  }
+  const restored = setup(plain(G.state)); assert.deepEqual(yardSnapshot(restored.G), yard); assert.deepEqual(plain(restored.G.state.garden), garden); assert.equal(restored.G.state.inventory.bed_basic, 1);
+});
+
+test('存量错放室内层的庭院家具与yard身份实体迁回零高度legacy_yard，只改floorId', () => {
+  const env = setup(), { G, schema } = env; fund(G); success(apply(G, 'starter')); const floorId = G.state.building.floors[0].id;
+  G.store.update(state => {
+    for (const item of [
+      { id: 'misplaced_yard_lamp', defId: 'yard_streetlamp', position: { x: 4, y: .1, z: 5 }, rotation: .7, color: '#AACCDD' },
+      { id: 'misplaced_yard_table', defId: 'nightstand_basic', legacyRoomId: 'yard', position: { x: -5, y: 0, z: 4 }, rotation: -.4 }
+    ]) state.building = schema.executeCommand(state.building, { type: 'furniture.add', furniture: Object.assign({}, item, { floorId, dimensions: schema.furnitureDimensions(G.data.furnitureById[item.defId]) }) }, G.data.furnitureById);
+    state.inventory.yard_streetlamp = 9999; state.inventory.nightstand_basic = 9999;
+  });
+  const before = plain(G.state), status = success(G.sys.houseBlueprints.preview('cloud'));
+  assert.equal(status.canApply, true); assert.deepEqual(plain(status.returnedInventory), {}); assert.equal(status.floorCount, 1); assert.equal(status.building.floors.length, 2);
+  success(G.sys.houseBlueprints.apply('cloud', status.quote)); assert.equal(G.state.building.floors.find(floor => floor.id === 'legacy_yard').elevation, 0);
+  for (const item of before.building.furniture) assert.deepEqual(plain(G.state.building.furniture.find(value => value.id === item.id)), Object.assign({}, item, { floorId: 'legacy_yard' }));
+  assert.deepEqual(plain(G.state.inventory), before.inventory);
+  const yard = yardSnapshot(G); success(apply(G, 'mushroom')); assert.deepEqual(yardSnapshot(G), yard); assert.deepEqual(plain(G.state.inventory), before.inventory);
+});
+
+test('已有schema2而归档庭院仍有物件时，不从archive重新造家具或重复发回包库存', () => {
+  const { G } = setup(); fund(G); success(apply(G, 'starter'));
+  G.store.update(state => { state.house.yard.items = [{ uid: 'old_returned_lamp', defId: 'yard_streetlamp', x: 0, y: 20, z: 0, flip: false, color: null }]; state.inventory.yard_streetlamp = 1; });
+  const archive = plain(G.state.house.yard), inventory = plain(G.state.inventory);
+  for (const id of ['mushroom', 'cloud']) { success(apply(G, id)); assert.equal(G.state.building.furniture.length, 0); assert.deepEqual(plain(G.state.inventory), inventory); assert.deepEqual(plain(G.state.house.yard), archive); }
 });
 
 test('十二位已入住朋友迁居六间真实空房，每间两位，只改地址保留全部生活与奖励凭据', () => {
@@ -176,7 +260,7 @@ test('同房型按真实几何识别，换ID/摆家具/挂画或墙纸后不能�
 });
 
 test('真实存储拒写/只读门禁均零半份，旧盘面与人物/库存保持，不发完成事件', () => {
-  const env = setup(), { G } = env; fund(G); const room = spaces.buildSpace(G, 0, 0).roomId; spaces.placeItem(G, 'bed_basic', room); assert.ok(G.save.flush());
+  const env = setup(), { G } = env; fund(G); const room = spaces.buildSpace(G, 0, 0).roomId; spaces.placeItem(G, 'bed_basic', room); yardFixture(env); plantedGarden(G); assert.ok(G.save.flush());
   let events = 0; for (const name of ['house:rebuilt', 'exterior:bought', 'exterior:changed']) G.bus.on(name, () => events++);
   const status = G.sys.houseBlueprints.preview('cloud'), before = JSON.stringify(G.state), disk = env.memory.get(G.data.balance.saveKey), count = env.writes();
   env.deny(true); unchanged(G, () => G.sys.houseBlueprints.apply('cloud', status.quote)); env.deny(false);

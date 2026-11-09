@@ -1,0 +1,37 @@
+/* 庭院继承原奶油纸、家具缩略图与莓红控件，只补自身排布和点击尺寸。 */
+.yard-panel { min-width: 0; container-type: inline-size; color: var(--ink, #6b4e5e); }
+.yard-panel * { box-sizing: border-box; }
+.yard-panel p { margin: 0; overflow-wrap: anywhere; }
+.yard-panel .yard-intro { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.yard-panel .yard-intro > p { flex: 1 1 230px; font-size: 14px; line-height: 1.8; }
+.yard-panel .yard-level { padding: 5px 10px; border-radius: 12px; color: #8b3f5b; background: #ffedf2; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.yard-panel .yard-locked { font-size: 14px; line-height: 1.8; }
+.yard-panel .yard-tabs { flex-wrap: wrap; overflow: visible; gap: 8px; padding-bottom: 0; }
+.yard-panel .yard-tabs .ui-tab { flex: 1 1 115px; min-height: 48px; padding: 9px 10px; font-size: 14px; white-space: normal; }
+.yard-panel .yard-tools { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e8d0d5; }
+.yard-panel .yard-tools .ui-button { flex: 1 1 120px; }
+.yard-panel .ui-button { min-width: 0; min-height: 48px; font-size: 13px; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
+.yard-panel .yard-status, .yard-panel .yard-help { color: var(--muted, #866674); font-size: 13px; line-height: 1.8; }
+.yard-panel .yard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.yard-panel .yard-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-color: #e6ccd6; background: #fff9ed; }
+.yard-panel .yard-card.is-selected { border-color: #bc7290; background: #fff0f4; }
+.yard-panel .yard-preview { width: 100%; height: 112px; background: #fff6ef; }
+.yard-panel .yard-card-copy { flex: 1; margin: 0; gap: 4px; }
+.yard-panel .yard-card-copy h3 { margin: 0; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.yard-panel .yard-card-copy p { font-size: 12px; line-height: 1.7; }
+.yard-panel .yard-card-detail { color: var(--ink, #6b4e5e); }
+.yard-panel .yard-card-stock { color: var(--muted, #866674); }
+.yard-panel .yard-card .ui-button { width: 100%; margin: 0; padding: 9px; }
+.yard-panel .yard-card-actions { display: flex; flex-direction: column; gap: 7px; }
+.yard-panel .yard-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px 0; font-size: 14px; line-height: 1.8; }
+.yard-panel .yard-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.yard-panel :is(button, a):focus-visible { outline: 3px solid var(--pink-deep, #ad456b); outline-offset: 3px; }
+.yard-panel ::selection { color: #62374a; background: var(--pink, #ffb6c8); }
+@container (min-width: 690px) { .yard-panel .yard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .yard-panel .yard-grid { gap: 9px; }
+  .yard-panel .yard-card { padding: 9px; }
+  .yard-panel .yard-tabs { gap: 6px; }
+  .yard-panel .yard-tabs .ui-tab { flex-basis: 85px; font-size: 13px; padding: 8px 6px; }
+  .yard-panel .yard-tools .ui-button { flex-basis: calc(50% - 4px); }
+}

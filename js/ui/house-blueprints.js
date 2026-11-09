@@ -95,6 +95,10 @@
     }, 'ui-button ui-button-primary', 'house-blueprint-build'); primary.disabled = pending || !chosen.selected && !chosen.canApply;
     const back = button(scope, '回到现在的小屋', () => { bridge('endHousePreview'); ui.panel.close(); }, 'ui-button ui-button-soft', 'house-blueprint-return'); back.disabled = pending;
     actions.append(primary, back); body.append(actions);
+    const outdoors = el('div', 'house-blueprints-actions'); outdoors.setAttribute('aria-label', '小屋外的生活');
+    const yard = button(scope, '布置我的院子', () => { bridge('endHousePreview'); const result = bridge('openYard'); if (result?.ok === false) ui.toast(result.message); }, 'ui-button ui-button-soft', 'house-blueprint-yard');
+    const garden = button(scope, '照顾花园', () => { bridge('endHousePreview'); ui.open('garden'); }, 'ui-button ui-button-soft', 'house-blueprint-garden');
+    yard.disabled = garden.disabled = pending; outdoors.append(yard, garden); body.append(outdoors);
     const book = el('section', 'house-blueprints-book'); book.setAttribute('aria-label', '五种成长房型');
     book.append(el('h3', '', '挑一座想住的小屋'));
     const choices = el('div', 'house-blueprints-choices'); choices.setAttribute('role', 'group'); choices.setAttribute('aria-label', '选择房型'); all.forEach(plan => choices.append(choice(scope, plan))); book.append(choices); body.append(book);

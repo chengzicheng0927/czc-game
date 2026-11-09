@@ -7,6 +7,7 @@ const checks = [
   [path.join('node_modules', 'tsx', 'dist', 'cli.mjs'), '--test', '--test-concurrency=1', 'tests/roof-footprints.test.ts'],
   [path.join('node_modules', 'tsx', 'dist', 'cli.mjs'), '--test', '--test-concurrency=1', 'tests/roof-surface.test.ts'],
   [path.join('node_modules', 'tsx', 'dist', 'cli.mjs'), '--test', '--test-concurrency=1', 'tests/roof-mesh.test.ts'],
+  [path.join('node_modules', 'tsx', 'dist', 'cli.mjs'), '--test', '--test-concurrency=1', 'tests/home-landscape.test.ts'],
   ...['building-persistence','building-life','resident-rehousing','building-content','content-expansion','album-storage','birthday','time','minigames','photography','crafting','concert','garden-boundaries','collection-boundaries','creative-boundaries','avatar-presets','rarity-outfit-rewards','residents-visual-ui','collection-book-visual-ui','quests-visual-ui','save-ui','exterior','house-styles','house-blueprints','house-design-ui','live-space','host-room','visit-session','save-restore','cloud-core','cloud-sync','cloud-api','cloud-e2e','server','offline','live-hub','knock-hub'].map(name => ['tests/' + name + '.cjs'])
 ];
 for (const args of checks) {

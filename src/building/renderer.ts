@@ -42,6 +42,7 @@ import { mergeRoofFootprints, roofEaveHeight } from '../content/roof-footprints'
 import { createRoofVertexData } from './roof-mesh';
 import { buildToyArchitecture, type ArchitectureOpening } from '../content/toy-architecture';
 import { describeGarden, gardenLayout } from '../content/garden-environment.js';
+import { createHomeLandscapeLayout, type HomeLandscapeLayout, type LandscapeBounds } from '../content/home-landscape';
 
 export type BuildMode = 'select' | 'wall' | 'door' | 'window' | 'furniture';
 export type SelectionKind = 'wall' | 'opening' | 'furniture' | 'none';
@@ -52,6 +53,7 @@ export interface RendererCallbacks {
   onSelect?(kind: SelectionKind, id: string | null): void;
   onMove?(id: string, position: Vec3): void;
   onGardenPlot?(index: number): void;
+  onGardenEntry?(): void;
 }
 export interface GardenSurfaceSnapshot {
   state: Record<string, unknown>;
@@ -80,6 +82,8 @@ type PointerGesture = {
   pointerId: number; x: number; y: number; moved: boolean; hit: Meta | null;
   position?: Vector3; grab?: Point2; point?: Point2;
   gardenPlot?: number;
+  homeGardenPlot?: number;
+  homeGardenEntry?: boolean;
 };
 type ThumbnailSubject =
   | { kind: 'furniture'; defId: string; item?: { color?: string; artId?: string } }
@@ -264,6 +268,11 @@ export class BuildingRenderer {
   private gardenRoot: TransformNode | null = null;
   private gardenLabelMaterials: StandardMaterial[] = [];
   private gardenKey = '';
+  private homeGardenRoot: TransformNode | null = null;
+  private homeGardenSignMaterial: StandardMaterial | null = null;
+  private homeGardenKey = '';
+  private homeGardenSnapshot: GardenSurfaceSnapshot | null = null;
+  private homeLayout: HomeLandscapeLayout | null = null;
   private surface: 'garden' | null = null;
   private houseCamera: { alpha: number; beta: number; radius: number; target: Vector3; screen: Vector2 } | null = null;
   private preview: Mesh | null = null;
@@ -407,6 +416,7 @@ export class BuildingRenderer {
     this.canvas.dataset.sceneBuilds = String(++this.sceneBuilds);
     this.canvas.dataset.view = this.view;
     this.canvas.dataset.visibleFloorCount = String(floors.length);
+    this.updateHomeGarden();
     if (this.surface === 'garden') for (const root of [this.contentRoot, this.groundRoot, this.actorsRoot]) root?.setEnabled(false);
     this.documentKey = key;
   }
@@ -415,7 +425,7 @@ export class BuildingRenderer {
     if (this.readOnly && mode !== 'select') return;
     if (mode !== 'select') this.setSurface(null);
     this.cancelGesture(); this.mode = mode;
-    const nextView = mode === 'select' ? this.preferredView : 'cutaway';
+    const nextView = mode === 'select' || this.isYardFloor() ? this.preferredView : 'cutaway';
     const changedView = this.view !== nextView; this.view = nextView;
     if (mode === 'select') this.camera.attachControl(this.canvas, true); else this.camera.detachControl();
     this.canvas.style.cursor = mode === 'select' ? 'grab' : 'crosshair';
@@ -459,14 +469,75 @@ export class BuildingRenderer {
   }
   setView(view: 'exterior' | 'cutaway') {
     const previous = this.view;
-    this.preferredView = view; this.view = this.mode === 'select' ? view : 'cutaway';
+    this.preferredView = view; this.view = this.mode === 'select' || this.isYardFloor() ? view : 'cutaway';
     if (this.document) this.setDocument(this.document, this.activeFloorId, this.allFloors);
     if (previous !== this.view) this.resetCamera();
+  }
+  setHomeGarden(snapshot: GardenSurfaceSnapshot | null) {
+    this.homeGardenSnapshot = snapshot; this.updateHomeGarden();
+  }
+  yardBounds(): LandscapeBounds {
+    const layout = this.homeLayout || createHomeLandscapeLayout({ minX: -2.1, maxX: 2.1, minZ: -1.7, maxZ: 1.7 });
+    const { minX, maxX, minZ, maxZ } = layout.yard; return { minX, maxX, minZ, maxZ };
+  }
+  focusYard() {
+    this.setSurface(null);
+    const yard = this.homeLayout?.yard; if (!yard) return;
+    this.camera.target.set(yard.center.x, this.islandSpec.y + .45, yard.center.z);
+    this.camera.alpha = Math.PI / 2 - .12; this.camera.beta = .79;
+    this.camera.radius = Math.max(9.5, Math.hypot(yard.width, yard.depth) * 1.45) / Math.min(1, this.engine.getAspectRatio(this.camera));
+    this.camera.targetScreenOffset.set(0, this.camera.radius * .045); this.clearCameraMomentum(); this.lastPaint = 0;
+  }
+  focusGarden() {
+    this.setSurface(null);
+    const garden = this.homeLayout?.garden; if (!garden) return;
+    this.camera.target.set(garden.center.x, this.islandSpec.y + .55, garden.center.z);
+    this.camera.alpha = Math.PI / 2 - .18; this.camera.beta = .88;
+    this.camera.radius = Math.max(12, Math.hypot(garden.width, garden.depth) * 1.6) / Math.min(1, this.engine.getAspectRatio(this.camera));
+    this.camera.targetScreenOffset.set(0, this.camera.radius * .035); this.clearCameraMomentum(); this.lastPaint = 0;
+  }
+  private isYardFloor() { return this.activeFloorId.includes('yard'); }
+  private updateHomeGarden() {
+    const snapshot = this.homeGardenSnapshot, layout = this.homeLayout;
+    if (!snapshot || !layout) {
+      this.disposeRoot(this.homeGardenRoot); this.homeGardenRoot = null;
+      this.homeGardenSignMaterial?.dispose(false, true); this.homeGardenSignMaterial = null; this.homeGardenKey = '';
+      this.canvas.dataset.homeGardenPlotCount = '0'; return;
+    }
+    const config = this.contentData.gardenConfig as { unlockLv: number; expandLv: number; expandedPlots: number; basePlots: number } | undefined;
+    if (!config) return;
+    const level = Number(snapshot.state.level), count = level >= config.expandLv ? config.expandedPlots : config.basePlots, unlocked = level >= config.unlockLv;
+    const description = unlocked ? describeGarden({ surface: 'garden', state: snapshot.state, data: this.contentData, garden: gardenLayout(count), gardenStatuses: snapshot.gardenStatuses, selectedPlot: snapshot.selectedPlot }) : null;
+    const key = description?.key || (unlocked ? 'unavailable' : 'locked:' + config.unlockLv);
+    if (!this.homeGardenRoot || key !== this.homeGardenKey) {
+      this.disposeRoot(this.homeGardenRoot); this.homeGardenSignMaterial?.dispose(false, true); this.homeGardenSignMaterial = null;
+      this.homeGardenRoot = new TransformNode('home-real-garden', this.scene);
+      if (description) for (const plot of description.plots) {
+        const root = new TransformNode('home-garden-plot-' + plot.index, this.scene), geometry = new ClayAdapter(this, root);
+        description.buildPlot(geometry, this.models, plot.index); const meshes = geometry.merge(null); root.parent = this.homeGardenRoot;
+        for (const mesh of meshes) mesh.metadata = { kind: 'homeGardenPlot', index: plot.index };
+        const hit = description.hits.find((value: { kind: string; index?: number }) => value.kind === 'plot' && value.index === plot.index)!;
+        const pick = MeshBuilder.CreateBox('home-garden-hit-' + plot.index, { width: hit.size[0], height: hit.size[1], depth: hit.size[2] }, this.scene);
+        pick.position.set(hit.p[0], hit.p[1] + hit.size[1] / 2, hit.p[2]); pick.parent = root; pick.visibility = 0; pick.metadata = { kind: 'homeGardenPlot', index: plot.index };
+      }
+      const texture = new DynamicTexture('home-garden-sign', { width: 576, height: 96 }, this.scene, false);
+      const context = texture.getContext() as unknown as CanvasRenderingContext2D;
+      context.fillStyle = '#FFF5E3'; context.fillRect(0, 0, 576, 96); context.strokeStyle = '#D5ADBC'; context.lineWidth = 5; context.strokeRect(3, 3, 570, 90);
+      context.font = '600 31px "PingFang SC","Microsoft YaHei",sans-serif'; context.fillStyle = '#86445D'; context.textAlign = 'center'; context.textBaseline = 'middle';
+      context.fillText(description ? `我的花园 · ${description.plots.length} 块花圃` : unlocked ? '云上花园 · 点这里看看' : `小花园 · Lv.${config.unlockLv} 开放`, 288, 49); texture.update(true);
+      const material = new StandardMaterial('home-garden-sign-clay', this.scene); material.diffuseTexture = texture; material.disableLighting = true; material.emissiveColor = Color3.White(); material.backFaceCulling = false; this.homeGardenSignMaterial = material;
+      const sign = MeshBuilder.CreatePlane('home-garden-entry', { width: 3.3, height: .55, sideOrientation: Mesh.DOUBLESIDE }, this.scene);
+      sign.position.set(0, .65, layout.garden.depth / (2 * layout.garden.scale) + .18); sign.billboardMode = Mesh.BILLBOARDMODE_ALL; sign.material = material; sign.parent = this.homeGardenRoot; sign.metadata = { kind: 'homeGardenEntry' };
+      this.homeGardenKey = key; this.canvas.dataset.homeGardenBuilds = String(Number(this.canvas.dataset.homeGardenBuilds || 0) + 1);
+    }
+    this.homeGardenRoot.position.set(layout.garden.center.x, this.islandSpec.y - .045, layout.garden.center.z); this.homeGardenRoot.scaling.setAll(layout.garden.scale);
+    this.homeGardenRoot.setEnabled(this.surface !== 'garden');
+    this.canvas.dataset.homeGardenPlotCount = String(description?.plots.length || 0); this.canvas.dataset.homeGardenLocked = String(!unlocked);
   }
   setSurface(surface: 'garden' | null, snapshot?: GardenSurfaceSnapshot): boolean {
     if (!surface) {
       if (this.surface !== 'garden') return true;
-      this.cancelGesture(); this.surface = null; this.gardenRoot?.setEnabled(false);
+      this.cancelGesture(); this.surface = null; this.gardenRoot?.setEnabled(false); this.homeGardenRoot?.setEnabled(true);
       for (const root of [this.contentRoot, this.groundRoot, this.actorsRoot]) root?.setEnabled(true);
       const camera = this.houseCamera; this.houseCamera = null;
       if (camera) { this.camera.alpha = camera.alpha; this.camera.beta = camera.beta; this.camera.radius = camera.radius; this.camera.target.copyFrom(camera.target); this.camera.targetScreenOffset.copyFrom(camera.screen); }
@@ -504,6 +575,7 @@ export class BuildingRenderer {
       this.surface = 'garden'; this.clearPreview(); this.ghost?.setEnabled(false); this.resetCamera();
     }
     for (const root of [this.contentRoot, this.groundRoot, this.actorsRoot]) root?.setEnabled(false);
+    this.homeGardenRoot?.setEnabled(false);
     this.gardenRoot?.setEnabled(true); this.canvas.dataset.surface = 'garden'; this.canvas.dataset.gardenPlotCount = String(description.plots.length); this.lastPaint = 0; return true;
   }
   private clearCameraMomentum() {
@@ -856,23 +928,32 @@ export class BuildingRenderer {
     root?.dispose(false);
   }
   private updateBounds() {
-    const points: Point2[] = [];
-    for (const wall of this.document?.walls || []) points.push(wall.start, wall.end);
-    for (const item of this.document?.furniture || []) points.push(item.position);
-    this.bounds = {
-      minX: Math.min(-2.1, ...points.map(p => p.x)), maxX: Math.max(2.1, ...points.map(p => p.x)),
-      minZ: Math.min(-1.7, ...points.map(p => p.z)), maxZ: Math.max(1.7, ...points.map(p => p.z)),
-    };
-    const b = this.bounds, x = (b.minX + b.maxX) / 2, z = (b.minZ + b.maxZ) / 2;
+    // 院子家具只可扩张岛的包围范围，不参与园圃/前院的锚点，避免摆一次就整体挪一次。
+    const points = (this.document?.walls || []).flatMap(wall => [wall.start, wall.end]);
+    this.bounds = points.length ? {
+      minX: Math.min(...points.map(p => p.x)), maxX: Math.max(...points.map(p => p.x)),
+      minZ: Math.min(...points.map(p => p.z)), maxZ: Math.max(...points.map(p => p.z)),
+    } : { minX: -2.1, maxX: 2.1, minZ: -1.7, maxZ: 1.7 };
+    this.homeLayout = createHomeLandscapeLayout(this.bounds, (this.document?.furniture || []).map(item => item.position));
     const groundY = Math.min(0, ...(this.document?.floors || []).map(floor => floor.elevation));
-    const door = this.document?.openings.find(opening => opening.kind === 'door' && this.document!.walls.some(wall => wall.id === opening.wallId && this.document!.floors.find(floor => floor.id === wall.floorId)?.elevation === groundY));
-    const wall = door && this.document?.walls.find(value => value.id === door.wallId);
-    let entry: Point2 | undefined;
-    if (door && wall) {
-      const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z), ratio = (door.offset + door.width / 2) / length;
-      entry = { x: wall.start.x + (wall.end.x - wall.start.x) * ratio, z: wall.start.z + (wall.end.z - wall.start.z) * ratio };
+    let entry: Point2 | undefined, entryDirection: Point2 | undefined;
+    const floorSpaces = new Map<string, Space[]>();
+    for (const door of this.document?.openings || []) {
+      if (door.kind !== 'door') continue;
+      const wall = this.document?.walls.find(value => value.id === door.wallId);
+      if (!wall || this.document?.floors.find(floor => floor.id === wall.floorId)?.elevation !== groundY) continue;
+      const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z); if (!length) continue;
+      const ratio = (door.offset + door.width / 2) / length, center = { x: wall.start.x + (wall.end.x - wall.start.x) * ratio, z: wall.start.z + (wall.end.z - wall.start.z) * ratio };
+      const normal = { x: -(wall.end.z - wall.start.z) / length, z: (wall.end.x - wall.start.x) / length };
+      let spaces = floorSpaces.get(wall.floorId);
+      if (!spaces) { spaces = deriveSpaces(this.document!, wall.floorId); floorSpaces.set(wall.floorId, spaces); }
+      const inside = (side: number) => spaces!.some(space => { const p = { x: center.x + normal.x * side * .15, z: center.z + normal.z * side * .15 }; return this.inside(p, space.polygon) && !(space.holes || []).some(hole => this.inside(p, hole)); });
+      const plus = inside(1), minus = inside(-1); if (plus === minus) continue;
+      entry = center; entryDirection = { x: normal.x * (plus ? -1 : 1), z: normal.z * (plus ? -1 : 1) }; break;
     }
-    this.islandSpec = { x, z: z + .25, y: groundY, radius: Math.max(5.5, Math.hypot(b.maxX - b.minX, b.maxZ - b.minZ) / 2 + 2.5), entry };
+    this.islandSpec = { ...this.homeLayout.island, y: groundY, entry, entryDirection, layout: this.homeLayout };
+    this.canvas.dataset.islandRadius = String(this.islandSpec.radius);
+    this.canvas.dataset.yardDepth = String(this.homeLayout.yard.depth);
   }
   private buildGround() {
     const key = JSON.stringify(this.islandSpec);
@@ -1201,7 +1282,7 @@ export class BuildingRenderer {
     const p = this.screenPoint(event);
     return this.scene.pick(p.x, p.y, mesh => {
       const meta = mesh.metadata as Meta | null;
-      return !!meta && (!wallOnly || meta.kind === 'wall' || meta.kind === 'opening');
+      return !!meta && ['wall', 'opening', 'furniture'].includes(meta.kind) && (!wallOnly || meta.kind === 'wall' || meta.kind === 'opening');
     });
   }
   private pointerDown = (event: PointerEvent) => {
@@ -1213,10 +1294,18 @@ export class BuildingRenderer {
       this.gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, hit: null, gardenPlot: pick?.pickedMesh?.metadata?.index };
       return;
     }
+    if (this.mode === 'select' && this.readOnly && this.homeGardenRoot?.isEnabled()) {
+      const point = this.screenPoint(event), pick = this.scene.pick(point.x, point.y, mesh => mesh.isEnabled() && ['wall', 'opening', 'furniture', 'homeGardenPlot', 'homeGardenEntry'].includes(mesh.metadata?.kind));
+      const meta = pick?.pickedMesh?.metadata;
+      if (meta?.kind === 'homeGardenPlot' || meta?.kind === 'homeGardenEntry') {
+        this.gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, hit: null, homeGardenPlot: meta.index, homeGardenEntry: meta.kind === 'homeGardenEntry' }; return;
+      }
+    }
     const pick = this.pick(event, this.mode === 'door' || this.mode === 'window'), hit = (pick?.pickedMesh?.metadata || null) as Meta | null;
     const ground = this.groundPoint(event);
     this.gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, hit, point: ground || undefined };
-    if (!this.readOnly && this.view === 'cutaway' && this.mode === 'select' && hit?.kind === 'furniture') {
+    const sameFloor = hit?.kind === 'furniture' && this.document?.furniture.some(item => item.id === hit.id && item.floorId === this.activeFloorId);
+    if (!this.readOnly && (this.view === 'cutaway' || this.isYardFloor()) && this.mode === 'select' && sameFloor && hit?.kind === 'furniture') {
       const root = this.furnitureRoots.get(hit.id);
       if (root && ground) {
         this.gesture.position = root.position.clone(); this.gesture.grab = { x: root.position.x - ground.x, z: root.position.z - ground.z };
@@ -1252,6 +1341,13 @@ export class BuildingRenderer {
     if (this.mode === 'select') this.camera.attachControl(this.canvas, true);
     if (this.surface === 'garden') {
       if (!gesture.moved && Number.isInteger(gesture.gardenPlot)) this.callbacks.onGardenPlot?.(gesture.gardenPlot!);
+      return;
+    }
+    if (gesture.homeGardenEntry || gesture.homeGardenPlot !== undefined) {
+      if (!gesture.moved && this.mode === 'select' && this.readOnly) {
+        if (gesture.homeGardenEntry) this.callbacks.onGardenEntry?.();
+        else this.callbacks.onGardenPlot?.(gesture.homeGardenPlot!);
+      }
       return;
     }
     if (!this.readOnly && gesture.hit?.kind === 'furniture' && gesture.position && gesture.moved) {
